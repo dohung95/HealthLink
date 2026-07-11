@@ -8,6 +8,13 @@ const RescheduleAppointmentModal = ({
     onClose,
     onRescheduled
 }) => {
+    const [homeVisitSlots, setHomeVisitSlots] = useState([]);
+    const [onlineDates, setOnlineDates] = useState([]);
+
+    const isHomeVisit =
+        String(appointment?.consultationType || '')
+            .toLowerCase()
+            .replace(/[\s_-]/g, '') === 'homevisit';
     const [date, setDate] = useState('');
     const [slots, setSlots] = useState([]);
     const [selectedSlot, setSelectedSlot] = useState(null);
@@ -22,18 +29,117 @@ const RescheduleAppointmentModal = ({
         return max.toISOString().split('T')[0];
     })();
 
+    const [onlineDatePage, setOnlineDatePage] = useState(0);
+
+    const ONLINE_DATES_PER_PAGE = 7;
+
+    // Reset state khi mở modal
     useEffect(() => {
         if (!isOpen || !appointment) return;
 
-        const currentDate = appointment.appointmentTime?.split('T')[0] || today;
-
-        setDate(currentDate);
+        setDate('');
         setSlots([]);
+        setHomeVisitSlots([]);
+        setOnlineDates([]);
         setSelectedSlot(null);
     }, [isOpen, appointment]);
 
+    // Home visit reschedule slots
     useEffect(() => {
-        if (!isOpen || !appointment || !date) return;
+        if (!isOpen || !appointment || !isHomeVisit) return;
+
+        const loadHomeVisitSlots = async () => {
+            setLoadingSlots(true);
+            setSelectedSlot(null);
+
+            try {
+                const data =
+                    await appointmentService.getHomeVisitRescheduleSlots(
+                        appointment.appointmentId
+                    );
+
+                const nextSlots = Array.isArray(data) ? data : [];
+
+                setHomeVisitSlots(nextSlots);
+                setDate(nextSlots[0]?.bookingDate || '');
+            } catch (error) {
+                console.error(
+                    'Failed to load HomeVisit reschedule slots:',
+                    error
+                );
+
+                setHomeVisitSlots([]);
+                setDate('');
+
+                toast.error(
+                    error.response?.data?.message ||
+                    'Unable to load HomeVisit slots.'
+                );
+            } finally {
+                setLoadingSlots(false);
+            }
+        };
+
+        loadHomeVisitSlots();
+    }, [isOpen, appointment?.appointmentId, isHomeVisit]);
+
+    // Những ngày Online thực sự có slot trống
+    useEffect(() => {
+        if (
+            !isOpen ||
+            !appointment ||
+            isHomeVisit
+        ) {
+            return;
+        }
+
+        const loadOnlineDates = async () => {
+            setLoadingSlots(true);
+            setSelectedSlot(null);
+
+            try {
+                const data =
+                    await appointmentService
+                        .getOnlineRescheduleDates(
+                            appointment.appointmentId
+                        );
+
+                const nextDates =
+                    Array.isArray(data) ? data : [];
+
+                setOnlineDates(nextDates);
+                setOnlineDatePage(0);
+                setDate(nextDates[0] || '');
+            } catch (error) {
+                console.error(
+                    'Failed to load Online reschedule dates:',
+                    error
+                );
+
+                setOnlineDates([]);
+                setDate('');
+
+                toast.error(
+                    error.response?.data?.message ||
+                    'Unable to load Online reschedule dates.'
+                );
+            } finally {
+                setLoadingSlots(false);
+            }
+        };
+
+        loadOnlineDates();
+    }, [
+        isOpen,
+        appointment?.appointmentId,
+        isHomeVisit,
+    ]);
+
+    // Online reschedule slots
+    useEffect(() => {
+        if (!isOpen || !appointment || !date || isHomeVisit) {
+            return;
+        }
 
         const loadSlots = async () => {
             setLoadingSlots(true);
@@ -59,20 +165,30 @@ const RescheduleAppointmentModal = ({
         };
 
         loadSlots();
-    }, [isOpen, appointment, date]);
+    }, [isOpen, appointment, date, isHomeVisit]);
 
     if (!isOpen || !appointment) return null;
 
     const handleSelectSlot = (slot) => {
-        if (!slot.selectable) return;
+        const sameSlot = isHomeVisit
+            ? selectedSlot?.bookingDate ===
+            slot.bookingDate &&
+            selectedSlot?.startTime ===
+            slot.startTime &&
+            selectedSlot?.endTime ===
+            slot.endTime
+            : selectedSlot?.startTime ===
+            slot.startTime;
 
-        // click lại slot đang chọn => hủy chọn
-        if (selectedSlot?.startTime === slot.startTime) {
+        if (!isHomeVisit && !slot.selectable) {
+            return;
+        }
+
+        if (sameSlot) {
             setSelectedSlot(null);
             return;
         }
 
-        // chỉ cho phép 1 slot
         setSelectedSlot(slot);
     };
 
@@ -82,7 +198,16 @@ const RescheduleAppointmentModal = ({
             return;
         }
 
-        const newAppointmentTime = `${date}T${selectedSlot.startTime}:00`;
+        const rawStartTime =
+            String(selectedSlot.startTime || '');
+
+        const normalizedStartTime =
+            rawStartTime.length === 5
+                ? `${rawStartTime}:00`
+                : rawStartTime.split('.')[0];
+
+        const newAppointmentTime =
+            `${date}T${normalizedStartTime}`;
 
         setSubmitting(true);
 
@@ -107,6 +232,52 @@ const RescheduleAppointmentModal = ({
         }
     };
 
+    const homeVisitDates = [
+        ...new Set(
+            homeVisitSlots.map(slot => slot.bookingDate)
+        )
+    ];
+
+    // danh sách ngày và slot hiển thị homevisit
+    const displayedSlots = isHomeVisit
+        ? homeVisitSlots.filter(
+            slot => slot.bookingDate === date
+        )
+        : slots;
+
+    const onlineDatePageCount = Math.max(
+        1,
+        Math.ceil(
+            onlineDates.length /
+            ONLINE_DATES_PER_PAGE
+        )
+    );
+
+    const onlinePageStart =
+        onlineDatePage * ONLINE_DATES_PER_PAGE;
+
+    const visibleOnlineDates = onlineDates.slice(
+        onlinePageStart,
+        onlinePageStart + ONLINE_DATES_PER_PAGE
+    );
+
+    const changeOnlineDatePage = (nextPage) => {
+        const safePage = Math.max(
+            0,
+            Math.min(
+                onlineDatePageCount - 1,
+                nextPage
+            )
+        );
+
+        const firstIndex =
+            safePage * ONLINE_DATES_PER_PAGE;
+
+        setOnlineDatePage(safePage);
+        setDate(onlineDates[firstIndex] || '');
+        setSelectedSlot(null);
+    };
+
     return (
         <div className="modal show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.45)' }}>
             <div className="modal-dialog modal-lg modal-dialog-centered">
@@ -129,18 +300,148 @@ const RescheduleAppointmentModal = ({
 
                     <div className="modal-body">
                         <div className="mb-4">
-                            <label className="form-label fw-semibold">Choose new date</label>
-                            <input
-                                type="date"
-                                className="form-control"
-                                value={date}
-                                min={today}
-                                max={maxDate}
-                                onChange={(e) => setDate(e.target.value)}
-                            />
-                            <small className="text-muted">
-                                You can reschedule within the next 30 days.
-                            </small>
+                            <label className="form-label fw-semibold">
+                                Choose new date
+                            </label>
+
+                            {isHomeVisit ? (
+                                homeVisitDates.length === 0 ? (
+                                    <div className="alert alert-light border mb-0">
+                                        No available HomeVisit dates.
+                                    </div>
+                                ) : (
+                                    <div className="d-flex flex-wrap gap-2">
+                                        {homeVisitDates.map((item) => {
+                                            const selected = date === item;
+
+                                            const dateLabel = new Date(
+                                                `${item}T00:00:00`
+                                            ).toLocaleDateString('en-US', {
+                                                weekday: 'short',
+                                                day: '2-digit',
+                                                month: 'short',
+                                                year: 'numeric',
+                                            });
+
+                                            const slotCount = homeVisitSlots.filter(
+                                                (slot) =>
+                                                    slot.bookingDate === item
+                                            ).length;
+
+                                            return (
+                                                <button
+                                                    key={item}
+                                                    type="button"
+                                                    className={`btn ${selected
+                                                        ? 'btn-primary'
+                                                        : 'btn-outline-primary'
+                                                        }`}
+                                                    onClick={() => {
+                                                        setDate(item);
+                                                        setSelectedSlot(null);
+                                                    }}
+                                                    disabled={submitting}
+                                                >
+                                                    <div className="fw-semibold">
+                                                        {dateLabel}
+                                                    </div>
+
+                                                    <small>
+                                                        {slotCount}{' '}
+                                                        {slotCount === 1
+                                                            ? 'slot'
+                                                            : 'slots'}
+                                                    </small>
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                )
+                            ) : onlineDates.length === 0 ? (
+                                <div className="alert alert-light border mb-0">
+                                    No available Online dates.
+                                </div>
+                            ) : (
+                                <>
+                                    <div className="d-flex align-items-center justify-content-between mb-3">
+                                        <button
+                                            type="button"
+                                            className="btn btn-outline-secondary btn-sm"
+                                            disabled={
+                                                submitting ||
+                                                onlineDatePage === 0
+                                            }
+                                            onClick={() =>
+                                                changeOnlineDatePage(
+                                                    onlineDatePage - 1
+                                                )
+                                            }
+                                        >
+                                            Previous
+                                        </button>
+
+                                        <span className="small text-muted">
+                                            Page {onlineDatePage + 1}
+                                            {' / '}
+                                            {onlineDatePageCount}
+                                        </span>
+
+                                        <button
+                                            type="button"
+                                            className="btn btn-outline-secondary btn-sm"
+                                            disabled={
+                                                submitting ||
+                                                onlineDatePage >=
+                                                onlineDatePageCount - 1
+                                            }
+                                            onClick={() =>
+                                                changeOnlineDatePage(
+                                                    onlineDatePage + 1
+                                                )
+                                            }
+                                        >
+                                            Next
+                                        </button>
+                                    </div>
+
+                                    <div className="d-flex flex-wrap gap-2">
+                                        {visibleOnlineDates.map((item) => {
+                                            const selected =
+                                                date === item;
+
+                                            const dateLabel = new Date(
+                                                `${item}T00:00:00`
+                                            ).toLocaleDateString(
+                                                'en-US',
+                                                {
+                                                    weekday: 'short',
+                                                    day: '2-digit',
+                                                    month: 'short',
+                                                    year: 'numeric',
+                                                }
+                                            );
+
+                                            return (
+                                                <button
+                                                    key={item}
+                                                    type="button"
+                                                    className={`btn ${selected
+                                                            ? 'btn-primary'
+                                                            : 'btn-outline-primary'
+                                                        }`}
+                                                    disabled={submitting}
+                                                    onClick={() => {
+                                                        setDate(item);
+                                                        setSelectedSlot(null);
+                                                    }}
+                                                >
+                                                    {dateLabel}
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                </>
+                            )}
                         </div>
 
                         <div>
@@ -151,42 +452,101 @@ const RescheduleAppointmentModal = ({
                                     <div className="spinner-border spinner-border-sm me-2"></div>
                                     Loading slots...
                                 </div>
-                            ) : slots.length === 0 ? (
+                            ) : displayedSlots.length === 0 ? (
                                 <div className="alert alert-light border mb-0">
                                     No available slots for this date.
                                 </div>
                             ) : (
                                 <div className="d-flex flex-wrap gap-2">
-                                    {slots.map((slot) => {
-                                        const isSelected =
-                                            selectedSlot?.startTime === slot.startTime;
+                                    {displayedSlots.map((slot) => {
+                                        const isSelected = isHomeVisit
+                                            ? selectedSlot?.bookingDate ===
+                                            slot.bookingDate &&
+                                            selectedSlot?.startTime ===
+                                            slot.startTime &&
+                                            selectedSlot?.endTime ===
+                                            slot.endTime
+                                            : selectedSlot?.startTime ===
+                                            slot.startTime;
 
-                                        const slotDateTime = new Date(`${date}T${slot.startTime}`);
-                                        const isPastSlot = slotDateTime < new Date();
+                                        const slotDate =
+                                            slot.bookingDate || date;
 
-                                        const statusClass = slot.status?.toLowerCase();
+                                        const slotDateTime = new Date(
+                                            `${slotDate}T${slot.startTime}`
+                                        );
+
+                                        const isPastSlot =
+                                            slotDateTime < new Date();
+
+                                        const selectable = isHomeVisit
+                                            ? true
+                                            : slot.selectable === true;
+
+                                        const slotKey = isHomeVisit
+                                            ? [
+                                                slot.bookingDate,
+                                                slot.scheduleId,
+                                                slot.startTime,
+                                                slot.endTime,
+                                            ].join('-')
+                                            : slot.startTime;
 
                                         return (
                                             <button
-                                                key={slot.startTime}
+                                                key={slotKey}
                                                 type="button"
                                                 className={`btn ${isSelected
                                                     ? 'btn-primary'
                                                     : isPastSlot
                                                         ? 'btn-outline-secondary opacity-50'
-                                                        : slot.selectable
+                                                        : selectable
                                                             ? 'btn-outline-primary'
                                                             : 'btn-outline-secondary'
                                                     }`}
-                                                disabled={isPastSlot || !slot.selectable}
+                                                disabled={
+                                                    submitting ||
+                                                    isPastSlot ||
+                                                    !selectable
+                                                }
                                                 onClick={() => {
-                                                    if (isPastSlot) return;
+                                                    if (
+                                                        isPastSlot ||
+                                                        !selectable
+                                                    ) {
+                                                        return;
+                                                    }
+
                                                     handleSelectSlot(slot);
                                                 }}
                                             >
-                                                {slot.startTime}
-                                                {isPastSlot && ' (Past)'}
-                                                {!isPastSlot && !slot.selectable && ` (${slot.status})`}
+                                                <div className="fw-semibold">
+                                                    {isHomeVisit
+                                                        ? `${slot.startTime} - ${slot.endTime}`
+                                                        : slot.startTime}
+                                                </div>
+
+                                                {isHomeVisit &&
+                                                    slot.totalBlockMinutes > 0 && (
+                                                        <small className="d-block">
+                                                            {slot.totalBlockMinutes}{' '}
+                                                            min total
+                                                        </small>
+                                                    )}
+
+                                                {!isHomeVisit &&
+                                                    !isPastSlot &&
+                                                    !slot.selectable && (
+                                                        <small className="d-block">
+                                                            {slot.status}
+                                                        </small>
+                                                    )}
+
+                                                {isPastSlot && (
+                                                    <small className="d-block">
+                                                        Past
+                                                    </small>
+                                                )}
                                             </button>
                                         );
                                     })}

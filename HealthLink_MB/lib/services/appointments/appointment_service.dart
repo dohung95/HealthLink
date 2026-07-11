@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 import '../../config/api_config.dart';
+import '../../models/booking/home_visit_session_slot.dart';
 
 class AppointmentService {
   AppointmentService({required this.accessToken});
@@ -35,31 +36,21 @@ class AppointmentService {
     int size = 5,
     String status = 'ALL',
   }) async {
-    final uri = Uri.parse(
-      ApiConfig.patientAppointmentsPage(patientId),
-    ).replace(
-      queryParameters: {
-        'page': '$page',
-        'size': '$size',
-        'status': status,
-      },
+    final uri = Uri.parse(ApiConfig.patientAppointmentsPage(patientId)).replace(
+      queryParameters: {'page': '$page', 'size': '$size', 'status': status},
     );
 
     final response = await http
         .get(uri, headers: _headers)
         .timeout(
-      ApiConfig.receiveTimeout,
-      onTimeout: () {
-        throw Exception(
-          'connection refused, please try again later',
+          ApiConfig.receiveTimeout,
+          onTimeout: () {
+            throw Exception('connection refused, please try again later');
+          },
         );
-      },
-    );
 
     if (response.statusCode != 200) {
-      throw Exception(
-        parseError(response, 'Unable to load appointments.'),
-      );
+      throw Exception(parseError(response, 'Unable to load appointments.'));
     }
 
     final data = jsonDecode(response.body);
@@ -88,13 +79,13 @@ class AppointmentService {
   }) async {
     final response = await http
         .put(
-      Uri.parse(ApiConfig.cancelAppointment(appointmentId)),
-      headers: _headers,
-      body: jsonEncode({
-        'cancelReason': cancelReason,
-        'cancelledBy': 'Patient',
-      }),
-    )
+          Uri.parse(ApiConfig.cancelAppointment(appointmentId)),
+          headers: _headers,
+          body: jsonEncode({
+            'cancelReason': cancelReason,
+            'cancelledBy': 'Patient',
+          }),
+        )
         .timeout(ApiConfig.connectTimeout);
 
     if (response.statusCode != 200) {
@@ -108,17 +99,73 @@ class AppointmentService {
   }) async {
     final response = await http
         .put(
-      Uri.parse(ApiConfig.rescheduleAppointment(appointmentId)),
-      headers: _headers,
-      body: jsonEncode({
-        'newAppointmentTime': newAppointmentTime,
-      }),
-    )
+          Uri.parse(ApiConfig.rescheduleAppointment(appointmentId)),
+          headers: _headers,
+          body: jsonEncode({'newAppointmentTime': newAppointmentTime}),
+        )
         .timeout(ApiConfig.connectTimeout);
 
     if (response.statusCode != 200) {
-      throw Exception(parseError(response, 'Failed to reschedule appointment.'));
+      throw Exception(
+        parseError(response, 'Failed to reschedule appointment.'),
+      );
     }
+  }
+
+  Future<List<String>> getOnlineRescheduleDates({
+    required int appointmentId,
+  }) async {
+    final response = await http
+        .get(
+          Uri.parse(ApiConfig.onlineRescheduleDates(appointmentId)),
+          headers: _headers,
+        )
+        .timeout(ApiConfig.connectTimeout);
+
+    if (response.statusCode != 200) {
+      throw Exception(
+        parseError(response, 'Unable to load Online reschedule dates.'),
+      );
+    }
+
+    final data = jsonDecode(response.body);
+
+    if (data is! List) {
+      return [];
+    }
+
+    return data
+        .map((item) => item.toString())
+        .where((item) => item.isNotEmpty)
+        .toList();
+  }
+
+  Future<List<HomeVisitSessionSlot>> getHomeVisitRescheduleSlots({
+    required int appointmentId,
+  }) async {
+    final response = await http
+        .get(
+          Uri.parse(ApiConfig.homeVisitRescheduleSlots(appointmentId)),
+          headers: _headers,
+        )
+        .timeout(ApiConfig.connectTimeout);
+
+    if (response.statusCode != 200) {
+      throw Exception(
+        parseError(response, 'Unable to load HomeVisit reschedule slots.'),
+      );
+    }
+
+    final data = jsonDecode(response.body);
+
+    if (data is! List) {
+      return [];
+    }
+
+    return data
+        .whereType<Map<String, dynamic>>()
+        .map(HomeVisitSessionSlot.fromJson)
+        .toList();
   }
 }
 
@@ -175,20 +222,17 @@ class PatientAppointment {
 
   factory PatientAppointment.fromJson(Map<String, dynamic> json) {
     return PatientAppointment(
-      appointmentId: _toInt(
-        json['appointmentId'] ?? json['appointmentID'],
-        0,
-      ),
+      appointmentId: _toInt(json['appointmentId'] ?? json['appointmentID'], 0),
       patientId: (json['patientId'] ?? json['patientID'] ?? '').toString(),
       patientName: (json['patientName'] ?? 'Unknown Patient').toString(),
       doctorId: (json['doctorId'] ?? json['doctorID'] ?? '').toString(),
       doctorName: (json['doctorName'] ?? 'Unknown Doctor').toString(),
-      specialtyName: (json['specialtyName'] ?? json['specialty'] ?? '').toString(),
+      specialtyName: (json['specialtyName'] ?? json['specialty'] ?? '')
+          .toString(),
       consultationType: (json['consultationType'] ?? '').toString(),
       status: (json['status'] ?? 'Unknown').toString(),
-      appointmentTime: DateTime.tryParse(
-        (json['appointmentTime'] ?? '').toString(),
-      ) ??
+      appointmentTime:
+          DateTime.tryParse((json['appointmentTime'] ?? '').toString()) ??
           DateTime.now(),
       consultationEndTime: DateTime.tryParse(
         (json['consultationEndTime'] ?? json['endTime'] ?? '').toString(),
@@ -310,7 +354,8 @@ class PatientAppointment {
   }
 
   DateTime get effectiveEndTime {
-    return consultationEndTime ?? appointmentTime.add(const Duration(minutes: 30));
+    return consultationEndTime ??
+        appointmentTime.add(const Duration(minutes: 30));
   }
 
   bool isExpired(DateTime now) {
@@ -330,11 +375,13 @@ class PatientAppointment {
   bool isJoinable(DateTime now) {
     if (isHomeVisit) return false;
     final s = status.trim().toLowerCase();
-    return s == 'in_consultation' || s == 'inconsultation' || s == 'in_progress';
-//     return isActive &&
-//         !isExpired(now) &&
-//         !now.isBefore(appointmentTime) &&
-//         now.isBefore(effectiveEndTime);
+    return s == 'in_consultation' ||
+        s == 'inconsultation' ||
+        s == 'in_progress';
+    //     return isActive &&
+    //         !isExpired(now) &&
+    //         !now.isBefore(appointmentTime) &&
+    //         now.isBefore(effectiveEndTime);
   }
 
   bool canCancel(DateTime now) {
@@ -343,7 +390,9 @@ class PatientAppointment {
 
   bool canReschedule(DateTime now) {
     final twoHoursFromNow = now.add(const Duration(hours: 2));
-    return isActive && !isExpired(now) && appointmentTime.isAfter(twoHoursFromNow);
+    return isActive &&
+        !isExpired(now) &&
+        appointmentTime.isAfter(twoHoursFromNow);
   }
 }
 

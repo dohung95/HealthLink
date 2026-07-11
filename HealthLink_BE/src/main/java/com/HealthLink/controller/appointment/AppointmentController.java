@@ -96,6 +96,17 @@ public class AppointmentController {
         return ResponseEntity.ok(appointmentService.cancelAppointment(id, request));
     }
 
+    @GetMapping("/{id}/reschedule-dates")
+    public ResponseEntity<List<LocalDate>>
+            getOnlineRescheduleDates(
+                    @PathVariable Integer id
+            ) {
+        return ResponseEntity.ok(
+                appointmentService
+                        .getOnlineRescheduleDates(id)
+        );
+    }
+
     // Dời lịch hẹn sang thời gian mới
     @PutMapping("/{id}/reschedule")
     public ResponseEntity<AppointmentResponse> reschedule(
