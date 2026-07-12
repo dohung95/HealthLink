@@ -1,18 +1,15 @@
 import { test, expect } from '@playwright/test';
-
-function makeToken(payload) {
-  const encode = (value) => Buffer.from(JSON.stringify(value)).toString('base64url');
-  return `${encode({ alg: 'HS256', typ: 'JWT' })}.${encode(payload)}.test-signature`;
-}
+import { makeToken } from '../fixtures/auth.js';
+import { jsonRoute, routeNotifications } from '../fixtures/routes.js';
 
 test('address verification sends Vietnamese text and renders the verified result', async ({ page }) => {
   await page.route('**/api/account/patient/profile', (route) => route.fulfill({
     contentType: 'application/json',
     body: JSON.stringify({ id: 'patient-1', name: 'Test Patient', phoneNumber: '1234567890', address: '12 Nguyễn Huệ', city: 'Hồ Chí Minh', country: 'Vietnam' }),
   }));
-  await page.route('**/api/prescriptions/patient/*', (route) => route.fulfill({ contentType: 'application/json', body: '[]' }));
-  await page.route('**/api/notifications**', (route) => route.fulfill({ contentType: 'application/json', body: '[]' }));
-  await page.route('**/api/chat/rooms/me', (route) => route.fulfill({ contentType: 'application/json', body: '[]' }));
+  await page.route('**/api/prescriptions/patient/*', (route) => jsonRoute(route, []));
+  await routeNotifications(page);
+  await page.route('**/api/chat/rooms/me', (route) => jsonRoute(route, []));
   await page.route('**/api/geocoding/geocode', async (route) => {
     expect(route.request().postDataJSON()).toEqual({ address: 'chợ bến thành' });
     await route.fulfill({
