@@ -1,6 +1,9 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { formatCurrency } from './WalletHelpers';
 import DetailRow from './DetailRow';
+import { paymentApi } from '../../api/paymentApi';
+import PartnerPinFlow from './security/PartnerPinFlow';
+import PinCodeInput from './security/PinCodeInput';
 import './wallet-shared.css';
 
 export default function WithdrawalModal({
@@ -10,19 +13,30 @@ export default function WithdrawalModal({
   maxAmount,
   theme,
   withdrawing,
-  balanceLabel,
+  registeredPaypalEmail = '',
+  paypalReadOnly = false,
+  pinRequired = false,
 }) {
   const [amount, setAmount] = useState('');
   const [paypalEmail, setPaypalEmail] = useState('');
   const [errors, setErrors] = useState({});
+  const [pin, setPin] = useState('');
+  const [pinStatus, setPinStatus] = useState(null);
   const c = theme.colors;
 
   const requestedAmount = Number(amount || 0);
+
+  useEffect(() => {
+    if (!show) return;
+    setPaypalEmail(registeredPaypalEmail || '');
+    paymentApi.getPartnerPinStatus().then(setPinStatus).catch(() => setPinStatus({ configured: false, locked: false }));
+  }, [show, registeredPaypalEmail]);
 
   const resetForm = () => {
     setAmount('');
     setPaypalEmail('');
     setErrors({});
+    setPin('');
   };
 
   const handleClose = () => {
@@ -43,6 +57,8 @@ export default function WithdrawalModal({
     } else if (!/\S+@\S+\.\S+/.test(paypalEmail)) {
       e.paypalEmail = 'Please enter a valid PayPal email address.';
     }
+    if (pinStatus?.configured && pin.length !== 6) e.pin = 'Enter your six-digit withdrawal PIN.';
+    if (pinRequired && pinStatus && !pinStatus.configured) e.pin = 'Configure a withdrawal PIN before continuing.';
     setErrors(e);
     return Object.keys(e).length === 0;
   };
@@ -50,7 +66,7 @@ export default function WithdrawalModal({
   const handleSubmit = (e) => {
     e.preventDefault();
     if (validate()) {
-      onSubmit({ amount: requestedAmount, paypalEmail: paypalEmail.trim() });
+      onSubmit({ amount: requestedAmount, paypalEmail: paypalEmail.trim(), pin: pin || undefined });
       handleClose();
     }
   };
@@ -87,11 +103,13 @@ export default function WithdrawalModal({
                   PayPal Email <span className="text-danger">*</span>
                 </label>
                 <input
+                  aria-label="PayPal Email"
                   type="email"
                   className={`form-control ${errors.paypalEmail ? 'is-invalid' : ''}`}
                   placeholder="your@paypal.email"
                   value={paypalEmail}
                   onChange={(e) => setPaypalEmail(e.target.value)}
+                  disabled={paypalReadOnly}
                   style={{ background: c.fieldBg, borderColor: c.border }}
                 />
                 <p className="wallet-modal-hint">
@@ -117,6 +135,7 @@ export default function WithdrawalModal({
                     style={{ background: c.fieldBg, borderColor: c.border }}
                   >$</span>
                   <input
+                    aria-label="Withdrawal Amount"
                     type="number"
                     step="0.01"
                     min="0.01"
@@ -130,6 +149,16 @@ export default function WithdrawalModal({
                     <div className="invalid-feedback">{errors.amount}</div>
                   )}
                 </div>
+              </div>
+
+              <div className="wallet-modal-security">
+                {pinRequired && pinStatus && !pinStatus.configured ? (
+                  <PartnerPinFlow compact onConfigured={setPinStatus} />
+                ) : pinStatus?.configured ? (
+                  <PinCodeInput id="withdrawal-pin" label="Withdrawal PIN" value={pin} onChange={setPin} disabled={withdrawing} error={errors.pin} />
+                ) : (
+                  <p className="wallet-modal-hint">Withdrawal PIN is optional until you configure it. After setup, it is required on every supported client.</p>
+                )}
               </div>
 
               <div className="wallet-modal-summary">

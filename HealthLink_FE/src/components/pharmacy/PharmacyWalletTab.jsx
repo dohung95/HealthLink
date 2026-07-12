@@ -82,13 +82,13 @@ export default function PharmacyWalletTab({ profile, balance, transactions, sett
 
   const filtersActive = !!(searchTerm || dateFrom || dateTo || typeFilter !== 'all' || statusFilter !== 'all');
 
-  const handleWithdraw = async ({ amount, paypalEmail }) => {
+  const handleWithdraw = async ({ amount, paypalEmail, pin }) => {
     if (withdrawing) return;
     setWithdrawing(true);
     try {
       await paymentApi.requestPartnerSettlement(
         pharmacyId,
-        { amount, paypalEmail, notes: 'Pharmacy wallet withdrawal request' },
+        { amount, paypalEmail, pin, notes: 'Pharmacy wallet withdrawal request' },
         'PHARMACY'
       );
       toast.success('Withdrawal request submitted.');
@@ -160,6 +160,9 @@ export default function PharmacyWalletTab({ profile, balance, transactions, sett
         maxAmount={maxAmount}
         theme={pharmacyTheme}
         withdrawing={withdrawing}
+        registeredPaypalEmail={profile?.paypalEmail || ''}
+        paypalReadOnly
+        pinRequired
       />
     </div>
   );
