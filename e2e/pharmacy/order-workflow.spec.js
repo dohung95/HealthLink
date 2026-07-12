@@ -113,6 +113,42 @@ test.describe('Pharmacy Request Actions', () => {
     await expect(page.getByText('Update Quote')).toBeVisible();
   });
 
+  test('revision card presents labeled details before the change request and action footer', async ({ page }) => {
+    await mockDashboard(page, {
+      workItems: [{
+        workItemId: 'wi-revision-hierarchy', orderId: 112, orderNumber: 'ORD-112',
+        sourceType: 'ORDER_REQUEST', workflowStage: 'REVISION_REQUESTED',
+        patientName: 'Gina', deliveryPhoneNumber: '222-333-4444',
+        deliveryAddress: '12 Revision Lane', revisionRequestNotes: 'Please update the delivery instructions.',
+        revisionRequestedAt: '2026-07-01T08:30:00.000Z', createdAt: NOW,
+        availableActions: ['UPDATE_QUOTE'],
+      }],
+    });
+
+    await page.goto('/pharmacy-page/requests');
+
+    const card = page.locator('[data-order-id="112"]');
+    const details = card.locator('.pharmacy-request-details');
+    await expect(details).toBeVisible();
+    await expect(details.locator('.pharmacy-request-detail__label', { hasText: 'Order' })).toBeVisible();
+    await expect(details.locator('.pharmacy-request-detail__label', { hasText: 'Phone' })).toBeVisible();
+    await expect(details.locator('.pharmacy-request-detail__label', { hasText: 'Address' })).toBeVisible();
+    await expect(card.locator('.pharmacy-revision-request small')).toHaveCount(0);
+
+    expect(await card.evaluate((element) => {
+      const detailsBlock = element.querySelector('.pharmacy-request-details');
+      const revisionBlock = element.querySelector('.pharmacy-revision-request');
+      const actionFooter = element.querySelector('.pharmacy-case-actions--request-primary');
+      return Boolean(
+        detailsBlock
+        && revisionBlock
+        && actionFooter
+        && detailsBlock.compareDocumentPosition(revisionBlock) & Node.DOCUMENT_POSITION_FOLLOWING
+        && revisionBlock.compareDocumentPosition(actionFooter) & Node.DOCUMENT_POSITION_FOLLOWING,
+      );
+    })).toBe(true);
+  });
+
   test('no-prescription revision hydrates items and can replace medicines in Update Quote', async ({ page }) => {
     const quotePayloads = [];
     await mockDashboard(page, {
@@ -284,7 +320,7 @@ test.describe('Pharmacy Delivery Contact Change Review', () => {
     availableActions: ['APPROVE_DELIVERY_CONTACT_CHANGE', 'REJECT_DELIVERY_CONTACT_CHANGE'],
   };
 
-  test('approve delivery contact change shows and works', async ({ page }) => {
+  test('delivery change confirmation approves in an application modal without a native dialog', async ({ page }) => {
     const patchCalls = [];
     await routePharmacyProfile(page, {
       pharmacyId: 'pharmacy-1', name: 'Test Pharmacy', email: 'pharmacy@test.com',
@@ -306,17 +342,36 @@ test.describe('Pharmacy Delivery Contact Change Review', () => {
     });
     await page.goto('/pharmacy-page/requests');
     await page.waitForTimeout(1000);
-    await expect(page.getByText('Delivery Address Update Request')).toBeVisible();
     await expect(page.getByText('123 Old St')).toBeVisible();
     await expect(page.getByText('789 New St')).toBeVisible();
-    await expect(page.getByText('Approve')).toBeVisible();
-    await page.getByText('Approve').click();
-    await page.waitForTimeout(500);
+    const nativeDialogs = [];
+    page.on('dialog', async (dialog) => {
+      nativeDialogs.push(dialog.message());
+      await dialog.dismiss();
+    });
+    await page.getByLabel('New delivery fee ($)').fill('12.50');
+    await page.getByLabel('Estimated minutes').fill('45');
+    await page.getByRole('button', { name: 'Approve', exact: true }).click();
+
+    const dialog = page.getByRole('dialog', { name: 'Approve delivery change' });
+    await expect(dialog).toBeVisible();
+    await expect(dialog.getByRole('heading', { name: 'Approve delivery change' })).toBeFocused();
+    await expect(dialog.getByText('789 New St')).toBeVisible();
+    await expect(dialog.getByText('12.50', { exact: false })).toBeVisible();
+    await expect(dialog.getByText('45 minutes', { exact: false })).toBeVisible();
+    await expect(dialog.getByText(/patient must reconfirm/i)).toBeVisible();
+    expect(nativeDialogs).toEqual([]);
+    expect(patchCalls).toHaveLength(0);
+
+    await dialog.getByRole('button', { name: 'Approve change' }).click();
+    await expect.poll(() => patchCalls.length).toBe(1);
     expect(patchCalls.length).toBe(1);
     expect(patchCalls[0].status).toBe('APPROVED');
+    expect(patchCalls[0].deliveryFee).toBe(12.5);
+    expect(patchCalls[0].estimatedDeliveryMinutes).toBe(45);
   });
 
-  test('reject delivery contact change works', async ({ page }) => {
+  test('delivery change confirmation rejects in an application modal without a native dialog', async ({ page }) => {
     const patchCalls = [];
     await routePharmacyProfile(page, {
       pharmacyId: 'pharmacy-1', name: 'Test Pharmacy', email: 'pharmacy@test.com',
@@ -338,9 +393,22 @@ test.describe('Pharmacy Delivery Contact Change Review', () => {
     });
     await page.goto('/pharmacy-page/requests');
     await page.waitForTimeout(1000);
-    await expect(page.getByText('Reject')).toBeVisible();
-    await page.getByText('Reject').click();
-    await page.waitForTimeout(500);
+    const nativeDialogs = [];
+    page.on('dialog', async (dialog) => {
+      nativeDialogs.push(dialog.message());
+      await dialog.dismiss();
+    });
+    await page.getByRole('button', { name: 'Reject', exact: true }).click();
+
+    const dialog = page.getByRole('dialog', { name: 'Reject delivery change' });
+    await expect(dialog).toBeVisible();
+    await expect(dialog.getByText('789 New St')).toBeVisible();
+    await expect(dialog.getByText('Moving to a new place')).toBeVisible();
+    expect(nativeDialogs).toEqual([]);
+    expect(patchCalls).toHaveLength(0);
+
+    await dialog.getByRole('button', { name: 'Reject change' }).click();
+    await expect.poll(() => patchCalls.length).toBe(1);
     expect(patchCalls.length).toBe(1);
     expect(patchCalls[0].status).toBe('REJECTED');
   });

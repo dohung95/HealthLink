@@ -12,6 +12,7 @@ import {
 } from './workflow/pharmacyWorkflow';
 import { createPortal } from 'react-dom';
 import CreateOrderModal from './CreateOrderModal/index';
+import DeliveryChangeConfirmModal from './DeliveryChangeConfirmModal';
 import MiniChatBox from '../chat/MiniChatBox';
 
 const CLOSED_REQUEST_STATUSES = new Set(['CANCELLED', 'REJECTED']);
@@ -49,6 +50,7 @@ export default function PharmacyRequestsPage({
   const [cardDeliveryFee, setCardDeliveryFee] = useState({});
   const [cardEstimatedMinutes, setCardEstimatedMinutes] = useState({});
   const [cardPharmacistNotes, setCardPharmacistNotes] = useState({});
+  const [deliveryChangeConfirm, setDeliveryChangeConfirm] = useState(null);
 
   const normalized = (value) => String(value || '').trim().toUpperCase();
 
@@ -241,6 +243,37 @@ export default function PharmacyRequestsPage({
 
   const cardValue = (dict, itemId, fallback = '') => (dict[itemId] ?? fallback);
 
+  const openDeliveryChangeConfirm = (item, mode) => {
+    const itemId = getItemId(item);
+    const payload = buildDeliveryContactReviewPayload({
+      status: mode === 'APPROVE' ? 'APPROVED' : 'REJECTED',
+      deliveryFee: cardValue(cardDeliveryFee, itemId),
+      estimatedDeliveryMinutes: cardValue(cardEstimatedMinutes, itemId),
+      pharmacyReviewNotes: cardValue(cardPharmacistNotes, itemId),
+    });
+
+    if (payload) setDeliveryChangeConfirm({ mode, item, payload: Object.freeze(payload) });
+  };
+
+  const closeDeliveryChangeConfirm = () => {
+    if (!deliveryChangeConfirm || savingId !== getItemId(deliveryChangeConfirm.item)) {
+      setDeliveryChangeConfirm(null);
+    }
+  };
+
+  const confirmDeliveryChange = async (payload) => {
+    if (!deliveryChangeConfirm) return;
+    const action = deliveryChangeConfirm.mode === 'APPROVE'
+      ? 'APPROVE_DELIVERY_CONTACT_CHANGE'
+      : 'REJECT_DELIVERY_CONTACT_CHANGE';
+    const reviewed = await handleAction(
+      deliveryChangeConfirm.item,
+      action,
+      payload,
+    );
+    if (reviewed) setDeliveryChangeConfirm(null);
+  };
+
   const noChatVideoKinds = ['deliveryOrderRequest', 'deliveryQuote', 'pickupReview', 'deliveryContactChange', 'retailReview', 'revision'];
 
   return (
@@ -322,7 +355,7 @@ export default function PharmacyRequestsPage({
 
                   <div>
                     <strong>{item.patientName || 'Unknown Patient'}</strong>
-                    {item.orderNumber && (
+                    {item.orderNumber && ['deliveryQuote', 'deliveryContactChange'].includes(kind) && (
                       <div style={{ fontSize: 13, color: 'var(--pharmacy-muted)', marginTop: 2 }}>
                         Order: #{item.orderNumber}
                       </div>
@@ -472,9 +505,10 @@ export default function PharmacyRequestsPage({
                           )}
                         </div>
                         <div style={{ marginTop: 8 }}>
-                          <label className="form-label" style={{ fontSize: 13, marginBottom: 2 }}>New delivery fee ($)</label>
+                          <label className="form-label" htmlFor={`delivery-fee-${itemId}`} style={{ fontSize: 13, marginBottom: 2 }}>New delivery fee ($)</label>
                           <input
                             className="form-control form-control-sm"
+                            id={`delivery-fee-${itemId}`}
                             min="0"
                             onChange={(e) => setCardDeliveryFee((d) => ({ ...d, [itemId]: e.target.value }))}
                             step="0.01"
@@ -484,9 +518,10 @@ export default function PharmacyRequestsPage({
                           />
                         </div>
                         <div style={{ marginTop: 6 }}>
-                          <label className="form-label" style={{ fontSize: 13, marginBottom: 2 }}>Estimated delivery (minutes)</label>
+                          <label className="form-label" htmlFor={`delivery-eta-${itemId}`} style={{ fontSize: 13, marginBottom: 2 }}>Estimated minutes</label>
                           <input
                             className="form-control form-control-sm"
+                            id={`delivery-eta-${itemId}`}
                             min="1"
                             max="999"
                             onChange={(e) => setCardEstimatedMinutes((d) => ({ ...d, [itemId]: e.target.value }))}
@@ -517,14 +552,7 @@ export default function PharmacyRequestsPage({
                           })}
                           onClick={(e) => {
                             e.stopPropagation();
-                            const payload = buildDeliveryContactReviewPayload({
-                              status: 'APPROVED',
-                              deliveryFee: cardValue(cardDeliveryFee, itemId),
-                              estimatedDeliveryMinutes: cardValue(cardEstimatedMinutes, itemId),
-                              pharmacyReviewNotes: cardValue(cardPharmacistNotes, itemId),
-                            });
-                            if (!payload || !window.confirm(`Approve updated delivery fee and ETA for ${item.patientName || 'this patient'}?`)) return;
-                            handleAction(item, 'APPROVE_DELIVERY_CONTACT_CHANGE', payload);
+                            openDeliveryChangeConfirm(item, 'APPROVE');
                           }}
                           type="button"
                         >
@@ -535,11 +563,7 @@ export default function PharmacyRequestsPage({
                           disabled={isSaving}
                           onClick={(e) => {
                             e.stopPropagation();
-                            if (!window.confirm('Reject this delivery address change?')) return;
-                            handleAction(item, 'REJECT_DELIVERY_CONTACT_CHANGE', buildDeliveryContactReviewPayload({
-                              status: 'REJECTED',
-                              pharmacyReviewNotes: cardValue(cardPharmacistNotes, itemId),
-                            }));
+                            openDeliveryChangeConfirm(item, 'REJECT');
                           }}
                           type="button"
                         >
@@ -551,21 +575,30 @@ export default function PharmacyRequestsPage({
 
                   {(kind === 'consultation' || kind === 'deliveryOrderRequest' || kind === 'orderRequest' || kind === 'order' || kind === 'retailReview' || kind === 'revision') && (
                     <>
+                      <div className="pharmacy-request-details">
+                        {item.orderNumber && (
+                          <div className="pharmacy-request-detail">
+                            <span className="pharmacy-request-detail__label">Order</span>
+                            <strong>#{item.orderNumber}</strong>
+                          </div>
+                        )}
+                        {item.deliveryPhoneNumber && (
+                          <div className="pharmacy-request-detail">
+                            <span className="pharmacy-request-detail__label">Phone</span>
+                            <strong>{item.deliveryPhoneNumber}</strong>
+                          </div>
+                        )}
+                        {item.deliveryAddress && (
+                          <div className="pharmacy-request-detail">
+                            <span className="pharmacy-request-detail__label">Address</span>
+                            <strong>{item.deliveryAddress}</strong>
+                          </div>
+                        )}
+                      </div>
                       {kind === 'revision' && (
-                        <div className="pharmacy-revision-request" style={{ marginTop: 8, padding: 10, borderLeft: '3px solid var(--pharmacy-warning)', background: 'var(--pharmacy-surface-alt, #fff8e1)', fontSize: 13 }}>
+                        <div className="pharmacy-revision-request">
                           <strong>Change requested</strong>
                           <div>{item.revisionRequestNotes || 'Patient requested an order update.'}</div>
-                          {item.revisionRequestedAt && <small className="text-muted">{dateTime(item.revisionRequestedAt)}</small>}
-                        </div>
-                      )}
-                      {item.deliveryPhoneNumber && (
-                        <div style={{ fontSize: 13, color: 'var(--pharmacy-muted)' }}>
-                          {item.deliveryPhoneNumber}
-                        </div>
-                      )}
-                      {item.deliveryAddress && (
-                        <div style={{ fontSize: 12, color: 'var(--pharmacy-muted)', marginTop: 2 }}>
-                          {item.deliveryAddress}
                         </div>
                       )}
                       {item.symptoms ? (
@@ -633,6 +666,16 @@ export default function PharmacyRequestsPage({
             saving={rejectConfirmSaving}
             onCancel={closeRejectConfirm}
             onConfirm={confirmRejectRequest}
+          />
+        )}
+        {deliveryChangeConfirm && (
+          <DeliveryChangeConfirmModal
+            item={deliveryChangeConfirm.item}
+            mode={deliveryChangeConfirm.mode}
+            payload={deliveryChangeConfirm.payload}
+            saving={savingId === getItemId(deliveryChangeConfirm.item)}
+            onCancel={closeDeliveryChangeConfirm}
+            onConfirm={confirmDeliveryChange}
           />
         )}
         {createOrderRequest && (
