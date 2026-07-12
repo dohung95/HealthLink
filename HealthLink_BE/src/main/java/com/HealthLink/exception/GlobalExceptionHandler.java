@@ -165,6 +165,18 @@ public class GlobalExceptionHandler {
         return buildResponse(HttpStatus.UNPROCESSABLE_ENTITY, ex.getMessage());
     }
 
+    @ExceptionHandler(PartnerPinException.class)
+    public ResponseEntity<Map<String, Object>> handlePartnerPin(PartnerPinException ex) {
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("timestamp", LocalDateTime.now());
+        body.put("status", ex.getStatus().value());
+        body.put("error", ex.getStatus().getReasonPhrase());
+        body.put("message", ex.getMessage());
+        if (ex.getAttemptsRemaining() != null) body.put("attemptsRemaining", ex.getAttemptsRemaining());
+        if (ex.getLockedUntil() != null) body.put("lockedUntil", ex.getLockedUntil());
+        return ResponseEntity.status(ex.getStatus()).body(body);
+    }
+
     @ExceptionHandler(GeocodingResultNotFoundException.class)
     public ResponseEntity<Map<String, Object>> handleGeocodingResultNotFound(GeocodingResultNotFoundException ex) {
         return buildResponse(HttpStatus.UNPROCESSABLE_ENTITY, ex.getMessage());
