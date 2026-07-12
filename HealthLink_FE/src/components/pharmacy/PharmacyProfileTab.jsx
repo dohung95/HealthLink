@@ -142,7 +142,11 @@ export default function PharmacyProfileTab({ token, profile, reload, logout }) {
     }
     setSavingPassword(true);
     try {
-      await verifyPharmacyPasswordChangeOtp(token, { otp: passwordOtp, newPassword: passwordData.newPassword });
+      await verifyPharmacyPasswordChangeOtp(token, {
+        otp: passwordOtp,
+        newPassword: passwordData.newPassword,
+        confirmNewPassword: passwordData.confirmNewPassword,
+      });
       toast.success('Password changed. Please log in again.');
       await logout();
     } catch (error) {
