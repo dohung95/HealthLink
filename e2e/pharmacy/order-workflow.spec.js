@@ -130,10 +130,17 @@ test.describe('Pharmacy Request Actions', () => {
     const card = page.locator('[data-order-id="112"]');
     const details = card.locator('.pharmacy-request-details');
     await expect(details).toBeVisible();
-    await expect(details.locator('.pharmacy-request-detail__label', { hasText: 'Order' })).toBeVisible();
-    await expect(details.locator('.pharmacy-request-detail__label', { hasText: 'Phone' })).toBeVisible();
-    await expect(details.locator('.pharmacy-request-detail__label', { hasText: 'Address' })).toBeVisible();
-    await expect(card.locator('.pharmacy-revision-request small')).toHaveCount(0);
+    for (const { label, value } of [
+      { label: 'Order', value: '#ORD-112' },
+      { label: 'Phone', value: '222-333-4444' },
+      { label: 'Address', value: '12 Revision Lane' },
+    ]) {
+      const row = details.locator('.pharmacy-request-detail').filter({ hasText: label });
+      await expect(row).toHaveCount(1);
+      await expect(row.locator('.pharmacy-request-detail__label')).toHaveText(label);
+      await expect(row.locator('strong')).toHaveText(value);
+    }
+    await expect(page.locator('body')).not.toContainText('2026-07-01T08:30:00.000Z');
 
     expect(await card.evaluate((element) => {
       const detailsBlock = element.querySelector('.pharmacy-request-details');
@@ -365,6 +372,7 @@ test.describe('Pharmacy Delivery Contact Change Review', () => {
 
     await dialog.getByRole('button', { name: 'Approve change' }).click();
     await expect.poll(() => patchCalls.length).toBe(1);
+    expect(nativeDialogs).toEqual([]);
     expect(patchCalls.length).toBe(1);
     expect(patchCalls[0].status).toBe('APPROVED');
     expect(patchCalls[0].deliveryFee).toBe(12.5);
@@ -409,6 +417,7 @@ test.describe('Pharmacy Delivery Contact Change Review', () => {
 
     await dialog.getByRole('button', { name: 'Reject change' }).click();
     await expect.poll(() => patchCalls.length).toBe(1);
+    expect(nativeDialogs).toEqual([]);
     expect(patchCalls.length).toBe(1);
     expect(patchCalls[0].status).toBe('REJECTED');
   });

@@ -53,3 +53,15 @@ Commit message: `feat: improve pharmacy revision and delivery review UX`.
 ## Concerns
 
 - Focused E2E verification passes. The only remaining concern is unavailable ESLint configuration at the repository root; no code-quality lint result could be produced.
+
+## Review fix
+
+- Strengthened the revision-card test to verify the exact seeded Order, Phone, and Address values are rendered by each row's `strong` element, and to assert that `2026-07-01T08:30:00.000Z` is absent from the rendered page.
+- Strengthened both delivery-change tests to assert the native-dialog collection remains empty after `Approve change` or `Reject change` completes the flow.
+- `npx playwright test e2e/pharmacy/order-workflow.spec.js --grep "revision card|delivery change confirmation" --workers=1`
+  - Result: exit 0, 3 passed in 21.3s.
+- `git diff --check`
+  - Result: exit 0. Git printed the existing line-ending conversion warning only.
+- `codegraph sync .`
+  - Result: exit 0, `Already up to date`.
+- Commit message: `test: strengthen pharmacy review workflow coverage`.
