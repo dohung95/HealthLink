@@ -9,7 +9,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useNotifications } from '../../context/NotificationContext';
 import PharmacyInventoryTab from '../../components/pharmacy/PharmacyInventoryTab';
 import PharmacyOverviewTab from '../../components/pharmacy/PharmacyOverviewTab';
-import { Avatar, getProfileName, navItems, routeByTab } from '../../components/pharmacy/PharmacyShared';
+import { Avatar, navItems, routeByTab } from '../../components/pharmacy/PharmacyShared';
 import PharmacyNotificationDropdown from '../../components/pharmacy/PharmacyNotificationDropdown';
 import PharmacyProfileTab from '../../components/pharmacy/PharmacyProfileTab';
 import PharmacyWalletTab from '../../components/pharmacy/PharmacyWalletTab';
@@ -330,21 +330,17 @@ export default function PharmacyDashboardPage() {
                 onClick={() => setShowProfileDropdown((value) => !value)}
                 type="button"
               >
-                <Avatar profile={profile} compact />
+                <Avatar profile={profile} compact showOnlineStatus />
               </button>
 
                 {showProfileDropdown ? (
                   <div className="pharmacy-avatar-dropdown">
-                    <div className="pharmacy-avatar-dropdown-card">
-                      <Avatar profile={profile} compact />
-                      <div className="pharmacy-avatar-dropdown-copy">
-                        <strong>{getProfileName(profile)}</strong>
-                        <PharmacyOnlineToggle
-                          token={token}
-                          profile={profile}
-                          onProfileUpdated={setProfile}
-                        />
-                      </div>
+                    <div className="pharmacy-avatar-dropdown-status">
+                      <PharmacyOnlineToggle
+                        token={token}
+                        profile={profile}
+                        onProfileUpdated={setProfile}
+                      />
                     </div>
 
                     <div className="pharmacy-avatar-dropdown-actions">

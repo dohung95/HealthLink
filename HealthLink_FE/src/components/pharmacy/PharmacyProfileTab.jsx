@@ -166,7 +166,7 @@ export default function PharmacyProfileTab({ token, profile, reload, logout }) {
 
           <div className="profile-avatar-section">
             <div className="profile-avatar-wrapper">
-              <Avatar profile={{ ...profile, avatarUrl: form.avatarUrl }} />
+              <Avatar profile={{ ...profile, avatarUrl: form.avatarUrl }} showOnlineStatus />
               <button className="profile-avatar-overlay" onClick={() => fileRef.current?.click()} type="button" aria-label="Upload photo">
                 <span className="material-symbols-outlined">photo_camera</span>
               </button>
@@ -399,7 +399,7 @@ export default function PharmacyProfileTab({ token, profile, reload, logout }) {
       {/* ── RIGHT COLUMN ── */}
       <div className="profile-right">
         <section className="pharmacy-card profile-status-card">
-          <Avatar profile={{ ...profile, avatarUrl: form.avatarUrl }} />
+          <Avatar profile={{ ...profile, avatarUrl: form.avatarUrl }} showOnlineStatus />
           <h3>{name}</h3>
           <p className="profile-status-address">{address}</p>
 

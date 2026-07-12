@@ -105,12 +105,14 @@ export default function PharmacyOrderDetailModal({ item, profile, onClose, onSta
       <button className="pharmacy-order-detail-backdrop" onClick={onClose} type="button" aria-label="Close" />
       <section className="pharmacy-order-detail-sheet">
         <header className="pharmacy-order-detail-header">
-          <div>
-            <h2 id="pharmacy-order-detail-title" ref={headingRef} tabIndex="-1">{getItemDisplayId(order || item)}</h2>
-            {order && <small>{dateTime(order.createdAt)}</small>}
+          <div className="pharmacy-order-detail-header-content">
+            <div className="pharmacy-order-detail-title-row">
+              <h2 id="pharmacy-order-detail-title" ref={headingRef} tabIndex="-1">{getItemDisplayId(order || item)}</h2>
+              {order && <small>{dateTime(order.createdAt)}</small>}
+            </div>
             <div className="pharmacy-order-detail-statuses" aria-label="Order status summary">
               {statusPresentation && Object.values(statusPresentation).filter(Boolean).map((status) => (
-                <div className="pharmacy-order-detail-status" key={status.key}>
+                <div className="pharmacy-order-detail-status-pair" key={status.key}>
                   <small>{status.label}</small>
                   <span className={`pharmacy-status tone-${status.tone}`}>{status.value}</span>
                 </div>

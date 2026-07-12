@@ -475,3 +475,95 @@ test.describe('Prescription Quote Revision Guard', () => {
     await expect(page.getByText('Update Quote')).not.toBeVisible();
   });
 });
+
+test.describe('Pharmacy order detail and presence', () => {
+  test.beforeEach(async ({ page }) => {
+    await page.addInitScript((token) => {
+      localStorage.setItem('token', token);
+      localStorage.setItem('userId', 'pharmacy-1');
+      localStorage.setItem('refreshToken', 'fake-refresh');
+    }, PHARMACY_TOKEN);
+  });
+
+  test('keeps the detail header and pharmacy presence clear at desktop and mobile widths', async ({ page }) => {
+    const order = {
+      orderId: 42,
+      orderNumber: 'ORD-42',
+      status: 'PREPARING',
+      paymentStatus: 'PAID',
+      deliveryType: 'DELIVERY',
+      patientName: 'Layout Patient',
+      deliveryAddress: '42 Clear Layout Street',
+      deliveryPhoneNumber: '555-0100',
+      createdAt: '2026-07-01T08:30:00.000Z',
+      confirmedAt: '2026-07-01T08:45:00.000Z',
+      preparingAt: '2026-07-01T09:00:00.000Z',
+      items: [{ medicineId: 1, medicationName: 'Layout Medicine', quantity: 1, unit: 'box', totalPrice: 12 }],
+    };
+
+    let pharmacyProfile = {
+      pharmacyId: 'pharmacy-1', name: 'Test Pharmacy', email: 'pharmacy@test.com',
+      phoneNumber: '9876543210', isOnline: true,
+    };
+    await page.route('**/api/account/pharmacy/profile', (route) => jsonRoute(route, pharmacyProfile));
+    await page.route('**/api/pharmacy-work-items/pharmacy/*', (route) => jsonRoute(route, []));
+    await page.route('**/api/pharmacy-orders/pharmacy/*', (route) => jsonRoute(route, [order]));
+    await page.route('**/api/pharmacy-orders/42', (route) => jsonRoute(route, order));
+    await page.route('**/api/pharmacy-requests/pharmacy/**', (route) => jsonRoute(route, []));
+    await page.route('**/api/payment/partner/**/balance', (route) => jsonRoute(route, { balance: 0, currency: 'USD' }));
+    await page.route('**/api/payment/partner/**/transactions', (route) => jsonRoute(route, []));
+    await page.route('**/api/payment/partner/**/settlements', (route) => jsonRoute(route, []));
+    await page.route('**/api/account/pharmacy/profile/toggle-online', (route) => {
+      pharmacyProfile = { ...pharmacyProfile, isOnline: false };
+      return jsonRoute(route, pharmacyProfile);
+    });
+
+    await page.setViewportSize({ width: 1280, height: 900 });
+    await page.goto('/pharmacy-page/orders');
+    await page.locator('.pharmacy-kanban-card').filter({ hasText: 'ORD-42' }).click();
+
+    const detailHeader = page.locator('.pharmacy-order-detail-header');
+    const titleRow = detailHeader.locator('.pharmacy-order-detail-title-row');
+    await expect(titleRow.getByRole('heading', { name: 'ORD-42' })).toBeVisible();
+    await expect(titleRow.locator('small')).toHaveText(/.+/);
+    await expect(titleRow).toHaveCSS('display', 'flex');
+
+    const statusPairs = detailHeader.locator('.pharmacy-order-detail-status-pair');
+    await expect(statusPairs).toHaveCount(3);
+    expect(await statusPairs.evaluateAll((pairs) => pairs.every((pair) => {
+      const label = pair.querySelector('small')?.getBoundingClientRect();
+      const badge = pair.querySelector('.pharmacy-status')?.getBoundingClientRect();
+      return Boolean(label && badge && Math.abs(label.y - badge.y) < 8 && label.right <= badge.left);
+    }))).toBe(true);
+    await expect(statusPairs.first().locator('small')).toHaveText('Order');
+    await expect(statusPairs.first().locator('.pharmacy-status')).toHaveText('Preparing');
+
+    await page.locator('.pharmacy-order-detail-close').click();
+    await page.getByRole('button', { name: 'Profile menu' }).click();
+    const dropdown = page.locator('.pharmacy-avatar-dropdown');
+    await expect(dropdown.locator('.pharmacy-avatar')).toHaveCount(0);
+    await expect(dropdown.getByText('Test Pharmacy', { exact: true })).toHaveCount(0);
+
+    const presenceDot = page.locator('.pharmacy-avatar-trigger .pharmacy-avatar__online-status');
+    await expect(presenceDot).toHaveClass(/is-online/);
+    await expect(presenceDot).toHaveCSS('background-color', 'rgb(5, 150, 105)');
+    await page.getByLabel('Toggle online status').click();
+    await expect(presenceDot).toHaveClass(/is-offline/);
+    await expect(presenceDot).toHaveCSS('background-color', 'rgb(148, 163, 184)');
+
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.getByRole('button', { name: 'Profile menu' }).click();
+    await page.locator('.pharmacy-kanban-card').filter({ hasText: 'ORD-42' }).click();
+    await expect(detailHeader).toBeVisible();
+    expect(await detailHeader.evaluate((header) => header.scrollWidth <= header.clientWidth)).toBe(true);
+    expect(await statusPairs.evaluateAll((pairs) => pairs.every((pair) => pair.scrollWidth <= pair.clientWidth))).toBe(true);
+
+    await page.locator('.pharmacy-order-detail-close').click();
+    await page.goto('/pharmacy-page/profile');
+    const profilePresenceDots = page.locator(
+      '.profile-avatar-section .pharmacy-avatar__online-status, .profile-status-card .pharmacy-avatar__online-status',
+    );
+    await expect(profilePresenceDots).toHaveCount(2);
+    expect(await profilePresenceDots.evaluateAll((dots) => dots.every((dot) => dot.classList.contains('is-offline')))).toBe(true);
+  });
+});
