@@ -4,6 +4,13 @@ export const TIMING_OPTIONS = [
   { value: 'EVENING', label: 'Evening' },
 ];
 
+export const FREQUENCY_OPTIONS = [
+  { value: 'QD', label: 'QD (1x daily)' },
+  { value: 'BID', label: 'BID (2x daily)' },
+  { value: 'TID', label: 'TID (3x daily)' },
+  { value: 'QID', label: 'QID (4x daily)' },
+];
+
 const VALID_TIMINGS = new Set(TIMING_OPTIONS.map((option) => option.value));
 
 export function normalizeTimings(value) {
@@ -25,4 +32,15 @@ export function toggleTiming(value, timing) {
 
 export function serializeTimings(value) {
   return normalizeTimings(value).join(',');
+}
+
+export function getFrequencyOptions(value) {
+  const frequency = String(value || '').trim();
+  return frequency && !FREQUENCY_OPTIONS.some((option) => option.value === frequency)
+    ? [...FREQUENCY_OPTIONS, { value: frequency, label: frequency }]
+    : FREQUENCY_OPTIONS;
+}
+
+export function serializeFrequency(value) {
+  return String(value || '').trim();
 }

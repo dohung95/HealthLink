@@ -1,24 +1,13 @@
 import { useState } from 'react';
 import {
   TIMING_OPTIONS,
+  getFrequencyOptions,
   normalizeTimings,
   serializeTimings,
   toggleTiming,
 } from './orderItemSchedule';
 
 const ROUTE_OPTIONS = ['Oral', 'Topical', 'Injection', 'Inhalation'];
-
-const FREQUENCY_OPTIONS = [
-  '3 times daily',
-  'Twice daily',
-  'Once daily',
-  '4 times daily',
-  'Every 6 hours',
-  'Every 8 hours',
-  'Every 12 hours',
-  'As needed',
-  'As directed',
-];
 
 export default function OrderItemEditor({
   item,
@@ -28,6 +17,7 @@ export default function OrderItemEditor({
 }) {
   const [showNoteInput, setShowNoteInput] = useState(Boolean(item.notes));
   const timings = normalizeTimings(item.timing);
+  const frequencyOptions = getFrequencyOptions(item.frequency);
   const updateItem = (field, value) => onChange({ ...item, [field]: value });
 
   return (
@@ -104,8 +94,8 @@ export default function OrderItemEditor({
               value={item.frequency}
             >
               <option value="">Select frequency</option>
-              {FREQUENCY_OPTIONS.map((frequency) => (
-                <option key={frequency} value={frequency}>{frequency}</option>
+              {frequencyOptions.map((frequency) => (
+                <option key={frequency.value} value={frequency.value}>{frequency.label}</option>
               ))}
             </select>
           </label>

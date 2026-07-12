@@ -6,7 +6,7 @@ import DeliveryDurationPicker from './DeliveryDurationPicker';
 import MedicineLibraryPanel from './MedicineLibraryPanel';
 import OrderItemEditor from './OrderItemEditor';
 import RequestSummaryPanel from './RequestSummaryPanel';
-import { normalizeTimings, serializeTimings } from './orderItemSchedule';
+import { normalizeTimings, serializeFrequency, serializeTimings } from './orderItemSchedule';
 
 function lineTotal(item) {
   return Number(item.totalPrice || 0);
@@ -14,12 +14,13 @@ function lineTotal(item) {
 
 function toOrderItemPayload(item) {
   const timing = serializeTimings(item.timing);
+  const frequency = serializeFrequency(item.frequency);
   return {
     medicineId: item.medicineId,
     totalSupplyDays: Number(item.totalSupplyDays || 1),
     quantity: Number(item.quantity || 1),
     unit: item.unit || undefined,
-    frequency: item.frequency || undefined,
+    frequency: frequency || undefined,
     timing: timing || undefined,
     route: item.route || undefined,
     notes: item.notes || undefined,

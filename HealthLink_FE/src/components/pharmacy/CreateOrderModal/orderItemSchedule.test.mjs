@@ -2,7 +2,10 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
+  FREQUENCY_OPTIONS,
+  getFrequencyOptions,
   normalizeTimings,
+  serializeFrequency,
   serializeTimings,
   toggleTiming,
 } from './orderItemSchedule.js';
@@ -32,4 +35,23 @@ test('normalizing timings leaves frequency data untouched', () => {
     { ...item, timing: serializeTimings(normalizeTimings(item.timing)) },
     { frequency: 'Twice daily', timing: 'MORNING' },
   );
+});
+
+test('uses doctor frequency codes and labels so prescription BID remains selected', () => {
+  assert.deepEqual(FREQUENCY_OPTIONS, [
+    { value: 'QD', label: 'QD (1x daily)' },
+    { value: 'BID', label: 'BID (2x daily)' },
+    { value: 'TID', label: 'TID (3x daily)' },
+    { value: 'QID', label: 'QID (4x daily)' },
+  ]);
+  assert.deepEqual(getFrequencyOptions('BID'), FREQUENCY_OPTIONS);
+});
+
+test('preserves legacy frequency values for display and payload compatibility', () => {
+  assert.deepEqual(getFrequencyOptions('Twice daily').at(-1), {
+    value: 'Twice daily',
+    label: 'Twice daily',
+  });
+  assert.equal(serializeFrequency('BID'), 'BID');
+  assert.equal(serializeFrequency('Twice daily'), 'Twice daily');
 });
