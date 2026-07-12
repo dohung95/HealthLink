@@ -12,6 +12,7 @@ import com.HealthLink.service.email.EmailService;
 import com.HealthLink.service.payment.PartnerWithdrawalSecurityService.PinPolicy;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InOrder;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -55,11 +56,26 @@ class PartnerWithdrawalSecurityServiceImplTest {
 
         service().requestOtp(user);
 
-        verify(tokenRepository).delete(old);
-        verify(tokenRepository).save(argThat(token -> token.getType() == TokenType.WITHDRAWAL_PIN
+        InOrder persistenceBeforeEmail = inOrder(tokenRepository, emailService);
+        persistenceBeforeEmail.verify(tokenRepository).delete(old);
+        persistenceBeforeEmail.verify(tokenRepository).saveAndFlush(argThat(token -> token.getType() == TokenType.WITHDRAWAL_PIN
                 && token.getNewEmail().equals(user.getEmail())
                 && token.getExpiryDate().isAfter(LocalDateTime.now().plusMinutes(4))));
-        verify(emailService).sendSimpleMessage(eq(user.getEmail()), contains("Withdrawal PIN"), contains("expires in 5 minutes"));
+        persistenceBeforeEmail.verify(emailService).sendSimpleMessage(
+                eq(user.getEmail()), contains("Withdrawal PIN"), contains("expires in 5 minutes"));
+    }
+
+    @Test
+    void requestOtp_doesNotSendEmailWhenTokenPersistenceFails() {
+        User user = user();
+        when(tokenRepository.findByUserAndType(user, TokenType.WITHDRAWAL_PIN)).thenReturn(Optional.empty());
+        when(tokenRepository.saveAndFlush(any(EmailVerificationToken.class)))
+                .thenThrow(new org.springframework.dao.DataIntegrityViolationException("token constraint"));
+
+        assertThatThrownBy(() -> service().requestOtp(user))
+                .isInstanceOf(org.springframework.dao.DataIntegrityViolationException.class);
+
+        verifyNoInteractions(emailService);
     }
 
     @Test

@@ -46,7 +46,7 @@ public class PartnerWithdrawalSecurityServiceImpl implements PartnerWithdrawalSe
     public String requestOtp(User user) {
         tokenRepository.findByUserAndType(user, TokenType.WITHDRAWAL_PIN).ifPresent(tokenRepository::delete);
         String otp = String.format("%06d", SECURE_RANDOM.nextInt(1_000_000));
-        tokenRepository.save(EmailVerificationToken.builder().token(otp).user(user).newEmail(user.getEmail())
+        tokenRepository.saveAndFlush(EmailVerificationToken.builder().token(otp).user(user).newEmail(user.getEmail())
                 .type(TokenType.WITHDRAWAL_PIN).expiryDate(LocalDateTime.now().plusMinutes(5)).used(false).build());
         emailService.sendSimpleMessage(user.getEmail(), "Withdrawal PIN OTP",
                 "Your OTP for withdrawal PIN security is: " + otp + "\n\nThis code expires in 5 minutes.");
