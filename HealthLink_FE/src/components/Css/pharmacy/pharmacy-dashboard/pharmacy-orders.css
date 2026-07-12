@@ -1233,6 +1233,70 @@
   min-height: calc(1.5em + 0.5rem + calc(var(--bs-border-width) * 2));
 }
 
+.pharmacy-order-item-editor-card .pharmacy-order-item-summary {
+  cursor: default;
+}
+
+.pharmacy-order-item-edit-grid,
+.pharmacy-order-item-schedule-row {
+  display: grid;
+  gap: 10px;
+}
+
+.pharmacy-order-item-edit-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.pharmacy-order-item-schedule-row {
+  grid-template-columns: minmax(150px, 1fr) 2fr;
+  margin-top: 10px;
+}
+
+.pharmacy-order-item-edit-grid > label,
+.pharmacy-order-item-schedule-row > label,
+.pharmacy-order-item-edit-grid > div,
+.pharmacy-order-item-schedule-row > div {
+  min-width: 0;
+}
+
+.pharmacy-order-item-timing-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.pharmacy-timing-badge {
+  border: 1px solid var(--pharmacy-border-strong);
+  border-radius: 5px;
+  background: var(--pharmacy-card);
+  color: var(--pharmacy-muted);
+  font-size: 12px;
+  line-height: 1.2;
+  padding: 6px 8px;
+}
+
+.pharmacy-timing-badge.is-selected {
+  border-color: var(--pharmacy-primary);
+  background: var(--pharmacy-primary-soft);
+  color: var(--pharmacy-primary);
+  font-weight: 600;
+}
+
+.pharmacy-timing-badge:disabled {
+  cursor: not-allowed;
+  opacity: 0.72;
+}
+
+@media (max-width: 575px) {
+  .pharmacy-order-item-edit-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .pharmacy-order-item-schedule-row {
+    grid-template-columns: 1fr;
+  }
+}
+
 .pharmacy-order-item-footer {
   display: flex;
   justify-content: space-between;

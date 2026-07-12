@@ -2,28 +2,18 @@ import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import pharmacyApi from '../../../api/pharmacyApi';
 import { money } from '../../../utils/pharmacy/pharmacyHelpers';
-import OrderItemCard from '../OrderItemCard';
 import DeliveryDurationPicker from './DeliveryDurationPicker';
 import MedicineLibraryPanel from './MedicineLibraryPanel';
+import OrderItemEditor from './OrderItemEditor';
 import RequestSummaryPanel from './RequestSummaryPanel';
-
-const VALID_TIMINGS = new Set(['MORNING', 'AFTERNOON', 'EVENING']);
-
-function normalizeTimingForPayload(rawTiming) {
-  if (!rawTiming) return '';
-  const tokens = String(rawTiming)
-    .split(',')
-    .map((token) => token.trim().toUpperCase())
-    .filter((token) => VALID_TIMINGS.has(token));
-  return [...new Set(tokens)].join(',');
-}
+import { normalizeTimings, serializeTimings } from './orderItemSchedule';
 
 function lineTotal(item) {
   return Number(item.totalPrice || 0);
 }
 
 function toOrderItemPayload(item) {
-  const timing = normalizeTimingForPayload(item.timing);
+  const timing = serializeTimings(item.timing);
   return {
     medicineId: item.medicineId,
     totalSupplyDays: Number(item.totalSupplyDays || 1),
@@ -70,13 +60,14 @@ function getTimingText(item) {
 
 function normalizeTimingWithNotesFallback(item) {
   const rawTiming = getTimingText(item);
-  const normalized = normalizeTimingForPayload(rawTiming);
+  const normalized = serializeTimings(rawTiming);
   const rawTokens = String(rawTiming)
     .split(',')
     .map((token) => token.trim())
     .filter(Boolean);
+  const normalizedTimings = new Set(normalizeTimings(rawTiming));
   const invalidTokens = rawTokens.filter(
-    (token) => !VALID_TIMINGS.has(token.trim().toUpperCase()),
+    (token) => !normalizedTimings.has(token.trim().toUpperCase()),
   );
   const existingNotes = item.notes || item.instructions || '';
   if (invalidTokens.length > 0 && !normalized) {
@@ -182,7 +173,6 @@ export default function CreateOrderModal({
   const [loadingPrescriptions, setLoadingPrescriptions] = useState(false);
   const [deliveryEnabled, setDeliveryEnabled] = useState(false);
   const [deliveryFee, setDeliveryFee] = useState('');
-  const [expandedItemId, setExpandedItemId] = useState(null);
   const [deliveryMinuteDigits, setDeliveryMinuteDigits] = useState([0, 4, 5]);
   const [creatingOrder, setCreatingOrder] = useState(false);
   const [medicineCatalog, setMedicineCatalog] = useState([]);
@@ -387,21 +377,17 @@ export default function CreateOrderModal({
     toast.success('Medicine added to order.');
   };
 
-  const updateItem = (localId, field, value) => {
+  const replaceItem = (updatedItem) => {
     setOrderItems((current) => current.map((item) => {
-      if (item.localId !== localId) return item;
-      const updated = { ...item, [field]: value };
-      if (field === 'quantity') {
-        const price = (item.totalPrice || 0) / (item.quantity || 1);
-        updated.totalPrice = price * Number(value);
-      }
-      return updated;
+      if (item.localId !== updatedItem.localId) return item;
+      if (item.quantity === updatedItem.quantity) return updatedItem;
+      const price = (item.totalPrice || 0) / (item.quantity || 1);
+      return { ...updatedItem, totalPrice: price * Number(updatedItem.quantity) };
     }));
   };
 
   const removeItem = (localId) => {
     setOrderItems((current) => current.filter((item) => item.localId !== localId));
-    setExpandedItemId((prev) => prev === localId ? null : prev);
   };
 
   const handleCreateOrder = async (event) => {
@@ -641,18 +627,13 @@ export default function CreateOrderModal({
                   <p>Import from prescriptions or search the medicine library on the left.</p>
                 </div>
               ) : (
-                orderItems.map((orderItem, index) => (
-                  <OrderItemCard
+                orderItems.map((orderItem) => (
+                  <OrderItemEditor
                     item={orderItem}
                     key={orderItem.localId}
-                    index={index + 1}
-                    expanded={expandedItemId === orderItem.localId}
-                    lockedMedication={isPrescriptionSourcedItem(orderItem)}
-                    onToggle={() => setExpandedItemId(
-                      (prev) => prev === orderItem.localId ? null : orderItem.localId,
-                    )}
+                    readOnlyClinicalFields={isPrescriptionSourcedItem(orderItem)}
                     onRemove={removeItem}
-                    onUpdate={updateItem}
+                    onChange={replaceItem}
                   />
                 ))
               )}
