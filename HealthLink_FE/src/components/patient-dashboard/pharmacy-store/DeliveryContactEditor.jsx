@@ -4,6 +4,7 @@ import { canEditDeliveryAddress } from './deliveryContactPolicy';
 import { getAddressVerificationError } from './addressVerification';
 import FulfillmentMapPicker from './FulfillmentMapPicker';
 import { applyMapPin, clearAddressVerification } from './mapPinPolicy';
+import { applyManualGeocodeResult } from './manualAddressPolicy';
 
 export default function DeliveryContactEditor({ order, onCancel, onSubmit, saving }) {
   const [address, setAddress] = useState(order?.deliveryAddress || '');
@@ -29,8 +30,9 @@ export default function DeliveryContactEditor({ order, onCancel, onSubmit, savin
     setError('');
     try {
       const result = await pharmacyApi.geocodeAddress(address.trim());
-      setAddress(result.formattedAddress || address.trim());
-      setCoordinates({ latitude: result.latitude, longitude: result.longitude, source: 'MANUAL' });
+      const verified = applyManualGeocodeResult(address, result);
+      setAddress(verified.address);
+      setCoordinates({ latitude: verified.latitude, longitude: verified.longitude, source: 'MANUAL' });
       setAddressVerified(true);
     } catch (requestError) {
       setError(getAddressVerificationError(requestError));

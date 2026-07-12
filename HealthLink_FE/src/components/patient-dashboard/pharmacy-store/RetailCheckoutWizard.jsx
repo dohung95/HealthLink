@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import pharmacyApi from '../../../api/pharmacyApi';
 import { cartSubtotal, getMedicineDisplayName, money, toCartPayload } from './retailStoreUtils';
+import { applyManualGeocodeResult } from './manualAddressPolicy';
 
 const STEPS = ['fulfillment', 'pharmacy', 'review'];
 
@@ -108,11 +109,12 @@ export default function RetailCheckoutWizard({
     setSavingAddress(true);
     try {
       const result = await pharmacyApi.geocodeAddress(deliveryContact.deliveryAddress.trim());
+      const verified = applyManualGeocodeResult(deliveryContact.deliveryAddress, result);
       setDeliveryContact((current) => ({
         ...current,
-        deliveryAddress: result.formattedAddress || current.deliveryAddress.trim(),
-        deliveryLatitude: result.latitude,
-        deliveryLongitude: result.longitude,
+        deliveryAddress: verified.address,
+        deliveryLatitude: verified.latitude,
+        deliveryLongitude: verified.longitude,
         deliveryAddressSource: 'MANUAL',
       }));
       toast.success('Delivery address verified.');
@@ -135,11 +137,12 @@ export default function RetailCheckoutWizard({
     setSavingAddress(true);
     try {
       const result = await pharmacyApi.geocodeAddress(pickupContact.areaText.trim());
+      const verified = applyManualGeocodeResult(pickupContact.areaText, result);
       setPickupContact((current) => ({
         ...current,
-        areaText: result.formattedAddress || current.areaText.trim(),
-        latitude: result.latitude,
-        longitude: result.longitude,
+        areaText: verified.address,
+        latitude: verified.latitude,
+        longitude: verified.longitude,
       }));
       toast.success('Pickup area verified.');
       return true;

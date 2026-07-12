@@ -21,6 +21,7 @@ import { getAddressVerificationError } from './pharmacy-store/addressVerificatio
 import { getOrderStatusPresentation, getRequestStatusPresentation } from '../pharmacy/workflow/pharmacyStatusPresentation';
 import FulfillmentMapPicker from './pharmacy-store/FulfillmentMapPicker';
 import { applyMapPin } from './pharmacy-store/mapPinPolicy';
+import { applyManualGeocodeResult } from './pharmacy-store/manualAddressPolicy';
 import { resolvePharmacyRevalidation } from './pharmacy-store/pharmacySelectionPolicy';
 import './PatientPharmacy.css';
 
@@ -576,14 +577,15 @@ function FulfillmentStep({ profile, geolocation, geoTried, fulfillmentType, setF
     setSaving(true);
     try {
       const result = await pharmacyApi.geocodeAddress(input);
+      const verified = applyManualGeocodeResult(input, result);
       if (fulfillmentType === 'Delivery') {
-        setAddress(result.formattedAddress || input);
-        setLatitude(result.latitude);
-        setLongitude(result.longitude);
+        setAddress(verified.address);
+        setLatitude(verified.latitude);
+        setLongitude(verified.longitude);
         setSource('MANUAL');
         toast.success('Delivery address verified.');
       } else {
-        setPickupArea({ address: result.formattedAddress || input, latitude: result.latitude, longitude: result.longitude, source: 'MANUAL' });
+        setPickupArea({ address: verified.address, latitude: verified.latitude, longitude: verified.longitude, source: 'MANUAL' });
         toast.success('Pickup area verified.');
       }
     } catch (error) {
