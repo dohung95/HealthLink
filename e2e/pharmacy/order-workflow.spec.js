@@ -435,9 +435,10 @@ test.describe('Pharmacy Delivery Contact Change Review', () => {
     await page.route('**/api/payment/partner/**/settlements', (r) => jsonRoute(r, []));
     await page.goto('/pharmacy-page/requests');
     await page.waitForTimeout(1000);
-    await expect(page.getByText('Delivery Address Update Request')).toBeVisible();
-    await expect(page.getByText('Chat')).not.toBeVisible();
-    await expect(page.getByText('Video Call')).not.toBeVisible();
+    const changeCard = page.locator('.pharmacy-request-card').filter({ hasText: '789 New St' });
+    await expect(changeCard).toBeVisible();
+    await expect(changeCard.getByRole('button', { name: /chat/i })).toHaveCount(0);
+    await expect(changeCard.getByRole('button', { name: /video/i })).toHaveCount(0);
   });
 });
 
@@ -563,7 +564,7 @@ test.describe('Pharmacy order detail and presence', () => {
     const profilePresenceDots = page.locator(
       '.profile-avatar-section .pharmacy-avatar__online-status, .profile-status-card .pharmacy-avatar__online-status',
     );
-    await expect(profilePresenceDots).toHaveCount(2);
+    await expect(profilePresenceDots).toHaveCount(1);
     expect(await profilePresenceDots.evaluateAll((dots) => dots.every((dot) => dot.classList.contains('is-offline')))).toBe(true);
   });
 });

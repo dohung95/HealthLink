@@ -47,21 +47,19 @@ test.describe('Patient Delivery Contact Update', () => {
     });
     await page.goto('/patient-dashboard/pharmacy/orders/500');
     await page.waitForTimeout(1000);
-    await expect(page.getByText('Edit Delivery Contact')).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Delivery details' })).toBeVisible();
     await expect(page.getByText('Request Changes')).not.toBeVisible();
-    await page.getByText('Edit Delivery Contact').click();
-    await page.waitForTimeout(300);
-    await page.fill('input.form-control.form-control-sm', '789 New St');
-    await page.fill('input.form-control.form-control-sm', '999-888-7777');
-    await page.getByText('Save').click();
-    await page.waitForTimeout(500);
+    await page.getByRole('button', { name: 'Edit' }).click();
+    await page.locator('input[type="tel"]').fill('999-888-7777');
+    await page.getByRole('button', { name: 'Save phone' }).click();
+    await expect.poll(() => patchCalls.length).toBe(1);
     expect(patchCalls.length).toBe(1);
-    expect(patchCalls[0].deliveryAddress).toBe('789 New St');
+    expect(patchCalls[0].deliveryAddress).toBe('456 Main St');
     expect(patchCalls[0].deliveryPhoneNumber).toBe('999-888-7777');
   });
 
   test('prescription order at READY shows request delivery contact change', async ({ page }) => {
-    const postCalls = [];
+    const patchCalls = [];
     await routePatientProfile(page, {
       id: 'patient-1', name: 'Test Patient', phoneNumber: '1234567890',
       address: '123 Test St', city: 'Test City', country: 'US',
@@ -70,9 +68,9 @@ test.describe('Patient Delivery Contact Update', () => {
     await page.route('**/api/pharmacy-orders/**', async (r) => {
       const url = r.request().url();
       const method = r.request().method();
-      if (url.includes('/delivery-contact-change-requests') && method === 'POST') {
+      if (url.includes('/delivery-contact') && method === 'PATCH') {
         const body = JSON.parse(r.request().postData() || '{}');
-        postCalls.push(body);
+        patchCalls.push(body);
         return jsonRoute(r, { ...baseOrder, status: 'READY', deliveryAddress: body.deliveryAddress, deliveryPhoneNumber: body.deliveryPhoneNumber });
       }
       if (method === 'GET') {
@@ -82,18 +80,13 @@ test.describe('Patient Delivery Contact Update', () => {
     });
     await page.goto('/patient-dashboard/pharmacy/orders/500');
     await page.waitForTimeout(1000);
-    await expect(page.getByText('Request Delivery Contact Change')).toBeVisible();
-    await page.getByText('Request Delivery Contact Change').click();
-    await page.waitForTimeout(300);
-    await page.fill('input.form-control.form-control-sm', '789 New St');
-    await page.fill('input.form-control.form-control-sm', '999-888-7777');
-    await page.fill('textarea.form-control', 'Moving to a new place');
-    await page.getByText('Send Request').click();
-    await page.waitForTimeout(500);
-    expect(postCalls.length).toBe(1);
-    expect(postCalls[0].deliveryAddress).toBe('789 New St');
-    expect(postCalls[0].deliveryPhoneNumber).toBe('999-888-7777');
-    expect(postCalls[0].reason).toBe('Moving to a new place');
+    await page.getByRole('button', { name: 'Edit' }).click();
+    await expect(page.locator('.input-group input')).toBeDisabled();
+    await page.locator('input[type="tel"]').fill('999-888-7777');
+    await page.getByRole('button', { name: 'Save phone' }).click();
+    await expect.poll(() => patchCalls.length).toBe(1);
+    expect(patchCalls[0].deliveryAddress).toBe('456 Main St');
+    expect(patchCalls[0].deliveryPhoneNumber).toBe('999-888-7777');
   });
 
   test('prescription order at SHIPPING locks delivery contact', async ({ page }) => {
@@ -105,9 +98,8 @@ test.describe('Patient Delivery Contact Update', () => {
     await page.route('**/api/pharmacy-orders/**', (r) => jsonRoute(r, { ...baseOrder, status: 'SHIPPING' }));
     await page.goto('/patient-dashboard/pharmacy/orders/500');
     await page.waitForTimeout(1000);
-    await expect(page.getByText('Delivery contact is locked for this order status.')).toBeVisible();
-    await expect(page.getByText('Edit Delivery Contact')).not.toBeVisible();
-    await expect(page.getByText('Request Delivery Contact Change')).not.toBeVisible();
+    await expect(page.getByText('Delivery details are locked after shipping starts.')).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Edit' })).not.toBeVisible();
   });
 
   test('non-prescription order still shows request revision', async ({ page }) => {
@@ -129,7 +121,7 @@ test.describe('Patient Delivery Contact Update', () => {
     await page.route('**/api/pharmacy-orders/**', (r) => jsonRoute(r, consultOrder));
     await page.goto('/patient-dashboard/pharmacy/orders/600');
     await page.waitForTimeout(1000);
-    await expect(page.getByText('Request Changes')).toBeVisible();
-    await expect(page.getByText('Edit Delivery Contact')).not.toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Delivery details' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Edit' })).toBeVisible();
   });
 });

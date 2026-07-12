@@ -56,6 +56,11 @@ export default function PharmacyRequestsPage({
 
   const canRenderRequestAction = (item, action, kind) => {
     if (action === 'VIEW_ONLY') return false;
+    if (action === 'UPDATE_QUOTE') {
+      const prescriptionSourced = Boolean(item?.prescriptionHeaderId)
+        || (item?.items || item?.orderItems || []).some((orderItem) => orderItem?.sourcePrescriptionItemId);
+      if (prescriptionSourced) return false;
+    }
     if (action === 'UPDATE_ORDER_STATUS') {
       return ['pickupReview', 'retailReview'].includes(kind)
         && normalized(item?.orderStatus) === 'PENDING';
