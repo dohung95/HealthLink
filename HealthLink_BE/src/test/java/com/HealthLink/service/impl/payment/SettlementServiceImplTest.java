@@ -10,7 +10,11 @@ import com.HealthLink.exception.BadRequestException;
 import com.HealthLink.repository.doctor.DoctorRepository;
 import com.HealthLink.repository.payment.PaymentSettlementRepository;
 import com.HealthLink.repository.pharmacy.PharmacyRepository;
+import com.HealthLink.repository.auth.UserRepository;
 import com.HealthLink.service.notification.NotificationService;
+import com.HealthLink.service.payment.PartnerWithdrawalSecurityService;
+import com.HealthLink.service.payment.PartnerWithdrawalSecurityService.PinPolicy;
+import com.HealthLink.exception.PartnerPinException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -34,6 +38,9 @@ import static org.mockito.ArgumentMatchers.contains;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -60,12 +67,19 @@ class SettlementServiceImplTest {
     @Mock
     private NotificationService notificationService;
 
+    @Mock
+    private UserRepository userRepository;
+
+    @Mock
+    private PartnerWithdrawalSecurityService withdrawalSecurityService;
+
     @InjectMocks
     private SettlementServiceImpl settlementService;
 
     @Test
     void withdrawDoctorEarnings_shouldRejectWhenRemainingBalanceIsTenOrLess() {
         Doctor doctor = doctor(new BigDecimal("20.00"));
+        when(userRepository.findById("doctor-1")).thenReturn(Optional.of(doctor.getUser()));
         when(doctorRepository.findById("doctor-1")).thenReturn(Optional.of(doctor));
 
         SettlementRequest request = SettlementRequest.builder()
@@ -81,6 +95,7 @@ class SettlementServiceImplTest {
     @Test
     void withdrawDoctorEarnings_shouldPayOutWhenRemainingBalanceIsGreaterThanTen() throws Exception {
         Doctor doctor = doctor(new BigDecimal("25.00"));
+        when(userRepository.findById("doctor-1")).thenReturn(Optional.of(doctor.getUser()));
         when(doctorRepository.findById("doctor-1")).thenReturn(Optional.of(doctor));
         when(settlementRepository.save(any(Settlement.class))).thenAnswer(invocation -> {
             Settlement settlement = invocation.getArgument(0);
@@ -133,6 +148,7 @@ class SettlementServiceImplTest {
         var response = settlementService.withdrawDoctorEarnings("doctor-1", request);
 
         assertThat(response.getStatus()).isEqualTo("COMPLETED");
+        verify(withdrawalSecurityService).verifyForWithdrawal(doctor.getUser(), null, PinPolicy.REQUIRED_IF_CONFIGURED);
         assertThat(doctor.getPendingSettlement()).isEqualByComparingTo("15.00");
         verify(doctorRepository).save(doctor);
         verify(notificationService).sendWebSocketNotification(
@@ -144,6 +160,21 @@ class SettlementServiceImplTest {
                 eq("/profile-doctor?tab=wallet"),
                 contains("\"delta\":\"-10.00\"")
         );
+    }
+
+    @Test
+    void withdrawPharmacyEarnings_blocksBeforeLoadingBalanceOrCreatingSettlementWhenPinRequired() {
+        User pharmacyUser = User.builder().id("pharmacy-1").build();
+        when(userRepository.findById("pharmacy-1")).thenReturn(Optional.of(pharmacyUser));
+        doThrow(PartnerPinException.required()).when(withdrawalSecurityService)
+                .verifyForWithdrawal(pharmacyUser, null, PinPolicy.REQUIRED);
+        SettlementRequest request = SettlementRequest.builder().amount(new BigDecimal("10.00"))
+                .paypalEmail("pharmacy@example.com").build();
+
+        assertThatThrownBy(() -> settlementService.withdrawPharmacyEarnings("pharmacy-1", request))
+                .isInstanceOf(PartnerPinException.class);
+
+        verifyNoInteractions(pharmacyRepository, settlementRepository, payPalConfig, restTemplate);
     }
 
     private Doctor doctor(BigDecimal pendingSettlement) {

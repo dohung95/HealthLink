@@ -6,14 +6,18 @@ import com.HealthLink.dto.payment.SettlementResponse;
 import com.HealthLink.entity.Doctor;
 import com.HealthLink.entity.Pharmacy;
 import com.HealthLink.entity.Settlement;
+import com.HealthLink.entity.User;
 import com.HealthLink.entity.enums.NotificationType;
 import com.HealthLink.exception.BadRequestException;
 import com.HealthLink.exception.PayPalIntegrationException;
 import com.HealthLink.repository.doctor.DoctorRepository;
 import com.HealthLink.repository.payment.PaymentSettlementRepository;
 import com.HealthLink.repository.pharmacy.PharmacyRepository;
+import com.HealthLink.repository.auth.UserRepository;
 import com.HealthLink.service.notification.NotificationService;
 import com.HealthLink.service.payment.SettlementService;
+import com.HealthLink.service.payment.PartnerWithdrawalSecurityService;
+import com.HealthLink.service.payment.PartnerWithdrawalSecurityService.PinPolicy;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -80,6 +84,8 @@ public class SettlementServiceImpl implements SettlementService {
     private final DoctorRepository      doctorRepository;
     private final PharmacyRepository    pharmacyRepository;
     private final NotificationService   notificationService;
+    private final UserRepository userRepository;
+    private final PartnerWithdrawalSecurityService withdrawalSecurityService;
 
     // ========================================================================
     // Rút tiền – Bác sĩ
@@ -88,6 +94,9 @@ public class SettlementServiceImpl implements SettlementService {
     @Override
     @Transactional
     public SettlementResponse withdrawDoctorEarnings(String doctorId, SettlementRequest request) {
+        User user = userRepository.findById(doctorId)
+                .orElseThrow(() -> new BadRequestException("User not found with ID: " + doctorId));
+        withdrawalSecurityService.verifyForWithdrawal(user, request.getPin(), PinPolicy.REQUIRED_IF_CONFIGURED);
         Doctor doctor = doctorRepository.findById(doctorId)
                 .orElseThrow(() -> new BadRequestException("Doctor not found with ID: " + doctorId));
 
@@ -121,6 +130,9 @@ public class SettlementServiceImpl implements SettlementService {
     @Override
     @Transactional
     public SettlementResponse withdrawPharmacyEarnings(String pharmacyId, SettlementRequest request) {
+        User user = userRepository.findById(pharmacyId)
+                .orElseThrow(() -> new BadRequestException("User not found with ID: " + pharmacyId));
+        withdrawalSecurityService.verifyForWithdrawal(user, request.getPin(), PinPolicy.REQUIRED);
         Pharmacy pharmacy = pharmacyRepository.findById(pharmacyId)
                 .orElseThrow(() -> new BadRequestException("Pharmacy not found with ID: " + pharmacyId));
 
