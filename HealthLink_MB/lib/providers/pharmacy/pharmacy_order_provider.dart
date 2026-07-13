@@ -11,6 +11,7 @@ class PharmacyOrderProvider extends ChangeNotifier {
   int _currentPage = 0;
   bool _hasMore = true;
   String _activeFilter = 'ALL';
+  bool _flowView = true;
 
   PharmacyOrderProvider({PharmacyOrderService? orderService})
       : _orderService = orderService ?? PharmacyOrderService();
@@ -21,6 +22,35 @@ class PharmacyOrderProvider extends ChangeNotifier {
   String? get error => _error;
   bool get hasMore => _hasMore;
   String get activeFilter => _activeFilter;
+  bool get flowView => _flowView;
+
+  void setFlowView(bool flowView) {
+    if (_flowView == flowView) return;
+    _flowView = flowView;
+    if (flowView) {
+      _activeFilter = 'ALL';
+    }
+    notifyListeners();
+  }
+
+  Map<String, List<PharmacyOrder>> get flowGroupedOrders {
+    final activeStatuses = {
+      'PENDING', 'CONFIRMED', 'PREPARING', 'READY', 'SHIPPING', 'DELIVERED',
+    };
+    final active = _orders.where((o) => activeStatuses.contains(o.status)).toList();
+    final grouped = <String, List<PharmacyOrder>>{};
+    for (final order in active) {
+      grouped.putIfAbsent(order.status, () => []).add(order);
+    }
+    final orderedKeys = ['PENDING', 'CONFIRMED', 'PREPARING', 'READY', 'SHIPPING', 'DELIVERED'];
+    final result = <String, List<PharmacyOrder>>{};
+    for (final key in orderedKeys) {
+      if (grouped.containsKey(key)) {
+        result[key] = grouped[key]!;
+      }
+    }
+    return result;
+  }
 
   void setFilter(String filter) {
     if (_activeFilter == filter) return;
