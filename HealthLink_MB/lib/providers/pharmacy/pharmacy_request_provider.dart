@@ -3,6 +3,7 @@ import '../../models/pharmacy/pharmacy_consultation_request.dart';
 import '../../services/pharmacy/pharmacy_request_service.dart';
 
 class PharmacyRequestProvider extends ChangeNotifier {
+  final PharmacyRequestService _requestService;
   List<PharmacyConsultationRequest> _requests = [];
   PharmacyConsultationRequest? _currentRequest;
   bool _isLoading = false;
@@ -10,6 +11,9 @@ class PharmacyRequestProvider extends ChangeNotifier {
   String _activeFilter = 'ALL';
   List<Map<String, dynamic>> _prescriptions = [];
   String? _chatRoomId;
+
+  PharmacyRequestProvider({PharmacyRequestService? requestService})
+      : _requestService = requestService ?? PharmacyRequestService();
 
   List<PharmacyConsultationRequest> get requests => _requests;
   PharmacyConsultationRequest? get currentRequest => _currentRequest;
@@ -32,7 +36,7 @@ class PharmacyRequestProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      _requests = await PharmacyRequestService.getRequests(
+      _requests = await _requestService.getRequests(
         token,
         pharmacyId,
         status: _activeFilter,
@@ -52,7 +56,7 @@ class PharmacyRequestProvider extends ChangeNotifier {
 
     try {
       _currentRequest =
-          await PharmacyRequestService.getRequestById(token, requestId);
+          await _requestService.getRequestById(token, requestId);
     } catch (e) {
       _error = e.toString();
     }
@@ -72,7 +76,7 @@ class PharmacyRequestProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      _currentRequest = await PharmacyRequestService.updateRequestStatus(
+      _currentRequest = await _requestService.updateRequestStatus(
         token,
         requestId,
         status,
@@ -97,7 +101,7 @@ class PharmacyRequestProvider extends ChangeNotifier {
   Future<void> fetchPrescriptions(String token, String requestId) async {
     try {
       _prescriptions =
-          await PharmacyRequestService.getPrescriptions(token, requestId);
+          await _requestService.getPrescriptions(token, requestId);
       notifyListeners();
     } catch (e) {
       _error = e.toString();
@@ -121,7 +125,7 @@ class PharmacyRequestProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      await PharmacyRequestService.createOrderFromRequest(
+      await _requestService.createOrderFromRequest(
         token,
         requestId,
         items,
@@ -147,7 +151,7 @@ class PharmacyRequestProvider extends ChangeNotifier {
   Future<void> fetchChatRoomId(String token, String requestId) async {
     try {
       _chatRoomId =
-          await PharmacyRequestService.getChatRoomId(token, requestId);
+          await _requestService.getChatRoomId(token, requestId);
       notifyListeners();
     } catch (e) {
       // Silently fail, chat may not be available

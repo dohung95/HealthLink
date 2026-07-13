@@ -239,6 +239,9 @@ class ApiConfig {
   static String pharmacyRequestCreateOrder(String id) => '$baseUrl/pharmacy-requests/$id/order';
   static String pharmacyWorkItems(String id) => '$baseUrl/pharmacy-work-items/pharmacy/$id';
   static String pharmacyRequestChatRoom(String id) => '$baseUrl/pharmacy-requests/$id/chat-room';
+  static String pharmacyInventory(String pharmacyId) => '$baseUrl/pharmacy/inventory/$pharmacyId';
+  static String pharmacyInventoryPage(String pharmacyId, {int page = 0, int size = 20}) =>
+      '$baseUrl/pharmacy/inventory/$pharmacyId?page=$page&size=$size';
 
   static String markNotificationAsRead(int notificationId) =>
       '$baseUrl/notifications/$notificationId/read';

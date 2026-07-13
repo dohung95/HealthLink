@@ -3,6 +3,7 @@ import '../../models/pharmacy/pharmacy_order.dart';
 import '../../services/pharmacy/pharmacy_order_service.dart';
 
 class PharmacyOrderProvider extends ChangeNotifier {
+  final PharmacyOrderService _orderService;
   List<PharmacyOrder> _orders = [];
   PharmacyOrder? _currentOrder;
   bool _isLoading = false;
@@ -10,6 +11,9 @@ class PharmacyOrderProvider extends ChangeNotifier {
   int _currentPage = 0;
   bool _hasMore = true;
   String _activeFilter = 'ALL';
+
+  PharmacyOrderProvider({PharmacyOrderService? orderService})
+      : _orderService = orderService ?? PharmacyOrderService();
 
   List<PharmacyOrder> get orders => _orders;
   PharmacyOrder? get currentOrder => _currentOrder;
@@ -34,7 +38,7 @@ class PharmacyOrderProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final newOrders = await PharmacyOrderService.getOrders(
+      final newOrders = await _orderService.getOrders(
         token,
         pharmacyId,
         status: _activeFilter,
@@ -68,7 +72,7 @@ class PharmacyOrderProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      _currentOrder = await PharmacyOrderService.getOrderById(token, orderId);
+      _currentOrder = await _orderService.getOrderById(token, orderId);
     } catch (e) {
       _error = e.toString();
     }
@@ -90,7 +94,7 @@ class PharmacyOrderProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      _currentOrder = await PharmacyOrderService.updateOrderStatus(
+      _currentOrder = await _orderService.updateOrderStatus(
         token,
         orderId,
         status,
@@ -125,7 +129,7 @@ class PharmacyOrderProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      _currentOrder = await PharmacyOrderService.updateOrderQuote(
+      _currentOrder = await _orderService.updateOrderQuote(
         token,
         orderId,
         items,

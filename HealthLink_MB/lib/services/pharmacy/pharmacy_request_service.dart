@@ -4,19 +4,24 @@ import '../../config/api_config.dart';
 import '../../models/pharmacy/pharmacy_consultation_request.dart';
 
 class PharmacyRequestService {
-  PharmacyRequestService._();
+  final http.Client _client;
+
+  PharmacyRequestService({http.Client? client})
+      : _client = client ?? http.Client();
 
   static const Map<String, String> _jsonHeaders = {
     'Content-Type': 'application/json',
     'Accept': 'application/json',
   };
 
-  static Map<String, String> _authHeaders(String token) => {
+  Map<String, String> _authHeaders(String token) => {
         ..._jsonHeaders,
         'Authorization': 'Bearer $token',
       };
 
-  static Future<List<PharmacyConsultationRequest>> getRequests(
+  void close() => _client.close();
+
+  Future<List<PharmacyConsultationRequest>> getRequests(
     String token,
     String pharmacyId, {
     String? status,
@@ -29,7 +34,7 @@ class PharmacyRequestService {
         .replace(
             queryParameters:
                 queryParams.isNotEmpty ? queryParams : null);
-    final res = await http
+    final res = await _client
         .get(uri, headers: _authHeaders(token))
         .timeout(ApiConfig.connectTimeout);
 
@@ -54,9 +59,9 @@ class PharmacyRequestService {
     throw Exception('Failed to load requests (${res.statusCode}): ${res.body}');
   }
 
-  static Future<PharmacyConsultationRequest> getRequestById(
+  Future<PharmacyConsultationRequest> getRequestById(
       String token, String requestId) async {
-    final res = await http
+    final res = await _client
         .get(
           Uri.parse(ApiConfig.pharmacyRequestById(requestId)),
           headers: _authHeaders(token),
@@ -70,7 +75,7 @@ class PharmacyRequestService {
     throw Exception('Failed to load request (${res.statusCode}): ${res.body}');
   }
 
-  static Future<PharmacyConsultationRequest> updateRequestStatus(
+  Future<PharmacyConsultationRequest> updateRequestStatus(
     String token,
     String requestId,
     String status, {
@@ -80,7 +85,7 @@ class PharmacyRequestService {
       'status': status,
       if (pharmacyNotes != null) 'pharmacyNotes': pharmacyNotes,
     };
-    final res = await http
+    final res = await _client
         .patch(
           Uri.parse(ApiConfig.pharmacyRequestUpdateStatus(requestId)),
           headers: _authHeaders(token),
@@ -95,9 +100,9 @@ class PharmacyRequestService {
     throw Exception('Failed to update request status (${res.statusCode}): ${res.body}');
   }
 
-  static Future<List<Map<String, dynamic>>> getPrescriptions(
+  Future<List<Map<String, dynamic>>> getPrescriptions(
       String token, String requestId) async {
-    final res = await http
+    final res = await _client
         .get(
           Uri.parse(ApiConfig.pharmacyRequestPrescriptions(requestId)),
           headers: _authHeaders(token),
@@ -114,7 +119,7 @@ class PharmacyRequestService {
     throw Exception('Failed to load prescriptions (${res.statusCode}): ${res.body}');
   }
 
-  static Future<Map<String, dynamic>> createOrderFromRequest(
+  Future<Map<String, dynamic>> createOrderFromRequest(
     String token,
     String requestId,
     List<Map<String, dynamic>> items, {
@@ -136,7 +141,7 @@ class PharmacyRequestService {
         'deliveryPhoneNumber': deliveryPhoneNumber,
       if (notes != null) 'notes': notes,
     };
-    final res = await http
+    final res = await _client
         .post(
           Uri.parse(ApiConfig.pharmacyRequestCreateOrder(requestId)),
           headers: _authHeaders(token),
@@ -150,9 +155,9 @@ class PharmacyRequestService {
     throw Exception('Failed to create order from request (${res.statusCode}): ${res.body}');
   }
 
-  static Future<String?> getChatRoomId(
+  Future<String?> getChatRoomId(
       String token, String requestId) async {
-    final res = await http
+    final res = await _client
         .get(
           Uri.parse(ApiConfig.pharmacyRequestChatRoom(requestId)),
           headers: _authHeaders(token),

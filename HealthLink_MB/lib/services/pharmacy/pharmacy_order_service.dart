@@ -4,19 +4,24 @@ import '../../config/api_config.dart';
 import '../../models/pharmacy/pharmacy_order.dart';
 
 class PharmacyOrderService {
-  PharmacyOrderService._();
+  final http.Client _client;
+
+  PharmacyOrderService({http.Client? client})
+      : _client = client ?? http.Client();
 
   static const Map<String, String> _jsonHeaders = {
     'Content-Type': 'application/json',
     'Accept': 'application/json',
   };
 
-  static Map<String, String> _authHeaders(String token) => {
+  Map<String, String> _authHeaders(String token) => {
         ..._jsonHeaders,
         'Authorization': 'Bearer $token',
       };
 
-  static Future<List<PharmacyOrder>> getOrders(
+  void close() => _client.close();
+
+  Future<List<PharmacyOrder>> getOrders(
     String token,
     String pharmacyId, {
     String? status,
@@ -32,7 +37,7 @@ class PharmacyOrderService {
     }
     final uri = Uri.parse(ApiConfig.pharmacyOrdersByPharmacy(pharmacyId))
         .replace(queryParameters: queryParams);
-    final res = await http
+    final res = await _client
         .get(uri, headers: _authHeaders(token))
         .timeout(ApiConfig.connectTimeout);
 
@@ -56,8 +61,8 @@ class PharmacyOrderService {
     throw Exception('Failed to load orders');
   }
 
-  static Future<PharmacyOrder> getOrderById(String token, String orderId) async {
-    final res = await http
+  Future<PharmacyOrder> getOrderById(String token, String orderId) async {
+    final res = await _client
         .get(
           Uri.parse(ApiConfig.pharmacyOrderById(orderId)),
           headers: _authHeaders(token),
@@ -71,7 +76,7 @@ class PharmacyOrderService {
     throw Exception('Failed to load order');
   }
 
-  static Future<PharmacyOrder> updateOrderStatus(
+  Future<PharmacyOrder> updateOrderStatus(
     String token,
     String orderId,
     String status, {
@@ -86,7 +91,7 @@ class PharmacyOrderService {
           null) 'estimatedDeliveryTime': estimatedDeliveryTime,
       if (cancelReason != null) 'cancelReason': cancelReason,
     };
-    final res = await http
+    final res = await _client
         .patch(
       Uri.parse(ApiConfig.pharmacyOrderUpdateStatus(orderId)),
       headers: _authHeaders(token),
@@ -101,7 +106,7 @@ class PharmacyOrderService {
     throw Exception('Failed to update order status');
   }
 
-  static Future<PharmacyOrder> updateOrderQuote(
+  Future<PharmacyOrder> updateOrderQuote(
     String token,
     String orderId,
     List<Map<String, dynamic>> items, {
@@ -113,7 +118,7 @@ class PharmacyOrderService {
       if (deliveryFee != null) 'deliveryFee': deliveryFee,
       if (estimatedDeliveryTime != null) 'estimatedDeliveryTime': estimatedDeliveryTime,
     };
-    final res = await http
+    final res = await _client
         .put(
           Uri.parse(ApiConfig.pharmacyOrderUpdateQuote(orderId)),
           headers: _authHeaders(token),
