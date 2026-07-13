@@ -4,11 +4,13 @@ import com.HealthLink.audit.AuditLogger;
 import com.HealthLink.dto.auth.ChangeEmailRequest;
 import com.HealthLink.dto.auth.ChangePasswordRequest;
 import com.HealthLink.dto.auth.VerifyEmailChangeRequest;
+import com.HealthLink.dto.auth.PharmacyPasswordOtpChangeRequest;
 import com.HealthLink.dto.pharmacy.PharmacyProfileResponse;
 import com.HealthLink.dto.pharmacy.PharmacyUpdateRequest;
 import com.HealthLink.entity.EmailVerificationToken;
 import com.HealthLink.entity.Pharmacy;
 import com.HealthLink.entity.User;
+import com.HealthLink.entity.TokenType;
 import com.HealthLink.exception.BadRequestException;
 import com.HealthLink.exception.ResourceNotFoundException;
 import com.HealthLink.repository.auth.EmailVerificationTokenRepository;
@@ -29,6 +31,7 @@ import java.nio.file.Paths;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
+import java.security.SecureRandom;
 import java.util.stream.Collectors;
 
 @Service
@@ -44,6 +47,7 @@ public class PharmacyProfileServiceImpl implements PharmacyProfileService {
     private String baseUrl;
 
     private static final long MAX_AVATAR_FILE_SIZE = 5 * 1024 * 1024;
+    private static final SecureRandom SECURE_RANDOM = new SecureRandom();
 
     private final PharmacyRepository pharmacyRepository;
     private final UserRepository userRepository;
@@ -242,6 +246,74 @@ public class PharmacyProfileServiceImpl implements PharmacyProfileService {
         log.info("Password changed for pharmacyId: {}", pharmacyId);
     }
 
+    @Override
+    @Transactional
+    public String requestPasswordChangeOtp(String pharmacyId) {
+        User user = userRepository.findById(pharmacyId)
+                .orElseThrow(() -> new ResourceNotFoundException("User", "id", pharmacyId));
+
+        emailVerificationTokenRepository.findByUserAndType(user, TokenType.PASSWORD_RESET)
+                .ifPresent(emailVerificationTokenRepository::delete);
+
+        String verificationCode = generateVerificationCode();
+        EmailVerificationToken token = EmailVerificationToken.builder()
+                .token(verificationCode)
+                .user(user)
+                .newEmail(user.getEmail())
+                .expiryDate(LocalDateTime.now().plusMinutes(5))
+                .used(false)
+                .type(TokenType.PASSWORD_RESET)
+                .build();
+        emailVerificationTokenRepository.save(token);
+
+        emailService.sendSimpleMessage(
+                user.getEmail(),
+                "Password Change OTP",
+                "Your OTP for password change is: " + verificationCode
+                        + "\n\nThis code expires in 5 minutes."
+                        + "\n\nIf you did not request this, please ignore this email."
+        );
+        return "OTP sent to your registered email";
+    }
+
+    @Override
+    @Transactional
+    public void changePasswordWithOtp(String pharmacyId, PharmacyPasswordOtpChangeRequest request) {
+        if (!request.getNewPassword().equals(request.getConfirmNewPassword())) {
+            throw new BadRequestException("New password and confirmation do not match");
+        }
+
+        User user = userRepository.findById(pharmacyId)
+                .orElseThrow(() -> new ResourceNotFoundException("User", "id", pharmacyId));
+        EmailVerificationToken token = emailVerificationTokenRepository
+                .findByTokenAndUserAndType(request.getOtp(), user, TokenType.PASSWORD_RESET)
+                .orElseThrow(() -> new BadRequestException("Invalid password change OTP"));
+
+        if (token.isUsed()) {
+            throw new BadRequestException("Password change OTP has already been used");
+        }
+        if (token.isExpired()) {
+            throw new BadRequestException("Password change OTP has expired");
+        }
+        if (passwordEncoder.matches(request.getNewPassword(), user.getPassword())) {
+            throw new BadRequestException("New password must be different from current password");
+        }
+
+        user.setPassword(passwordEncoder.encode(request.getNewPassword()));
+        userRepository.save(user);
+        emailVerificationTokenRepository.delete(token);
+
+        try {
+            String displayName = pharmacyRepository.findById(pharmacyId)
+                    .map(Pharmacy::getName)
+                    .orElse(user.getUsername());
+            emailService.sendPasswordResetSuccessEmail(user.getEmail(), displayName);
+        } catch (Exception exception) {
+            log.error("Failed to send password change success email to {}: {}", user.getEmail(), exception.getMessage());
+        }
+        log.info("Password changed with OTP for pharmacyId: {}", pharmacyId);
+    }
+
     // =========================================================================
     // Helper Methods
     // =========================================================================
@@ -284,7 +356,7 @@ public class PharmacyProfileServiceImpl implements PharmacyProfileService {
 
     /** Tạo mã OTP ngẫu nhiên 6 chữ số */
     private String generateVerificationCode() {
-        return String.format("%06d", (int) (Math.random() * 1000000));
+        return String.format("%06d", SECURE_RANDOM.nextInt(1_000_000));
     }
 
     @Override

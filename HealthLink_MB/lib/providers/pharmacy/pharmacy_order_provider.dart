@@ -3,6 +3,7 @@ import '../../models/pharmacy/pharmacy_order.dart';
 import '../../services/pharmacy/pharmacy_order_service.dart';
 
 class PharmacyOrderProvider extends ChangeNotifier {
+  final PharmacyOrderService _orderService;
   List<PharmacyOrder> _orders = [];
   PharmacyOrder? _currentOrder;
   bool _isLoading = false;
@@ -10,6 +11,10 @@ class PharmacyOrderProvider extends ChangeNotifier {
   int _currentPage = 0;
   bool _hasMore = true;
   String _activeFilter = 'ALL';
+  bool _flowView = true;
+
+  PharmacyOrderProvider({PharmacyOrderService? orderService})
+      : _orderService = orderService ?? PharmacyOrderService();
 
   List<PharmacyOrder> get orders => _orders;
   PharmacyOrder? get currentOrder => _currentOrder;
@@ -17,6 +22,35 @@ class PharmacyOrderProvider extends ChangeNotifier {
   String? get error => _error;
   bool get hasMore => _hasMore;
   String get activeFilter => _activeFilter;
+  bool get flowView => _flowView;
+
+  void setFlowView(bool flowView) {
+    if (_flowView == flowView) return;
+    _flowView = flowView;
+    if (flowView) {
+      _activeFilter = 'ALL';
+    }
+    notifyListeners();
+  }
+
+  Map<String, List<PharmacyOrder>> get flowGroupedOrders {
+    final activeStatuses = {
+      'PENDING', 'CONFIRMED', 'PREPARING', 'READY', 'SHIPPING', 'DELIVERED',
+    };
+    final active = _orders.where((o) => activeStatuses.contains(o.status)).toList();
+    final grouped = <String, List<PharmacyOrder>>{};
+    for (final order in active) {
+      grouped.putIfAbsent(order.status, () => []).add(order);
+    }
+    final orderedKeys = ['PENDING', 'CONFIRMED', 'PREPARING', 'READY', 'SHIPPING', 'DELIVERED'];
+    final result = <String, List<PharmacyOrder>>{};
+    for (final key in orderedKeys) {
+      if (grouped.containsKey(key)) {
+        result[key] = grouped[key]!;
+      }
+    }
+    return result;
+  }
 
   void setFilter(String filter) {
     if (_activeFilter == filter) return;
@@ -34,7 +68,7 @@ class PharmacyOrderProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final newOrders = await PharmacyOrderService.getOrders(
+      final newOrders = await _orderService.getOrders(
         token,
         pharmacyId,
         status: _activeFilter,
@@ -68,7 +102,7 @@ class PharmacyOrderProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      _currentOrder = await PharmacyOrderService.getOrderById(token, orderId);
+      _currentOrder = await _orderService.getOrderById(token, orderId);
     } catch (e) {
       _error = e.toString();
     }
@@ -90,7 +124,7 @@ class PharmacyOrderProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      _currentOrder = await PharmacyOrderService.updateOrderStatus(
+      _currentOrder = await _orderService.updateOrderStatus(
         token,
         orderId,
         status,
@@ -125,7 +159,7 @@ class PharmacyOrderProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      _currentOrder = await PharmacyOrderService.updateOrderQuote(
+      _currentOrder = await _orderService.updateOrderQuote(
         token,
         orderId,
         items,

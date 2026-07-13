@@ -2,14 +2,43 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { toast } from 'sonner';
 import { useAuth } from '../../context/AuthContext';
+import { useNotifications } from '../../context/NotificationContext';
 import { useChat } from '../../context/ChatContext';
 import pharmacyApi from '../../api/pharmacyApi';
 import { getProfile } from '../../api/account';
 import { paymentApi } from '../../api/paymentApi';
 import { loadPayPalSdk } from '../../utils/paypalSdk';
-import { titleCase } from '../../utils/pharmacy/pharmacyHelpers';
+import {
+  clearWorkflowToastSuppression,
+  getWorkflowToastId,
+  suppressWorkflowToast,
+} from '../../utils/notificationToastPolicy';
+import ConfirmModal from '../ConfirmModal';
 import RetailPharmacyStore from './pharmacy-store/RetailPharmacyStore';
+import DeliveryContactEditor from './pharmacy-store/DeliveryContactEditor';
+import { canEditDeliveryAddress, canEditDeliveryPhone, isDeliveryContactLocked } from './pharmacy-store/deliveryContactPolicy';
+import { getAddressVerificationError } from './pharmacy-store/addressVerification';
+import { getOrderStatusPresentation, getRequestStatusPresentation } from '../pharmacy/workflow/pharmacyStatusPresentation';
+import FulfillmentMapPicker from './pharmacy-store/FulfillmentMapPicker';
+import { applyMapPin } from './pharmacy-store/mapPinPolicy';
+import { applyManualGeocodeResult } from './pharmacy-store/manualAddressPolicy';
+import { resolvePharmacyRevalidation } from './pharmacy-store/pharmacySelectionPolicy';
 import './PatientPharmacy.css';
+
+function isPrescriptionBasedOrder(order) {
+  return Boolean(order?.prescriptionHeaderId)
+    || (order?.items || []).some((item) => item?.sourcePrescriptionItemId);
+}
+
+function statusBadgeClass(tone) {
+  return {
+    success: 'bg-success',
+    danger: 'bg-danger',
+    warning: 'bg-warning text-dark',
+    info: 'bg-info text-dark',
+    neutral: 'bg-secondary',
+  }[tone] || 'bg-secondary';
+}
 
 const TABS = [
   { label: 'Store', icon: 'bi-bag', path: '' },
@@ -38,7 +67,7 @@ export default function PatientPharmacyPage() {
   const orderId = isOrderDetail ? location.pathname.match(/\/orders\/([^/]+)$/)[1] : null;
 
   if (orderId) {
-    return <OrderDetailView orderId={orderId} userId={userId} navigate={navigate} />;
+    return <OrderDetailView orderId={orderId} navigate={navigate} />;
   }
 
   return (
@@ -61,7 +90,7 @@ export default function PatientPharmacyPage() {
       </ul>
 
       {activeTab === '/consult' ? (
-        <PharmacyWizard userId={userId} navigate={navigate} />
+        <PharmacyWizard userId={userId} navigate={navigate} location={location} />
       ) : activeTab === '/requests' ? (
         <RequestsView userId={userId} />
       ) : activeTab === '/orders' ? (
@@ -74,9 +103,10 @@ export default function PatientPharmacyPage() {
 }
 
 function PharmacyWizard({ userId, navigate, location }) {
+  const { latestRealtimeNotification } = useNotifications();
   const autoSelectId = location?.state?.autoSelectPrescriptionId;
   const [flowType, setFlowType] = useState('ORDER_REQUEST');
-  const [step, setStep] = useState(autoSelectId ? 'delivery' : 'prescription');
+  const [step, setStep] = useState(autoSelectId ? 'fulfillment' : 'prescription');
   const [prescriptionHeaderId, setPrescriptionHeaderId] = useState(autoSelectId || null);
   const [prescriptions, setPrescriptions] = useState([]);
   const [selectedPharmacy, setSelectedPharmacy] = useState(null);
@@ -85,7 +115,14 @@ function PharmacyWizard({ userId, navigate, location }) {
   const [geoTried, setGeoTried] = useState(false);
   const [patientProfile, setPatientProfile] = useState(null);
   const [deliveryContact, setDeliveryContact] = useState(null);
-  const steps = ['prescription', 'delivery', 'pharmacy', 'submitted'];
+  const [fulfillmentType, setFulfillmentType] = useState('Delivery');
+  const [pickupArea, setPickupArea] = useState({
+    address: '',
+    latitude: null,
+    longitude: null,
+    source: 'MANUAL',
+  });
+  const steps = flowType === 'CONSULTATION' ? ['prescription', 'fulfillment', 'pharmacy', 'connect'] : ['prescription', 'fulfillment', 'pharmacy', 'submitted'];
   const stepIndex = steps.indexOf(step);
 
   useEffect(() => {
@@ -109,43 +146,50 @@ function PharmacyWizard({ userId, navigate, location }) {
   }, []);
 
   const handleSelectPrescription = (id) => {
+    setFlowType('ORDER_REQUEST');
     setPrescriptionHeaderId(id);
-    setStep('delivery');
+    setStep('fulfillment');
   };
 
   const handleSkipPrescription = () => {
+    setFlowType('CONSULTATION');
     setPrescriptionHeaderId(null);
-    setStep('delivery');
+    setStep('fulfillment');
   };
 
   const handleSelectPharmacy = async (pharmacy) => {
     setSelectedPharmacy(pharmacy);
 
     try {
+      const isOrderRequest = flowType === 'ORDER_REQUEST';
       const payload = {
         patientId: userId,
         pharmacyId: pharmacy.pharmacyId,
         requestType: flowType,
-        symptoms: flowType === 'CONSULTATION' ? '' : undefined,
-        description: prescriptionHeaderId 
-          ? 'Patient requested an order from an existing prescription' 
-          : 'Patient requested an OTC order',
-        allergies: '',
-        additionalNotes: '',
-        preferredDeliveryType: 'Delivery',
-        deliveryType: 'Delivery',
+        preferredDeliveryType: fulfillmentType,
+        deliveryType: fulfillmentType,
         deliveryAddress: deliveryContact?.deliveryAddress,
         deliveryLatitude: deliveryContact?.deliveryLatitude,
         deliveryLongitude: deliveryContact?.deliveryLongitude,
         deliveryPhoneNumber: deliveryContact?.deliveryPhoneNumber,
         deliveryAddressSource: deliveryContact?.deliveryAddressSource,
-        prescriptionHeaderIds: prescriptionHeaderId ? [prescriptionHeaderId] : undefined,
+        ...(isOrderRequest && { prescriptionHeaderIds: [prescriptionHeaderId] }),
+        ...(!isOrderRequest && { prescriptionHeaderIds: [] }),
       };
       const created = await pharmacyApi.createConsultationRequest(payload);
 
-      if (flowType === 'ORDER_REQUEST') {
-        toast.success('Order request sent to pharmacy.');
-        navigate('/patient-dashboard/pharmacy/requests');
+      if (isOrderRequest) {
+        if (created.pharmacyOrderId) {
+          if (fulfillmentType === 'Delivery') {
+            toast.success('Order placed. Waiting for pharmacy to confirm delivery.');
+          } else {
+            toast.success('Order confirmed. Ready for pickup at the pharmacy.');
+          }
+          navigate(`/patient-dashboard/pharmacy/orders/${created.pharmacyOrderId}`);
+        } else {
+          toast.success('Request sent for pharmacy review.');
+          navigate('/patient-dashboard/pharmacy/requests');
+        }
         return;
       }
 
@@ -162,12 +206,28 @@ function PharmacyWizard({ userId, navigate, location }) {
     if (idx > 0) setStep(steps[idx - 1]);
   };
 
-  const handleRequestUpdated = (updatedRequest) => {
+  const handleRequestUpdated = (updatedRequest, { source } = {}) => {
     setRequest(updatedRequest);
-    if (updatedRequest.status === 'ORDER_CREATED' && updatedRequest.pharmacyOrderId) {
-      navigate(`/patient-dashboard/pharmacy/orders/${updatedRequest.pharmacyOrderId}`);
+    if (source === 'poll' && updatedRequest.status === 'ORDER_CREATED' && updatedRequest.pharmacyOrderId) {
+      toast.info('Pharmacy order created', {
+        id: getWorkflowToastId({ type: 'NEW_ORDER', relatedId: updatedRequest.pharmacyOrderId }),
+        description: 'Your pharmacy has prepared an order for review.',
+        action: {
+          label: 'Open',
+          onClick: () => navigate(`/patient-dashboard/pharmacy/orders/${updatedRequest.pharmacyOrderId}`),
+        },
+      });
     }
   };
+
+  useEffect(() => {
+    if (request?.status !== 'IN_REVIEW' || String(latestRealtimeNotification?.type || '').toUpperCase() !== 'NEW_ORDER') {
+      return;
+    }
+    pharmacyApi.getConsultationRequestById(request.requestId)
+      .then((updated) => handleRequestUpdated(updated, { source: 'realtime' }))
+      .catch(() => undefined);
+  }, [latestRealtimeNotification, request?.requestId, request?.status]);
 
   if (stepIndex === -1) return null;
 
@@ -181,16 +241,12 @@ function PharmacyWizard({ userId, navigate, location }) {
               {i + 1}
             </div>
             <small className={i <= stepIndex ? 'fw-medium' : 'text-muted'}>
-              {s === 'mode' ? 'Mode' : s === 'prescription' ? 'Prescription' : s === 'delivery' ? 'Delivery' : s === 'pharmacy' ? 'Pharmacy' : s === 'connect' ? 'Connect' : s === 'submitted' ? 'Submitted' : 'Payment'}
+              {s === 'prescription' ? 'Prescription' : s === 'fulfillment' ? 'Fulfillment' : s === 'pharmacy' ? 'Pharmacy' : s === 'connect' ? 'Connect' : s === 'submitted' ? 'Submitted' : 'Payment'}
             </small>
             {i < steps.length - 1 && <div className="border-top mx-1" style={{ width: 20 }} />}
           </div>
         ))}
       </div>
-
-      {step === 'mode' && (
-        <RequestModeStep onChoose={(type) => { setFlowType(type); setStep('prescription'); }} />
-      )}
 
       {step === 'prescription' && (
         <PrescriptionStep
@@ -203,11 +259,15 @@ function PharmacyWizard({ userId, navigate, location }) {
         />
       )}
 
-      {step === 'delivery' && (
-        <DeliveryContactStep
+      {step === 'fulfillment' && (
+        <FulfillmentStep
           profile={patientProfile}
           geolocation={geolocation}
           geoTried={geoTried}
+          fulfillmentType={fulfillmentType}
+          setFulfillmentType={setFulfillmentType}
+          pickupArea={pickupArea}
+          setPickupArea={setPickupArea}
           onBack={handleGoBack}
           onContinue={(contact) => {
             setDeliveryContact(contact);
@@ -222,6 +282,7 @@ function PharmacyWizard({ userId, navigate, location }) {
           geolocation={geolocation}
           deliveryContact={deliveryContact}
           prescriptionHeaderId={prescriptionHeaderId}
+          fulfillmentType={fulfillmentType}
           onSelect={handleSelectPharmacy}
           onBack={handleGoBack}
         />
@@ -237,23 +298,6 @@ function PharmacyWizard({ userId, navigate, location }) {
           onBack={handleGoBack}
         />
       )}
-    </div>
-  );
-}
-
-function RequestModeStep({ onChoose }) {
-  return (
-    <div className="pharmacy-mode-grid">
-      <button className="pharmacy-mode-card" onClick={() => onChoose('CONSULTATION')} type="button">
-        <i className="bi bi-chat-square-text"></i>
-        <strong>Request consultation</strong>
-        <span>Ask the pharmacy to review your situation, chat if needed, then create an order.</span>
-      </button>
-      <button className="pharmacy-mode-card" onClick={() => onChoose('ORDER_REQUEST')} type="button">
-        <i className="bi bi-prescription2"></i>
-        <strong>Order from prescription</strong>
-        <span>Send an existing prescription for pricing and fulfillment. No consultation.</span>
-      </button>
     </div>
   );
 }
@@ -309,17 +353,21 @@ function PrescriptionStep({ mode, userId, onSelect, onSkip, prescriptions, setPr
   );
 }
 
-function PharmacySelectionStep({ userId, geolocation, deliveryContact, prescriptionHeaderId, onSelect, onBack }) {
+function PharmacySelectionStep({ userId, geolocation, deliveryContact, prescriptionHeaderId, fulfillmentType, onSelect, onBack }) {
   const [pharmacies, setPharmacies] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [selectingId, setSelectingId] = useState(null);
   const [search, setSearch] = useState('');
-  const [deliveryOnly, setDeliveryOnly] = useState(false);
+  const deliveryOnly = fulfillmentType === 'Delivery';
   const refLat = deliveryContact?.deliveryLatitude ?? geolocation?.lat ?? null;
   const refLng = deliveryContact?.deliveryLongitude ?? geolocation?.lng ?? null;
 
-  useEffect(() => {
-    if (!userId) { setLoading(false); return; }
-    setLoading(true);
+  const loadPharmacies = useCallback(async ({ silent = false } = {}) => {
+    if (!userId) {
+      setLoading(false);
+      return [];
+    }
+    if (!silent) setLoading(true);
     const params = {};
     if (deliveryOnly) params.deliveryOnly = true;
     if (prescriptionHeaderId) params.prescriptionHeaderId = prescriptionHeaderId;
@@ -327,23 +375,56 @@ function PharmacySelectionStep({ userId, geolocation, deliveryContact, prescript
       params.lat = refLat;
       params.lng = refLng;
     }
-    pharmacyApi.getRecommendations(params)
-      .then((data) => setPharmacies(Array.isArray(data) ? data : []))
-      .catch(() => toast.error('Unable to load pharmacies.'))
-      .finally(() => setLoading(false));
+    try {
+      const data = await pharmacyApi.getRecommendations(params);
+      const safeData = Array.isArray(data) ? data : [];
+      const eligible = prescriptionHeaderId ? safeData.filter((p) => p.stockStatus === 'FULL') : safeData;
+      setPharmacies(eligible);
+      return eligible;
+    } catch {
+      if (!silent) toast.error('Unable to load pharmacies.');
+      return null;
+    } finally {
+      if (!silent) setLoading(false);
+    }
   }, [userId, deliveryOnly, prescriptionHeaderId, refLat, refLng]);
+
+  useEffect(() => {
+    loadPharmacies();
+  }, [loadPharmacies]);
+
+  useEffect(() => {
+    const refreshOnFocus = () => { loadPharmacies({ silent: true }); };
+    window.addEventListener('focus', refreshOnFocus);
+    return () => window.removeEventListener('focus', refreshOnFocus);
+  }, [loadPharmacies]);
+
+  const handleSelect = async (pharmacy) => {
+    setSelectingId(pharmacy.pharmacyId);
+    const current = await loadPharmacies({ silent: true });
+    if (current == null) {
+      toast.error('Unable to recheck pharmacy availability. Please try again.');
+      setSelectingId(null);
+      return;
+    }
+    const revalidation = resolvePharmacyRevalidation(current, pharmacy.pharmacyId, deliveryOnly);
+    if (revalidation.state === 'UNAVAILABLE') {
+      toast.error('This pharmacy is no longer available for the selected fulfillment option.');
+      setSelectingId(null);
+      return;
+    }
+    try {
+      await onSelect(revalidation.pharmacy);
+    } finally {
+      setSelectingId(null);
+    }
+  };
 
   const filtered = pharmacies.filter((p) => {
     if (!search) return true;
     const q = search.toLowerCase();
     return (p.name || '').toLowerCase().includes(q) || (p.address || '').toLowerCase().includes(q);
   });
-
-  const stockBadge = (status) => {
-    if (status === 'FULL') return { cls: 'bg-success', label: 'Du thuoc' };
-    if (status === 'PARTIAL') return { cls: 'bg-warning text-dark', label: 'Thieu mot phan' };
-    return { cls: 'bg-secondary', label: 'Chua co du lieu kho' };
-  };
 
   return (
     <div>
@@ -356,11 +437,7 @@ function PharmacySelectionStep({ userId, geolocation, deliveryContact, prescript
           <input type="text" className="form-control" placeholder="Search by name or address..."
             value={search} onChange={(e) => setSearch(e.target.value)} />
         </div>
-        <div className="form-check form-switch">
-          <input className="form-check-input" type="checkbox" id="deliveryOnly"
-            checked={deliveryOnly} onChange={(e) => setDeliveryOnly(e.target.checked)} />
-          <label className="form-check-label" htmlFor="deliveryOnly">Delivery only</label>
-        </div>
+        <span className="badge bg-info">{fulfillmentType === 'Delivery' ? 'Delivery' : 'Pickup'}</span>
       </div>
 
       {loading ? (
@@ -370,12 +447,15 @@ function PharmacySelectionStep({ userId, geolocation, deliveryContact, prescript
       ) : filtered.length === 0 ? (
         <div className="text-center py-5 text-muted">
           <i className="bi bi-shop" style={{ fontSize: '3rem' }}></i>
-          <p className="mt-2">No pharmacies found.</p>
+          <p className="mt-2">
+          {prescriptionHeaderId
+            ? 'No pharmacies can fulfill this prescription at the selected location.'
+            : 'No pharmacies found.'}
+          </p>
         </div>
       ) : (
         <div className="row g-3">
           {filtered.map((p) => {
-            const badge = prescriptionHeaderId ? stockBadge(p.stockStatus) : null;
             return (
               <div className="col-md-6 col-lg-4" key={p.pharmacyId}>
                 <div className="card h-100 shadow-sm">
@@ -399,22 +479,25 @@ function PharmacySelectionStep({ userId, geolocation, deliveryContact, prescript
                       {p.averageRating != null && (
                         <span className="me-3"><i className="bi bi-star-fill text-warning me-1"></i>{p.averageRating.toFixed(1)}</span>
                       )}
-                      {p.deliveryAvailable && (
-                        <span className="me-3"><i className="bi bi-truck text-info me-1"></i>Delivery</span>
-                      )}
-                      {badge && (
-                        <span className={`badge ${badge.cls} me-1`}>{badge.label}</span>
+                      {fulfillmentType === 'Delivery' ? (
+                        <>
+                          {p.deliveryAvailable && (
+                            <span className="me-3"><i className="bi bi-truck text-info me-1"></i>Delivery</span>
+                          )}
+                          {p.deliveryRadius != null && (
+                            <span className="me-3"><i className="bi bi-geo-alt text-muted me-1"></i>{p.deliveryRadius}km radius</span>
+                          )}
+                        </>
+                      ) : (
+                        <>
+                          {p.distanceLabel && (
+                            <span className="me-3"><i className="bi bi-geo-alt text-primary me-1"></i>Distance: {p.distanceLabel}</span>
+                          )}
+                        </>
                       )}
                     </div>
-                    {prescriptionHeaderId && p.missingItems?.length > 0 && (
-                      <div className="small text-danger mb-2">
-                        <i className="bi bi-exclamation-triangle me-1"></i>
-                        Missing: {p.missingItems.slice(0, 3).map((m) => m.medicationName).join(', ')}
-                        {p.missingItems.length > 3 && ` +${p.missingItems.length - 3} more`}
-                      </div>
-                    )}
-                    <button className="btn btn-sm btn-outline-primary w-100" onClick={() => onSelect(p)}>
-                      <i className="bi bi-send me-1"></i>Send Order
+                    <button className="btn btn-sm btn-outline-primary w-100" disabled={selectingId != null} onClick={() => handleSelect(p)}>
+                      <i className={`bi ${selectingId === p.pharmacyId ? 'bi-arrow-repeat' : 'bi-send'} me-1`}></i>{selectingId === p.pharmacyId ? 'Checking...' : 'Send Order'}
                     </button>
                   </div>
                 </div>
@@ -427,13 +510,27 @@ function PharmacySelectionStep({ userId, geolocation, deliveryContact, prescript
   );
 }
 
-function DeliveryContactStep({ profile, geolocation, geoTried, onBack, onContinue }) {
+function FulfillmentStep({ profile, geolocation, geoTried, fulfillmentType, setFulfillmentType, pickupArea, setPickupArea, onBack, onContinue }) {
   const [address, setAddress] = useState('');
   const [phone, setPhone] = useState('');
   const [latitude, setLatitude] = useState(null);
   const [longitude, setLongitude] = useState(null);
   const [source, setSource] = useState('PROFILE');
   const [saving, setSaving] = useState(false);
+  const [showMap, setShowMap] = useState(false);
+  const mapCoordinates = fulfillmentType === 'Delivery'
+    ? { latitude, longitude }
+    : { latitude: pickupArea.latitude, longitude: pickupArea.longitude };
+  const selectMapPin = (selectedLatitude, selectedLongitude) => {
+    if (fulfillmentType === 'Delivery') {
+      const pinned = applyMapPin({ address, source, verified: false }, selectedLatitude, selectedLongitude);
+      setLatitude(pinned.latitude);
+      setLongitude(pinned.longitude);
+      setSource(pinned.source);
+      return;
+    }
+    setPickupArea((current) => applyMapPin(current, selectedLatitude, selectedLongitude));
+  };
 
   useEffect(() => {
     const profileAddress = [profile?.address, profile?.city, profile?.country].filter(Boolean).join(', ');
@@ -454,103 +551,174 @@ function DeliveryContactStep({ profile, geolocation, geoTried, onBack, onContinu
         latitude: geolocation.lat,
         longitude: geolocation.lng,
       });
-      setAddress(result.formattedAddress || '');
-      setLatitude(result.latitude);
-      setLongitude(result.longitude);
-      setSource('DEVICE_LOCATION');
-      toast.success('Delivery address updated from current location.');
-    } catch (error) {
-      const msg = error.response?.data?.message || '';
-      if (msg.includes('API key is not configured')) {
-        toast.error('Google Maps service is not configured. Please contact support.');
+      if (fulfillmentType === 'Delivery') {
+        setAddress(result.formattedAddress || '');
+        setLatitude(result.latitude);
+        setLongitude(result.longitude);
+        setSource('DEVICE_LOCATION');
+        toast.success('Delivery address updated from current location.');
       } else {
-        toast.error(msg || 'Unable to resolve current location.');
+        setPickupArea({ address: result.formattedAddress || '', latitude: result.latitude, longitude: result.longitude, source: 'DEVICE_LOCATION' });
+        toast.success('Pickup area updated from current location.');
       }
+    } catch (error) {
+      toast.error(getAddressVerificationError(error, 'Unable to resolve current location.'));
     } finally {
       setSaving(false);
     }
   };
 
-  const geocodeManualAddress = async () => {
-    if (!address.trim()) {
-      toast.error('Please enter a delivery address.');
+  const geocodeManual = async () => {
+    const input = fulfillmentType === 'Delivery' ? address.trim() : pickupArea.address.trim();
+    if (!input) {
+      toast.error(fulfillmentType === 'Delivery' ? 'Please enter a delivery address.' : 'Please enter a pickup area.');
       return;
     }
     setSaving(true);
     try {
-      const result = await pharmacyApi.geocodeAddress(address.trim());
-      setAddress(result.formattedAddress || address.trim());
-      setLatitude(result.latitude);
-      setLongitude(result.longitude);
-      setSource('MANUAL');
-      toast.success('Delivery address verified.');
-    } catch (error) {
-      const msg = error.response?.data?.message || '';
-      if (msg.includes('API key is not configured')) {
-        toast.error('Google Maps service is not configured. Please contact support.');
+      const result = await pharmacyApi.geocodeAddress(input);
+      const verified = applyManualGeocodeResult(input, result);
+      if (fulfillmentType === 'Delivery') {
+        setAddress(verified.address);
+        setLatitude(verified.latitude);
+        setLongitude(verified.longitude);
+        setSource('MANUAL');
+        toast.success('Delivery address verified.');
       } else {
-        toast.error(msg || 'Unable to verify this address.');
+        setPickupArea({ address: verified.address, latitude: verified.latitude, longitude: verified.longitude, source: 'MANUAL' });
+        toast.success('Pickup area verified.');
       }
+    } catch (error) {
+      toast.error(getAddressVerificationError(error, fulfillmentType === 'Delivery' ? 'Unable to verify this address.' : 'Unable to verify this area.'));
     } finally {
       setSaving(false);
     }
   };
 
-  const submit = async () => {
+  const submit = () => {
     if (!phone.trim()) {
-      toast.error('Please enter a delivery phone number.');
+      toast.error('Please enter a phone number.');
       return;
     }
-    if (!address.trim()) {
-      toast.error('Please enter a delivery address.');
-      return;
+
+    if (fulfillmentType === 'Delivery') {
+      if (!address.trim()) {
+        toast.error('Please enter a delivery address.');
+        return;
+      }
+      if (latitude == null || longitude == null) {
+        toast.error('Please verify your delivery address first.');
+        return;
+      }
+      onContinue({
+        fulfillmentType,
+        deliveryAddress: address.trim(),
+        deliveryLatitude: latitude,
+        deliveryLongitude: longitude,
+        deliveryPhoneNumber: phone.trim(),
+        deliveryAddressSource: source,
+      });
+    } else {
+      if (!pickupArea.address.trim()) {
+        toast.error('Please enter a pickup area.');
+        return;
+      }
+      if (pickupArea.latitude == null || pickupArea.longitude == null) {
+        toast.error('Please verify your pickup area first.');
+        return;
+      }
+      onContinue({
+        fulfillmentType,
+        deliveryAddress: null,
+        deliveryLatitude: pickupArea.latitude,
+        deliveryLongitude: pickupArea.longitude,
+        deliveryPhoneNumber: phone.trim(),
+        deliveryAddressSource: pickupArea.source,
+        pickupAddress: pickupArea.address.trim(),
+      });
     }
-    if (latitude == null || longitude == null) {
-      await geocodeManualAddress();
-      return;
-    }
-    onContinue({
-      deliveryType: 'Delivery',
-      deliveryAddress: address.trim(),
-      deliveryLatitude: latitude,
-      deliveryLongitude: longitude,
-      deliveryPhoneNumber: phone.trim(),
-      deliveryAddressSource: source,
-    });
   };
 
   return (
-    <div className="delivery-contact-card">
-      <div className="delivery-contact-header">
-        <div>
-          <h5 className="fw-semibold mb-1">Delivery contact</h5>
-          <p className="text-muted small mb-0">Choose where the pharmacy should send the order.</p>
+    <div>
+      <div className="d-flex align-items-center gap-2 mb-1">
+        <h5 className="fw-semibold mb-0">Fulfillment method</h5>
+      </div>
+      <p className="text-muted small mb-3">Choose how you want to receive the order.</p>
+
+      <div className="btn-group mb-3 w-100">
+        <button className={`btn ${fulfillmentType === 'Delivery' ? 'btn-primary' : 'btn-outline-primary'}`}
+          onClick={() => setFulfillmentType('Delivery')}>
+          <i className="bi bi-truck me-1"></i>Delivery
+        </button>
+        <button className={`btn ${fulfillmentType === 'Pickup' ? 'btn-primary' : 'btn-outline-primary'}`}
+          onClick={() => setFulfillmentType('Pickup')}>
+          <i className="bi bi-shop me-1"></i>Pickup
+        </button>
+      </div>
+
+      <label className="form-label small">Phone number</label>
+      <input className="form-control mb-3" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Your phone number" />
+
+      {fulfillmentType === 'Delivery' ? (
+        <>
+          <label className="form-label small">Delivery address</label>
+          <textarea className="form-control mb-2" rows="3" value={address} onChange={(e) => {
+            setAddress(e.target.value);
+            setLatitude(null);
+            setLongitude(null);
+            setSource('MANUAL');
+          }} />
+
+          <div className="d-flex flex-wrap gap-2 mb-3">
+            <button className="btn btn-outline-primary btn-sm" disabled={saving} onClick={useCurrentLocation} type="button">
+              <i className="bi bi-crosshair me-1"></i>Use current location
+            </button>
+            <button className="btn btn-outline-secondary btn-sm" disabled={saving || !address.trim()} onClick={geocodeManual} type="button">
+              <i className="bi bi-geo-alt me-1"></i>Verify address
+            </button>
+            <button className="btn btn-outline-secondary btn-sm" disabled={saving} onClick={() => setShowMap((visible) => !visible)} type="button">
+              <i className="bi bi-map me-1"></i>{showMap ? 'Hide map' : 'Confirm on map'}
+            </button>
+          </div>
+
+          {latitude != null && longitude != null && (
+            <p className="small text-success mb-3">
+              <i className="bi bi-check-circle me-1"></i>Location verified: {latitude.toFixed(5)}, {longitude.toFixed(5)}
+            </p>
+          )}
+        </>
+      ) : (
+        <>
+          <label className="form-label small">Pickup area</label>
+          <textarea className="form-control mb-2" rows="2" value={pickupArea.address} onChange={(e) => {
+            setPickupArea(prev => ({ ...prev, address: e.target.value, latitude: null, longitude: null, source: 'MANUAL' }));
+          }} placeholder="e.g., Near Central Park, Gate 2" />
+
+          <div className="d-flex flex-wrap gap-2 mb-3">
+            <button className="btn btn-outline-primary btn-sm" disabled={saving} onClick={useCurrentLocation} type="button">
+              <i className="bi bi-crosshair me-1"></i>Use current location
+            </button>
+            <button className="btn btn-outline-secondary btn-sm" disabled={saving || !pickupArea.address.trim()} onClick={geocodeManual} type="button">
+              <i className="bi bi-geo-alt me-1"></i>Verify area
+            </button>
+            <button className="btn btn-outline-secondary btn-sm" disabled={saving} onClick={() => setShowMap((visible) => !visible)} type="button">
+              <i className="bi bi-map me-1"></i>{showMap ? 'Hide map' : 'Confirm on map'}
+            </button>
+          </div>
+
+          {pickupArea.latitude != null && pickupArea.longitude != null && (
+            <p className="small text-success mb-3">
+              <i className="bi bi-check-circle me-1"></i>Pickup area verified: {pickupArea.latitude.toFixed(5)}, {pickupArea.longitude.toFixed(5)}
+            </p>
+          )}
+        </>
+      )}
+
+      {showMap && (
+        <div className="border rounded overflow-hidden mb-3" style={{ height: 240 }}>
+          <FulfillmentMapPicker {...mapCoordinates} onSelect={selectMapPin} />
         </div>
-      </div>
-      <label className="form-label small">Receiver phone</label>
-      <input className="form-control mb-3" value={phone} onChange={(e) => setPhone(e.target.value)} />
-
-      <label className="form-label small">Delivery address</label>
-      <textarea className="form-control mb-2" rows="3" value={address} onChange={(e) => {
-        setAddress(e.target.value);
-        setLatitude(null);
-        setLongitude(null);
-        setSource('MANUAL');
-      }} />
-
-      <div className="d-flex flex-wrap gap-2 mb-3">
-        <button className="btn btn-outline-primary btn-sm" disabled={saving} onClick={useCurrentLocation} type="button">
-          <i className="bi bi-crosshair me-1"></i>Use current location
-        </button>
-        <button className="btn btn-outline-secondary btn-sm" disabled={saving || !address.trim()} onClick={geocodeManualAddress} type="button">
-          <i className="bi bi-geo-alt me-1"></i>Verify address
-        </button>
-      </div>
-
-      {latitude != null && longitude != null && (
-        <p className="small text-success mb-3">
-          <i className="bi bi-check-circle me-1"></i>Location verified: {latitude.toFixed(5)}, {longitude.toFixed(5)}
-        </p>
       )}
 
       <div className="d-flex gap-2">
@@ -569,13 +737,15 @@ function ConnectStep({ request, pharmacy, geolocation, userId, onRequestUpdated,
   const startTime = useRef(Date.now());
 
   useEffect(() => {
-    if (!request || request.status !== 'PENDING') return;
+    if (!request || !['PENDING', 'IN_REVIEW'].includes(request.status)) return;
 
     const poll = setInterval(async () => {
       try {
         const updated = await pharmacyApi.getConsultationRequestById(request.requestId);
-        if (updated.status !== 'PENDING') {
-          onRequestUpdated(updated);
+        if (updated.status !== request.status || updated.pharmacyOrderId !== request.pharmacyOrderId) {
+          onRequestUpdated(updated, { source: 'poll' });
+        }
+        if (['ORDER_CREATED', 'CANCELLED'].includes(updated.status)) {
           setPolling(null);
           clearInterval(poll);
         }
@@ -584,7 +754,7 @@ function ConnectStep({ request, pharmacy, geolocation, userId, onRequestUpdated,
 
     setPolling(poll);
     return () => { if (poll) clearInterval(poll); };
-  }, [request?.requestId, request?.status, onRequestUpdated]);
+  }, [request?.pharmacyOrderId, request?.requestId, request?.status, onRequestUpdated]);
 
   useEffect(() => {
     return () => { if (polling) clearInterval(polling); };
@@ -763,9 +933,10 @@ function RequestsView({ userId }) {
           <p className="mb-1 small">{req.symptoms || req.description || 'No description'}</p>
           <div className="d-flex gap-2 align-items-center">
             <span className="badge bg-info">{req.requestType === 'ORDER_REQUEST' ? 'Order Request' : 'Consultation'}</span>
-            <span className={`badge ${req.status === 'CANCELLED' ? 'bg-danger' : req.status === 'ORDER_CREATED' ? 'bg-success' : req.status === 'IN_REVIEW' ? 'bg-info' : 'bg-secondary'}`}>
-              {req.status}
-            </span>
+            {(() => {
+              const status = getRequestStatusPresentation(req);
+              return <span className={`badge ${statusBadgeClass(status.tone)}`}>{status.label}: {status.value}</span>;
+            })()}
             {req.pharmacyOrderId && (
               <Link to={`/patient-dashboard/pharmacy/orders/${req.pharmacyOrderId}`} className="small">
                 <i className="bi bi-box-seam me-1"></i>View Order
@@ -808,11 +979,6 @@ function OrdersView({ userId, navigate }) {
     );
   }
 
-  const statusBadge = (s) => {
-    const map = { PENDING: 'warning', CONFIRMED: 'info', PREPARING: 'primary', READY: 'primary', SHIPPING: 'info', DELIVERED: 'success', COMPLETED: 'success', CANCELLED: 'danger', REFUNDED: 'secondary' };
-    return `bg-${map[s] || 'secondary'}`;
-  };
-
   return (
     <div className="list-group">
       {orders.map((o) => (
@@ -824,11 +990,14 @@ function OrdersView({ userId, navigate }) {
               <h6 className="mb-1">{o.orderNumber || `Order #${o.orderId}`}</h6>
               <p className="mb-1 small text-muted">{o.pharmacyName || 'Pharmacy'}</p>
             </div>
-            <div className="text-end">
-              <span className={`badge ${statusBadge(o.status)} me-1`}>{titleCase(o.status)}</span>
-              {o.paymentStatus && (
-                <span className={`badge ${o.paymentStatus === 'PAID' ? 'bg-success' : 'bg-warning'}`}>{o.paymentStatus}</span>
-              )}
+            <div className="text-end d-flex flex-wrap justify-content-end gap-1">
+              {(() => {
+                const presentation = getOrderStatusPresentation(o);
+                return <>
+                  <span className={`badge ${statusBadgeClass(presentation.order.tone)}`}>Order: {presentation.order.value}</span>
+                  {presentation.payment && <span className={`badge ${statusBadgeClass(presentation.payment.tone)}`}>Payment: {presentation.payment.value}</span>}
+                </>;
+              })()}
             </div>
           </div>
           {o.totalAmount != null && (
@@ -893,7 +1062,9 @@ function PharmacyPayPalButton({ order, onPaid, onCancel, onError, onFail }) {
                 data.orderID,
                 'EWallet'
               );
-              toast.success('Payment successful!');
+              toast.success('Payment successful!', {
+                id: getWorkflowToastId({ type: 'INVOICE_PAID', relatedId: order.orderId }),
+              });
               onPaid(updatedOrder);
             } catch (error) {
               toast.error(error.response?.data?.message || 'Payment could not be captured.');
@@ -950,7 +1121,7 @@ function PharmacyPayPalButton({ order, onPaid, onCancel, onError, onFail }) {
   );
 }
 
-function OrderDetailView({ orderId, userId, navigate }) {
+function OrderDetailView({ orderId, navigate }) {
   const [order, setOrder] = useState(null);
   const [loading, setLoading] = useState(true);
   const [cancelling, setCancelling] = useState(false);
@@ -958,6 +1129,12 @@ function OrderDetailView({ orderId, userId, navigate }) {
   const [revisionReason, setRevisionReason] = useState('');
   const [requestingRevision, setRequestingRevision] = useState(false);
   const [showRevisionForm, setShowRevisionForm] = useState(false);
+  const [showDeliveryContactEditor, setShowDeliveryContactEditor] = useState(false);
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false);
+  const [newDeliveryAddress, setNewDeliveryAddress] = useState('');
+  const [newDeliveryPhone, setNewDeliveryPhone] = useState('');
+  const [deliveryContactReason, setDeliveryContactReason] = useState('');
+  const [savingDeliveryContact, setSavingDeliveryContact] = useState(false);
 
   const loadOrder = useCallback(async () => {
     if (!orderId) return;
@@ -983,13 +1160,34 @@ function OrderDetailView({ orderId, userId, navigate }) {
     return () => window.removeEventListener('offline', handleOffline);
   }, []);
 
-  const handleCancel = async () => {
+  const handleCancelClick = () => {
+    setShowCancelConfirm(true);
+  };
+
+  const handleCloseCancelConfirm = () => {
+    if (!cancelling) {
+      setShowCancelConfirm(false);
+    }
+  };
+
+
+  const handleConfirmCancel = async () => {
+    if (!order?.orderId) return;
+    const cancelToastId = getWorkflowToastId({ type: 'CANCEL_ORDER', relatedId: order.orderId });
+    suppressWorkflowToast(cancelToastId);
     setCancelling(true);
     try {
-      await pharmacyApi.cancelOrder(order.orderId, { cancelReason: 'Patient requested cancellation' });
-      toast.success('Order cancelled.');
-      await loadOrder();
+      const updatedOrder = await pharmacyApi.cancelOrder(order.orderId, {
+        cancelReason: 'Patient requested cancellation',
+      });
+      setOrder(updatedOrder);
+      setConfirmedForPayment(false);
+      setShowCancelConfirm(false);
+      toast.success('Order cancelled.', {
+        id: `patient-order-cancel:${order.orderId}`,
+      });
     } catch (err) {
+      clearWorkflowToastSuppression(cancelToastId);
       toast.error(err.response?.data?.message || 'Unable to cancel order.');
     } finally {
       setCancelling(false);
@@ -1001,6 +1199,17 @@ function OrderDetailView({ orderId, userId, navigate }) {
     toast.success('Order confirmed! You can now proceed to payment.');
   };
 
+  const handlePatientConfirmTotal = async () => {
+    try {
+      const updatedOrder = await pharmacyApi.confirmOrderTotalByPatient(order.orderId);
+      setOrder(updatedOrder);
+      setConfirmedForPayment(true);
+      toast.success('Total confirmed! You can now proceed to payment.');
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Unable to confirm total.');
+    }
+  };
+
   const handleRequestRevision = async () => {
     if (!revisionReason.trim()) {
       toast.error('Please provide a reason for the change request.');
@@ -1008,15 +1217,89 @@ function OrderDetailView({ orderId, userId, navigate }) {
     }
     setRequestingRevision(true);
     try {
-      await pharmacyApi.requestOrderRevision(order.orderId, { reason: revisionReason });
+      const updatedOrder = await pharmacyApi.requestOrderRevision(order.orderId, { reason: revisionReason.trim() });
+      setOrder(updatedOrder);
+      setConfirmedForPayment(false);
       toast.success('Change request sent. Waiting for pharmacy update.');
       setShowRevisionForm(false);
       setRevisionReason('');
-      await loadOrder();
     } catch (err) {
       toast.error(err.response?.data?.message || 'Unable to request changes.');
     } finally {
       setRequestingRevision(false);
+    }
+  };
+
+  const handleSaveDeliveryContact = async () => {
+    if (!newDeliveryAddress.trim() || !newDeliveryPhone.trim()) {
+      toast.error('Please fill in address and phone number.');
+      return;
+    }
+    const addressChanged = newDeliveryAddress.trim() !== (order.deliveryAddress || '');
+    if (addressChanged) {
+      if (!deliveryContactReason.trim()) {
+        toast.error('Please provide a reason for the address change.');
+        return;
+      }
+      setSavingDeliveryContact(true);
+      try {
+        const payload = {
+          deliveryAddress: newDeliveryAddress.trim(),
+          deliveryPhoneNumber: newDeliveryPhone.trim(),
+          reason: deliveryContactReason.trim(),
+        };
+        const updated = await pharmacyApi.requestDeliveryContactChange(orderId, payload);
+        setOrder(updated);
+        setShowDeliveryContactEditor(false);
+        setNewDeliveryAddress('');
+        setNewDeliveryPhone('');
+        setDeliveryContactReason('');
+        toast.success('Delivery address change request sent for pharmacy review.');
+      } catch (err) {
+        toast.error(err.response?.data?.message || 'Unable to request delivery contact change.');
+      } finally {
+        setSavingDeliveryContact(false);
+      }
+    } else {
+      setSavingDeliveryContact(true);
+      try {
+        const updated = await pharmacyApi.updateOrderDeliveryContact(orderId, {
+          deliveryAddress: order.deliveryAddress || '',
+          deliveryPhoneNumber: newDeliveryPhone.trim(),
+        });
+        setOrder(updated);
+        setShowDeliveryContactEditor(false);
+        setNewDeliveryAddress('');
+        setNewDeliveryPhone('');
+        toast.success('Phone number updated.');
+      } catch (err) {
+        toast.error(err.response?.data?.message || 'Unable to update phone number.');
+      } finally {
+        setSavingDeliveryContact(false);
+      }
+    }
+  };
+
+  const handleDeliveryContactSubmit = async ({ kind, payload }) => {
+    setSavingDeliveryContact(true);
+    try {
+      if (kind === 'PHONE_ONLY') {
+        const updated = await pharmacyApi.updateOrderDeliveryContact(orderId, payload);
+        setOrder(updated);
+        toast.success('Phone number updated.');
+      } else {
+        const pendingChange = await pharmacyApi.requestDeliveryContactChange(orderId, payload);
+        setOrder((current) => ({
+          ...current,
+          deliveryContactChangeStatus: pendingChange.status,
+        }));
+        toast.success('Address change request sent for pharmacy review.');
+      }
+      setShowDeliveryContactEditor(false);
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Unable to update delivery details.');
+    } finally {
+      setSavingDeliveryContact(false);
     }
   };
 
@@ -1067,11 +1350,6 @@ function OrderDetailView({ orderId, userId, navigate }) {
     }
   };
 
-  const statusBadge = (s) => {
-    const map = { PENDING: 'warning', CONFIRMED: 'info', PREPARING: 'primary', READY: 'primary', SHIPPING: 'info', DELIVERED: 'success', COMPLETED: 'success', CANCELLED: 'danger', REFUNDED: 'secondary', REVISION_REQUESTED: 'warning' };
-    return map[s] || 'secondary';
-  };
-
   if (loading) {
     return (
       <div className="text-center py-5">
@@ -1090,18 +1368,33 @@ function OrderDetailView({ orderId, userId, navigate }) {
     );
   }
 
-  const isRevisionRequested = order.status === 'REVISION_REQUESTED';
+  const status = order.status;
+  const isRevisionRequested = status === 'REVISION_REQUESTED';
   const isPaid = order.paymentStatus === 'PAID';
+  const isTerminal = ['CANCELLED', 'REFUNDED', 'SHIPPING', 'DELIVERED', 'COMPLETED'].includes(status);
   const isRetailOrder = !order.prescriptionHeaderId && !order.pharmacyRequestId;
-  const retailAwaitingConfirmation = isRetailOrder && order.status === 'PENDING' && !isPaid;
+  const retailAwaitingConfirmation = isRetailOrder && status === 'PENDING' && !isPaid;
+  const pendingPatientConfirmation = Boolean(order.requiresPatientConfirmation);
   const needsPayment = !isPaid
-    && !['CANCELLED', 'REFUNDED'].includes(order.status)
+    && !isTerminal
     && !isRevisionRequested
-    && !retailAwaitingConfirmation;
-  const canCancel = ['PENDING', 'CONFIRMED'].includes(order.status);
-  const canRequestRevision = needsPayment && !isRevisionRequested;
-  const showConfirmButton = needsPayment && !confirmedForPayment;
-  const showPayPal = needsPayment && confirmedForPayment;
+    && !retailAwaitingConfirmation
+    && !pendingPatientConfirmation;
+  const canCancel = ['PENDING', 'CONFIRMED'].includes(status) && !isPaid;
+  const canRequestRevision = !isPrescriptionBasedOrder(order)
+    && status === 'PENDING'
+    && !isPaid
+    && pendingPatientConfirmation;
+  const showPaymentAction = needsPayment;
+  const showContinueToPayment = showPaymentAction && !confirmedForPayment;
+  const showStandaloneCancel = canCancel
+    && !pendingPatientConfirmation
+    && !showPaymentAction
+    && !showRevisionForm
+    && !showDeliveryContactEditor;
+  const deliveryOrder = String(order.deliveryType || '').toUpperCase() === 'DELIVERY';
+  const deliveryContactLocked = isDeliveryContactLocked(order);
+  const canEditAnyDeliveryContact = canEditDeliveryAddress(order) || canEditDeliveryPhone(order);
 
   return (
     <div>
@@ -1110,10 +1403,13 @@ function OrderDetailView({ orderId, userId, navigate }) {
           <i className="bi bi-arrow-left"></i>
         </button>
         <h4 className="mb-0">Order {order.orderNumber || `#${orderId}`}</h4>
-        <span className={`badge bg-${statusBadge(order.status)}`}>{titleCase(order.status)}</span>
-        {order.paymentStatus && (
-          <span className={`badge ${isPaid ? 'bg-success' : 'bg-warning'}`}>{order.paymentStatus}</span>
-        )}
+        {(() => {
+          const presentation = getOrderStatusPresentation(order);
+          return <>
+            <span className={`badge ${statusBadgeClass(presentation.order.tone)}`}>Order: {presentation.order.value}</span>
+            {presentation.payment && <span className={`badge ${statusBadgeClass(presentation.payment.tone)}`}>Payment: {presentation.payment.value}</span>}
+          </>;
+        })()}
         {order.invoiceId && (
           <button className="btn btn-sm btn-outline-primary" onClick={handleDownloadPdf}>
             <i className="bi bi-file-pdf me-1"></i>PDF
@@ -1132,6 +1428,17 @@ function OrderDetailView({ orderId, userId, navigate }) {
         <div className="alert alert-info mb-3">
           <i className="bi bi-hourglass-split me-2"></i>
           Waiting for the pharmacy to confirm stock and pricing before payment.
+        </div>
+      )}
+
+      {pendingPatientConfirmation && (
+        <div className="alert alert-warning mb-3">
+          <i className="bi bi-exclamation-triangle me-2"></i>
+          {order.patientConfirmationReason === 'DELIVERY_QUOTE'
+            ? 'The pharmacy has sent the delivery fee. Please confirm the total before payment.'
+            : order.patientConfirmationReason === 'DELIVERY_CONTACT_FEE_CHANGE'
+            ? 'Your delivery change affects the total. Please confirm the updated total.'
+            : 'Please confirm the order total before payment.'}
         </div>
       )}
 
@@ -1191,78 +1498,231 @@ function OrderDetailView({ orderId, userId, navigate }) {
         </div>
 
         <div className="col-md-4">
-          {showConfirmButton && (
+          {pendingPatientConfirmation && !isPaid && (
             <div className="card shadow-sm mb-3 border-primary">
-              <div className="card-body text-center">
-                <h6 className="fw-semibold mb-3 text-primary">Confirm Order</h6>
-                <p className="small text-muted mb-3">Review the order details. Once confirmed, PayPal payment will be available.</p>
-                <button className="btn btn-primary w-100" onClick={handleConfirmOrder}>
-                  <i className="bi bi-check-circle me-2"></i>Confirm Order
-                </button>
+              <div className="card-body">
+                <h6 className="fw-semibold mb-3 text-primary">Confirm Total</h6>
+                <div className="border rounded p-2 mb-3 bg-light">
+                  <div className="d-flex justify-content-between small"><span>Medicine Amount</span><strong>${Number(order.medicineAmount || 0).toFixed(2)}</strong></div>
+                  <div className="d-flex justify-content-between small"><span>Delivery Fee</span><strong>${Number(order.deliveryFee || 0).toFixed(2)}</strong></div>
+                  <div className="d-flex justify-content-between fw-bold mt-1"><span>Total</span><span>${Number(order.totalAmount || 0).toFixed(2)}</span></div>
+                </div>
+                {!showRevisionForm ? (
+                  <>
+                    <button className="btn btn-primary w-100 mb-2" onClick={handlePatientConfirmTotal}>
+                      <i className="bi bi-check-circle me-2"></i>Confirm Total
+                    </button>
+                    {canRequestRevision && (
+                      <button className="btn btn-outline-warning w-100 mb-2" onClick={() => setShowRevisionForm(true)}>
+                        <i className="bi bi-pencil me-2"></i>Request Changes
+                      </button>
+                    )}
+                    {canCancel && (
+                      <button className="btn btn-outline-danger w-100" disabled={cancelling} onClick={handleCancelClick}>
+                        {cancelling ? 'Cancelling...' : 'Cancel Order'}
+                      </button>
+                    )}
+                  </>
+                ) : (
+                  <div className="text-start">
+                    <label className="form-label small">Describe the changes you need:</label>
+                    <textarea
+                      className="form-control mb-2"
+                      rows="3"
+                      value={revisionReason}
+                      onChange={(event) => setRevisionReason(event.target.value)}
+                    />
+                    <div className="d-flex gap-2">
+                      <button className="btn btn-warning flex-grow-1" disabled={requestingRevision} onClick={handleRequestRevision}>
+                        {requestingRevision ? 'Sending...' : 'Send Request'}
+                      </button>
+                      <button className="btn btn-outline-secondary" onClick={() => { setShowRevisionForm(false); setRevisionReason(''); }}>
+                        Back
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           )}
 
-          {showPayPal && (
+          {showPaymentAction && (
             <div className="card shadow-sm mb-3">
               <div className="card-body text-center">
                 <h6 className="fw-semibold mb-3">Payment</h6>
-                <p className="small text-muted mb-3">Pay with PayPal to complete your order.</p>
-                <PharmacyPayPalButton
-                  order={order}
-                  onPaid={handlePaid}
-                  onCancel={handlePayPalCancel}
-                  onError={handlePayPalError}
-                  onFail={handlePayPalFail}
-                />
+                {showContinueToPayment ? (
+                  <>
+                    <p className="small text-muted mb-3">Review the order details before opening payment.</p>
+                    <button className="btn btn-primary w-100 mb-2" onClick={handleConfirmOrder}>
+                      <i className="bi bi-credit-card me-2"></i>Continue to Payment
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <p className="small text-muted mb-3">Pay with PayPal to complete your order.</p>
+                    <PharmacyPayPalButton
+                      order={order}
+                      onPaid={handlePaid}
+                      onCancel={handlePayPalCancel}
+                      onError={handlePayPalError}
+                      onFail={handlePayPalFail}
+                    />
+                  </>
+                )}
+                {canCancel && (
+                  <button className="btn btn-outline-danger w-100 mt-2" disabled={cancelling} onClick={handleCancelClick}>
+                    {cancelling ? 'Cancelling...' : 'Cancel Order'}
+                  </button>
+                )}
               </div>
             </div>
           )}
 
-          {canRequestRevision && !showRevisionForm && (
+          {deliveryOrder && order.deliveryContactChangeStatus === 'PENDING' && (
             <div className="card shadow-sm mb-3">
               <div className="card-body text-center">
-                <h6 className="fw-semibold mb-3">Request Changes</h6>
-                <p className="small text-muted mb-3">Need to modify medications, prices, or delivery?</p>
-                <button className="btn btn-outline-warning w-100" onClick={() => setShowRevisionForm(true)}>
-                  <i className="bi bi-pencil me-2"></i>Request Changes
-                </button>
+                <i className="bi bi-clock-history text-warning fs-4 mb-2 d-block"></i>
+                <p className="small mb-0">Pharmacy is reviewing the address and delivery fee.</p>
               </div>
             </div>
           )}
 
-          {canRequestRevision && showRevisionForm && (
-            <div className="card shadow-sm mb-3 border-warning">
-              <div className="card-body">
-                <h6 className="fw-semibold mb-3">Request Changes</h6>
-                <div className="mb-3">
-                  <label className="form-label small">Describe the changes you need:</label>
-                  <textarea
-                    className="form-control"
-                    rows="3"
-                    placeholder="e.g., Please remove Vitamin C and update delivery time."
-                    value={revisionReason}
-                    onChange={(e) => setRevisionReason(e.target.value)}
-                  />
-                </div>
-                <div className="d-flex gap-2">
-                  <button className="btn btn-warning flex-grow-1" disabled={requestingRevision} onClick={handleRequestRevision}>
-                    {requestingRevision ? 'Sending...' : 'Send Request'}
-                  </button>
-                  <button className="btn btn-outline-secondary" onClick={() => { setShowRevisionForm(false); setRevisionReason(''); }}>
-                    Cancel
-                  </button>
-                </div>
+          {deliveryOrder && order.deliveryContactChangeStatus !== 'PENDING' && !showDeliveryContactEditor && canEditAnyDeliveryContact && (
+            <div className="card shadow-sm mb-3">
+              <div className="card-body d-flex justify-content-between align-items-center gap-3">
+                <div><h6 className="fw-semibold mb-1">Delivery details</h6><p className="small text-muted mb-0">{order.deliveryAddress} {order.deliveryPhoneNumber ? `- ${order.deliveryPhoneNumber}` : ''}</p></div>
+                <button className="btn btn-outline-primary btn-sm flex-shrink-0" onClick={() => setShowDeliveryContactEditor(true)} type="button"><i className="bi bi-pencil me-1" />Edit</button>
               </div>
             </div>
           )}
 
-          {canCancel && (
+          {deliveryOrder && showDeliveryContactEditor && (
+            <DeliveryContactEditor
+              order={order}
+              onCancel={() => setShowDeliveryContactEditor(false)}
+              onSubmit={handleDeliveryContactSubmit}
+              saving={savingDeliveryContact}
+            />
+          )}
+
+          {deliveryOrder && order.deliveryContactChangeStatus !== 'PENDING' && deliveryContactLocked && (
+            <div className="alert alert-secondary small mb-3"><i className="bi bi-lock me-2" />Delivery details are locked after shipping starts.</div>
+          )}
+
+          {isPrescriptionBasedOrder(order) && order.deliveryType !== 'Pickup' && !deliveryOrder && (
+            <>
+              {order.deliveryContactChangeStatus !== 'PENDING' && ['SHIPPING', 'DELIVERED', 'COMPLETED', 'CANCELLED', 'REFUNDED'].includes(order.status) && (
+                <div className="card shadow-sm mb-3">
+                  <div className="card-body text-center">
+                    <i className="bi bi-lock text-muted fs-4 mb-2 d-block"></i>
+                    <p className="small text-muted mb-0">Delivery contact is locked for this order status.</p>
+                  </div>
+                </div>
+              )}
+
+              {order.deliveryContactChangeStatus !== 'PENDING' && ['PENDING', 'CONFIRMED', 'PREPARING'].includes(order.status) && !showDeliveryContactEditor && (
+                <div className="card shadow-sm mb-3">
+                  <div className="card-body text-center">
+                    <h6 className="fw-semibold mb-3">Delivery Contact</h6>
+                    <p className="small text-muted mb-3">{order.deliveryAddress}{order.deliveryPhoneNumber ? ` — ${order.deliveryPhoneNumber}` : ''}</p>
+                    <button className="btn btn-outline-primary w-100" onClick={() => {
+                      setNewDeliveryAddress(order.deliveryAddress || '');
+                      setNewDeliveryPhone(order.deliveryPhoneNumber || '');
+                      setShowDeliveryContactEditor(true);
+                    }}>
+                      <i className="bi bi-pencil me-2"></i>Edit Delivery Contact
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {order.deliveryContactChangeStatus !== 'PENDING' && ['PENDING', 'CONFIRMED', 'PREPARING'].includes(order.status) && showDeliveryContactEditor && (
+                <div className="card shadow-sm mb-3 border-primary">
+                  <div className="card-body">
+                    <h6 className="fw-semibold mb-3">Edit Delivery Contact</h6>
+                    <div className="mb-2">
+                      <label className="form-label small">Current: {order.deliveryAddress}{order.deliveryPhoneNumber ? ` — ${order.deliveryPhoneNumber}` : ''}</label>
+                    </div>
+                    <div className="mb-2">
+                      <label className="form-label small">New Address</label>
+                      <input className="form-control form-control-sm" value={newDeliveryAddress} onChange={(e) => setNewDeliveryAddress(e.target.value)} />
+                    </div>
+                    <div className="mb-2">
+                      <label className="form-label small">New Phone</label>
+                      <input className="form-control form-control-sm" value={newDeliveryPhone} onChange={(e) => setNewDeliveryPhone(e.target.value)} />
+                    </div>
+                    <div className="mb-2">
+                      <label className="form-label small">Reason for change</label>
+                      <textarea className="form-control form-control-sm" rows="2" value={deliveryContactReason}
+                        onChange={(e) => setDeliveryContactReason(e.target.value)} placeholder="Required if address changes" />
+                    </div>
+                    <div className="d-flex gap-2 mt-3">
+                      <button className="btn btn-primary btn-sm flex-grow-1" disabled={savingDeliveryContact} onClick={handleSaveDeliveryContact}>
+                        {savingDeliveryContact ? 'Saving...' : 'Save'}
+                      </button>
+                      <button className="btn btn-outline-secondary btn-sm" onClick={() => { setShowDeliveryContactEditor(false); setNewDeliveryAddress(''); setNewDeliveryPhone(''); setDeliveryContactReason(''); }}>
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {order.deliveryContactChangeStatus !== 'PENDING' && order.status === 'READY' && !showDeliveryContactEditor && (
+                <div className="card shadow-sm mb-3">
+                  <div className="card-body text-center">
+                    <h6 className="fw-semibold mb-3">Delivery Contact</h6>
+                    <p className="small text-muted mb-3">{order.deliveryAddress}{order.deliveryPhoneNumber ? ` — ${order.deliveryPhoneNumber}` : ''}</p>
+                    <button className="btn btn-outline-warning w-100" onClick={() => {
+                      setNewDeliveryAddress(order.deliveryAddress || '');
+                      setNewDeliveryPhone(order.deliveryPhoneNumber || '');
+                      setShowDeliveryContactEditor(true);
+                    }}>
+                      <i className="bi bi-pencil me-2"></i>Request Delivery Contact Change
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {order.deliveryContactChangeStatus !== 'PENDING' && order.status === 'READY' && showDeliveryContactEditor && (
+                <div className="card shadow-sm mb-3 border-warning">
+                  <div className="card-body">
+                    <h6 className="fw-semibold mb-3">Request Delivery Contact Change</h6>
+                    <div className="mb-2">
+                      <label className="form-label small">Current: {order.deliveryAddress}{order.deliveryPhoneNumber ? ` — ${order.deliveryPhoneNumber}` : ''}</label>
+                    </div>
+                    <div className="mb-2">
+                      <label className="form-label small">New Address</label>
+                      <input className="form-control form-control-sm" value={newDeliveryAddress} onChange={(e) => setNewDeliveryAddress(e.target.value)} />
+                    </div>
+                    <div className="mb-2">
+                      <label className="form-label small">New Phone</label>
+                      <input className="form-control form-control-sm" value={newDeliveryPhone} onChange={(e) => setNewDeliveryPhone(e.target.value)} />
+                    </div>
+                    <div className="mb-2">
+                      <label className="form-label small">Reason for change</label>
+                      <textarea className="form-control form-control-sm" rows="2" value={deliveryContactReason} onChange={(e) => setDeliveryContactReason(e.target.value)} />
+                    </div>
+                    <div className="d-flex gap-2 mt-3">
+                      <button className="btn btn-warning btn-sm flex-grow-1" disabled={savingDeliveryContact} onClick={handleSaveDeliveryContact}>
+                        {savingDeliveryContact ? 'Sending...' : 'Send Request'}
+                      </button>
+                      <button className="btn btn-outline-secondary btn-sm" onClick={() => { setShowDeliveryContactEditor(false); setNewDeliveryAddress(''); setNewDeliveryPhone(''); setDeliveryContactReason(''); }}>
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+
+          {showStandaloneCancel && (
             <div className="card shadow-sm">
               <div className="card-body text-center">
                 <h6 className="fw-semibold mb-3 text-danger">Cancel Order</h6>
                 <p className="small text-muted mb-3">Cancel this order if you no longer need it.</p>
-                <button className="btn btn-outline-danger w-100" disabled={cancelling} onClick={handleCancel}>
+                <button className="btn btn-outline-danger w-100" disabled={cancelling} onClick={handleCancelClick}>
                   {cancelling ? 'Cancelling...' : 'Cancel Order'}
                 </button>
               </div>
@@ -1270,6 +1730,17 @@ function OrderDetailView({ orderId, userId, navigate }) {
           )}
         </div>
       </div>
+      <ConfirmModal
+        isOpen={showCancelConfirm}
+        onClose={handleCloseCancelConfirm}
+        onConfirm={handleConfirmCancel}
+        title="Cancel Order"
+        message="Are you sure you want to cancel this order? This action cannot be undone."
+        confirmText="Yes, Cancel"
+        cancelText="Keep Order"
+        iconClass="bi-exclamation-triangle-fill"
+        variant="danger"
+      />
     </div>
   );
 }

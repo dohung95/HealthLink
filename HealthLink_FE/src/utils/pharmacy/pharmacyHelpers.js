@@ -38,7 +38,6 @@ export function stageClass(stage) {
 export const routeByTab = {
   overview: '/pharmacy-page',
   inventory: '/pharmacy-page/inventory',
-  inventoryAnalytics: '/pharmacy-page/inventory/analytics',
   requests: '/pharmacy-page/requests',
   orders: '/pharmacy-page/orders',
   orderList: '/pharmacy-page/order-list',
@@ -54,10 +53,6 @@ export const navItems = [
     label: 'Inventory',
     icon: 'inventory_2',
     path: routeByTab.inventory,
-    children: [
-      { key: 'inventoryManage', label: 'Manage Inventory', path: routeByTab.inventory, end: true },
-      { key: 'inventoryAnalytics', label: 'Analytics', path: routeByTab.inventoryAnalytics },
-    ],
   },
   { key: 'requests', label: 'Requests', icon: 'mark_unread_chat_alt', path: routeByTab.requests },
   { key: 'orders', label: 'Orders', icon: 'view_kanban', path: routeByTab.orders },

@@ -66,11 +66,14 @@ dependencies:
   flutter_map: ^7.0.2
   latlong2: ^0.9.1
   flutter_dotenv: ^6.0.1
+  share_plus: ^10.1.4
   syncfusion_flutter_pdfviewer: ^33.2.13
   qr_flutter: ^4.1.0
 
 dev_dependencies:
   flutter_test:
+    sdk: flutter
+  integration_test:
     sdk: flutter
 
   # The "flutter_lints" package below contains a set of recommended lints to

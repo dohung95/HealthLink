@@ -903,10 +903,17 @@ public class FinanceServiceImpl implements FinanceService {
             throw new BadRequestException("Follow-up date not set on consultation");
         }
 
-        followUpAppointmentService.validateFollowUpSlot(
-                sourceAppointment,
-                followUpDate,
-                consultation.getConsultationType());
+        Appointment existingFollowUpAppointment = consultation.getFollowUpAppointmentId() == null
+                ? null
+                : appointmentRepository.findById(consultation.getFollowUpAppointmentId()).orElse(null);
+        if (existingFollowUpAppointment == null
+                || "CANCELLED".equalsIgnoreCase(existingFollowUpAppointment.getStatus())) {
+            existingFollowUpAppointment = null;
+            followUpAppointmentService.validateFollowUpSlot(
+                    sourceAppointment,
+                    followUpDate,
+                    consultation.getConsultationType());
+        }
 
         Doctor doctor = sourceAppointment.getDoctor();
         Patient patient = sourceAppointment.getPatient();
@@ -945,7 +952,9 @@ public class FinanceServiceImpl implements FinanceService {
                 throw new PayPalIntegrationException("PayPal transaction failed, status: " + paypalStatus);
             }
 
-            Appointment followUpAppointment = new Appointment();
+            Appointment followUpAppointment = existingFollowUpAppointment != null
+                    ? existingFollowUpAppointment
+                    : new Appointment();
             followUpAppointment.setPatient(patient);
             followUpAppointment.setDoctor(doctor);
             followUpAppointment.setAppointmentTime(followUpDate);

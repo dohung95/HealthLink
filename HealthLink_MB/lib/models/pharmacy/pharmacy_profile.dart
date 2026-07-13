@@ -24,6 +24,8 @@ class PharmacyProfile {
   final int? totalReviews;
   final double? totalEarnings;
   final double? pendingSettlement;
+  final bool isOnline;
+  final String? paypalEmail;
 
   const PharmacyProfile({
     required this.pharmacyId,
@@ -51,6 +53,8 @@ class PharmacyProfile {
     this.totalReviews,
     this.totalEarnings,
     this.pendingSettlement,
+    this.isOnline = true,
+    this.paypalEmail,
   });
 
   factory PharmacyProfile.fromJson(Map<String, dynamic> json) {
@@ -80,6 +84,8 @@ class PharmacyProfile {
       totalReviews: json['totalReviews'] as int?,
       totalEarnings: (json['totalEarnings'] as num?)?.toDouble(),
       pendingSettlement: (json['pendingSettlement'] as num?)?.toDouble(),
+      isOnline: json['isOnline'] as bool? ?? true,
+      paypalEmail: json['paypalEmail']?.toString(),
     );
   }
 

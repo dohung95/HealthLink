@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'dart:io';
 import 'package:http/http.dart' as http;
 import '../../config/api_config.dart';
 import '../../models/pharmacy/pharmacy_profile.dart';
@@ -87,5 +86,20 @@ class PharmacyProfileService {
     if (res.statusCode != 200) {
       throw Exception('Failed to change password');
     }
+  }
+
+  static Future<PharmacyProfile> toggleOnline(String token) async {
+    final res = await http
+        .put(
+          Uri.parse(ApiConfig.pharmacyToggleOnline),
+          headers: _authHeaders(token),
+        )
+        .timeout(ApiConfig.connectTimeout);
+
+    if (res.statusCode == 200) {
+      final data = jsonDecode(res.body) as Map<String, dynamic>;
+      return PharmacyProfile.fromJson(data);
+    }
+    throw Exception('Failed to toggle online status');
   }
 }

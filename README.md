@@ -117,6 +117,7 @@ Key placeholders (khong chua secret that):
 | `spring.mail.username` / `spring.mail.password` | Gmail SMTP app password |
 | `app.firebase.config-file` | Firebase admin SDK path |
 | `app.gemini.api-key` | Gemini/Vertex AI API key |
+| `GEOAPIFY_API_KEY` | Geoapify key for Vietnam address verification (set as an environment variable) |
 | `app.moderation.url` | AI moderation service URL |
 
 Xem `application.properties` va `application-dev.properties` trong `HealthLink_BE/` cho danh sach day du.

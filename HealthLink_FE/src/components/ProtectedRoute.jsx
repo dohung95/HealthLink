@@ -3,8 +3,12 @@ import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
 const ProtectedRoute = ({ children, allowedRoles = [] }) => {
-    const { isAuthenticated, roles } = useAuth();
+    const { isAuthenticated, roles, loading } = useAuth();
     const location = useLocation();
+
+    if (loading) {
+        return null;
+    }
 
     // Check if user is authenticated
     if (!isAuthenticated) {

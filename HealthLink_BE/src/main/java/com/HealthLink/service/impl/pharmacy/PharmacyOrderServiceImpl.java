@@ -2,6 +2,10 @@ package com.HealthLink.service.impl.pharmacy;
 
 import com.HealthLink.dto.pharmacy.CancelOrderRequest;
 import com.HealthLink.dto.pharmacy.PharmacyConsultationOrderCreateRequest;
+import com.HealthLink.dto.pharmacy.PharmacyDeliveryContactChangeResponse;
+import com.HealthLink.dto.pharmacy.PharmacyDeliveryContactChangeReviewRequest;
+import com.HealthLink.dto.pharmacy.PharmacyDeliveryContactUpdateRequest;
+import com.HealthLink.dto.pharmacy.PharmacyDeliveryQuoteRequest;
 import com.HealthLink.dto.pharmacy.PharmacyOrderItemRequest;
 import com.HealthLink.dto.pharmacy.PharmacyOrderRequest;
 import com.HealthLink.dto.pharmacy.PharmacyOrderResponse;
@@ -22,6 +26,7 @@ import com.HealthLink.repository.notification.DeviceTokenRepository;
 import com.HealthLink.repository.patient.PatientRepository;
 import com.HealthLink.repository.pharmacy.PharmacyConsultationRequestRepository;
 import com.HealthLink.repository.pharmacy.PharmacyInventoryRepository;
+import com.HealthLink.repository.pharmacy.PharmacyDeliveryContactChangeRequestRepository;
 import com.HealthLink.repository.pharmacy.PharmacyOrderRepository;
 import com.HealthLink.repository.pharmacy.PharmacyRepository;
 import com.HealthLink.repository.prescription.PrescriptionHeaderRepository;
@@ -45,6 +50,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -67,10 +73,16 @@ public class PharmacyOrderServiceImpl implements PharmacyOrderService {
     private static final String REQUEST_STATUS_CANCELLED = "CANCELLED";
     private static final String PAYMENT_STATUS_PENDING = "PENDING";
     private static final String PAYMENT_STATUS_PAID = "PAID";
+    private static final String PAYMENT_STATUS_CANCELLED = "CANCELLED";
     private static final String REQUEST_TYPE_CONSULTATION = "CONSULTATION";
     private static final String REQUEST_TYPE_ORDER_REQUEST = "ORDER_REQUEST";
     private static final String DELIVERY_TYPE_DELIVERY = "Delivery";
     private static final String DELIVERY_TYPE_PICKUP = "Pickup";
+
+    // ── Patient confirmation constants ────────────────────────────────────────
+    private static final String CONFIRMATION_REASON_DELIVERY_QUOTE = "DELIVERY_QUOTE";
+    private static final String CONFIRMATION_REASON_DELIVERY_CONTACT_FEE_CHANGE = "DELIVERY_CONTACT_FEE_CHANGE";
+
     // ── Commission constants ──────────────────────────────────────────────────
     private static final BigDecimal STANDARD_COMMISSION_RATE = new BigDecimal("0.1000");
     private static final BigDecimal PREMIUM_COMMISSION_RATE = new BigDecimal("0.0800");
@@ -89,7 +101,7 @@ public class PharmacyOrderServiceImpl implements PharmacyOrderService {
             STATUS_PENDING,   Set.of(STATUS_CONFIRMED, STATUS_CANCELLED),
             STATUS_CONFIRMED, Set.of(STATUS_PREPARING, STATUS_CANCELLED),
             STATUS_PREPARING, Set.of(STATUS_READY,     STATUS_CANCELLED),
-            STATUS_READY,     Set.of(STATUS_SHIPPING,  STATUS_DELIVERED, STATUS_CANCELLED),
+            STATUS_READY,     Set.of(),
             STATUS_SHIPPING,  Set.of(STATUS_DELIVERED),
             STATUS_DELIVERED, Set.of(STATUS_COMPLETED),
             STATUS_COMPLETED, Set.of(),
@@ -106,6 +118,7 @@ public class PharmacyOrderServiceImpl implements PharmacyOrderService {
     private final NotificationService notificationService;
     private final CommissionService commissionService;
     private final DeviceTokenRepository deviceTokenRepository;
+    private final PharmacyDeliveryContactChangeRequestRepository deliveryContactChangeRequestRepository;
     private final AuditLogger audit = AuditLogger.pharmacy();
 
     // =========================================================================
@@ -146,6 +159,8 @@ public class PharmacyOrderServiceImpl implements PharmacyOrderService {
         );
         String deliveryAddressSource = PharmacyServiceHelper.normalizeDeliveryAddressSource(request.getDeliveryAddressSource());
 
+        LocalDateTime now = LocalDateTime.now();
+
         if (DELIVERY_TYPE_DELIVERY.equals(deliveryType)) {
             if (deliveryAddress == null || deliveryAddress.isBlank()) {
                 deliveryAddress = PharmacyServiceHelper.buildPatientAddress(patient);
@@ -159,16 +174,19 @@ public class PharmacyOrderServiceImpl implements PharmacyOrderService {
 
             validateDeliveryRadius(pharmacy, deliveryLat, deliveryLon);
 
-            deliveryFee = pharmacy.getDeliveryFee() != null
-                    ? pharmacy.getDeliveryFee()
-                    : BigDecimal.ZERO;
-        } else if (deliveryAddress == null || deliveryAddress.isBlank()) {
-            deliveryAddress = PharmacyServiceHelper.buildPatientAddress(patient);
-            deliveryLat     = patient.getLatitude();
-            deliveryLon     = patient.getLongitude();
+            deliveryFee = null;
         }
 
-        BigDecimal totalAmount = medicineAmount.add(deliveryFee);
+        BigDecimal totalAmount = medicineAmount.add(deliveryFee != null ? deliveryFee : BigDecimal.ZERO);
+        String orderStatus = STATUS_PENDING;
+
+        if (DELIVERY_TYPE_PICKUP.equals(deliveryType)) {
+            deliveryFee = BigDecimal.ZERO;
+            totalAmount = medicineAmount;
+            if (isEveryItemFulfillable(pharmacy.getPharmacyId(), orderItems)) {
+                orderStatus = STATUS_CONFIRMED;
+            }
+        }
 
         String orderNumber = generateOrderNumber();
 
@@ -177,7 +195,8 @@ public class PharmacyOrderServiceImpl implements PharmacyOrderService {
                 .prescriptionHeader(prescription)
                 .pharmacy(pharmacy)
                 .patient(patient)
-                .status(STATUS_PENDING)
+                .status(orderStatus)
+                .confirmedAt(STATUS_CONFIRMED.equals(orderStatus) ? now : null)
                 .deliveryType(deliveryType)
                 .deliveryAddress(deliveryAddress)
                 .deliveryLatitude(deliveryLat)
@@ -192,11 +211,15 @@ public class PharmacyOrderServiceImpl implements PharmacyOrderService {
                 .paymentMethod(request.getPaymentMethod())
                 .notes(request.getNotes())
                 .pharmacistNotes(PharmacyServiceHelper.trimToNull(request.getPharmacistNotes()))
-                .createdAt(LocalDateTime.now())
+                .createdAt(now)
                 .build();
         attachOrderItems(order, orderItems);
 
-        applyCommission(order, pharmacy, totalAmount);
+        applyCommission(order, pharmacy, medicineAmount);
+
+        if (STATUS_CONFIRMED.equals(orderStatus)) {
+            reserveStock(order);
+        }
 
         PharmacyOrder saved;
         try {
@@ -237,6 +260,9 @@ public class PharmacyOrderServiceImpl implements PharmacyOrderService {
         Double deliveryLat = request.getDeliveryLatitude() != null ? request.getDeliveryLatitude() : patient.getLatitude();
         Double deliveryLon = request.getDeliveryLongitude() != null ? request.getDeliveryLongitude() : patient.getLongitude();
 
+        LocalDateTime now = LocalDateTime.now();
+        String orderStatus = STATUS_PENDING;
+
         if (DELIVERY_TYPE_DELIVERY.equals(deliveryType)) {
             if (!pharmacy.isDeliveryAvailable()) {
                 throw new BadRequestException("Pharmacy does not support delivery");
@@ -245,14 +271,25 @@ public class PharmacyOrderServiceImpl implements PharmacyOrderService {
                 throw new BadRequestException("Delivery address is required for delivery orders");
             }
             validateDeliveryRadius(pharmacy, deliveryLat, deliveryLon);
+            deliveryFee = null;
+        } else if (DELIVERY_TYPE_PICKUP.equals(deliveryType)) {
+            deliveryFee = BigDecimal.ZERO;
+            if (isEveryItemFulfillable(pharmacy.getPharmacyId(), orderItems)) {
+                orderStatus = STATUS_CONFIRMED;
+            }
+        } else {
             deliveryFee = pharmacy.getDeliveryFee() != null ? pharmacy.getDeliveryFee() : BigDecimal.ZERO;
         }
+
+        boolean deliveryFeeSet = deliveryFee != null;
+        BigDecimal totalAmount = medicineAmount.add(deliveryFee != null ? deliveryFee : BigDecimal.ZERO);
 
         PharmacyOrder order = PharmacyOrder.builder()
                 .orderNumber(generateOrderNumber())
                 .pharmacy(pharmacy)
                 .patient(patient)
-                .status(STATUS_PENDING)
+                .status(orderStatus)
+                .confirmedAt(STATUS_CONFIRMED.equals(orderStatus) ? now : null)
                 .deliveryType(deliveryType)
                 .deliveryAddress(deliveryAddress)
                 .deliveryLatitude(deliveryLat)
@@ -264,16 +301,21 @@ public class PharmacyOrderServiceImpl implements PharmacyOrderService {
                 .deliveryAddressSource(PharmacyServiceHelper.normalizeDeliveryAddressSource(request.getDeliveryAddressSource()))
                 .deliveryFee(deliveryFee)
                 .medicineAmount(medicineAmount)
-                .totalAmount(medicineAmount.add(deliveryFee))
+                .totalAmount(totalAmount)
                 .orderItems(orderItems)
                 .paymentStatus(PAYMENT_STATUS_PENDING)
                 .paymentMethod(PharmacyServiceHelper.trimToNull(request.getPaymentMethod()))
                 .notes(PharmacyServiceHelper.trimToNull(request.getNotes()))
-                .createdAt(LocalDateTime.now())
+                .createdAt(now)
                 .build();
 
         attachOrderItems(order, orderItems);
         applyCommission(order, pharmacy, medicineAmount);
+
+        if (STATUS_CONFIRMED.equals(orderStatus)) {
+            reserveStock(order);
+        }
+
         PharmacyOrder saved = orderRepository.save(order);
         notifyPharmacyAboutNewOrderAfterCommit(saved);
         return PharmacyOrderMapper.toResponse(saved);
@@ -337,26 +379,29 @@ public class PharmacyOrderServiceImpl implements PharmacyOrderService {
             }
 
             validateDeliveryRadius(pharmacy, deliveryLat, deliveryLon);
-
-            deliveryFee = pharmacy.getDeliveryFee() != null
-                    ? pharmacy.getDeliveryFee()
-                    : BigDecimal.ZERO;
+        } else if (DELIVERY_TYPE_PICKUP.equals(deliveryType)) {
+            deliveryFee = BigDecimal.ZERO;
         } else if (deliveryAddress == null) {
             deliveryAddress = PharmacyServiceHelper.buildPatientAddress(patient);
             deliveryLat = patient != null ? patient.getLatitude() : null;
             deliveryLon = patient != null ? patient.getLongitude() : null;
         }
 
-        // Use delivery fee from request if provided, otherwise fallback to pharmacy default
-        BigDecimal actualDeliveryFee = request.getDeliveryFee() != null
-                ? request.getDeliveryFee()
-                : deliveryFee;
+        // Use delivery fee from request if provided, otherwise fallback
+        BigDecimal actualDeliveryFee;
+        if (DELIVERY_TYPE_PICKUP.equals(deliveryType)) {
+            actualDeliveryFee = BigDecimal.ZERO;
+        } else {
+            actualDeliveryFee = request.getDeliveryFee() != null
+                    ? request.getDeliveryFee()
+                    : deliveryFee;
+        }
         // Validate delivery fee
-        if (actualDeliveryFee.compareTo(BigDecimal.ZERO) < 0) {
+        if (actualDeliveryFee != null && actualDeliveryFee.compareTo(BigDecimal.ZERO) < 0) {
             throw new BadRequestException("Delivery fee must be greater than or equal to 0");
         }
 
-        BigDecimal totalAmount = medicineAmount.add(actualDeliveryFee);
+        BigDecimal totalAmount = medicineAmount.add(actualDeliveryFee != null ? actualDeliveryFee : BigDecimal.ZERO);
 
         LocalDateTime estimatedDeliveryTime =
                 resolveEstimatedDeliveryTime(deliveryType, request);
@@ -386,6 +431,12 @@ public class PharmacyOrderServiceImpl implements PharmacyOrderService {
                 .build();
         attachOrderItems(order, orderItems);
 
+        // Stock validation before creating order
+        revalidateStockAvailability(order);
+
+        // Request patient confirmation for pharmacy-created orders
+        requestPatientConfirmation(order, CONFIRMATION_REASON_DELIVERY_QUOTE);
+
         applyCommission(order, pharmacy, medicineAmount);
 
         PharmacyOrder savedOrder = orderRepository.save(order);
@@ -409,7 +460,8 @@ public class PharmacyOrderServiceImpl implements PharmacyOrderService {
     @Transactional
     public PharmacyOrderResponse updateOrderStatus(Integer orderId, PharmacyOrderStatusRequest request) {
 
-        PharmacyOrder order = orderRepository.findById(orderId)
+        PharmacyOrder order = orderRepository.findByIdForStatusUpdate(orderId)
+                .or(() -> orderRepository.findById(orderId))
                 .orElseThrow(() -> new ResourceNotFoundException("PharmacyOrder", "id", orderId));
 
         String currentStatus = normalizeStatus(order.getStatus());
@@ -422,7 +474,7 @@ public class PharmacyOrderServiceImpl implements PharmacyOrderService {
         }
 
         // Kiểm tra luồng trạng thái hợp lệ
-        Set<String> allowed = ALLOWED_TRANSITIONS.getOrDefault(currentStatus, Set.of());
+        Set<String> allowed = allowedTransitionsFor(order, currentStatus);
         if (!allowed.contains(targetStatus)) {
             throw new InvalidStatusException(currentStatus, targetStatus);
         }
@@ -432,14 +484,28 @@ public class PharmacyOrderServiceImpl implements PharmacyOrderService {
             throw new BadRequestException("Paid orders cannot be cancelled. Use the refund flow instead.");
         }
 
+        if (requiresPatientConfirmation(order)
+                && Set.of(STATUS_CONFIRMED, STATUS_PREPARING, STATUS_READY, STATUS_SHIPPING).contains(targetStatus)) {
+            throw new BadRequestException("Patient must confirm the updated total before status can progress");
+        }
+
+        if (STATUS_PREPARING.equals(targetStatus)
+                && !PAYMENT_STATUS_PAID.equalsIgnoreCase(safeValue(order.getPaymentStatus(), ""))) {
+            throw new BadRequestException("Order must be paid before preparation can begin");
+        }
+
         // Ghi nhận thời điểm tương ứng
         LocalDateTime now = LocalDateTime.now();
         switch (targetStatus) {
             case STATUS_CONFIRMED -> {
+                if (isRetailOrder(order) || isOrderRequestOrder(order)) {
+                    revalidateStockAvailability(order);
+                }
                 order.setConfirmedAt(now);
-                deductStock(order);
+                reserveStock(order);
             }
             case STATUS_PREPARING -> order.setPreparingAt(now);
+            case STATUS_READY -> fulfillReservedStock(order);
             case STATUS_SHIPPING  -> {
                 order.setShippedAt(now);
                 if (request.getEstimatedDeliveryTime() != null) {
@@ -449,14 +515,20 @@ public class PharmacyOrderServiceImpl implements PharmacyOrderService {
             case STATUS_DELIVERED -> {
                 order.setDeliveredAt(now);
                 order.setActualDeliveryTime(now);
-                releaseReservedStock(order);
             }
+            case STATUS_COMPLETED -> order.setCompletedAt(now);
             case STATUS_CANCELLED -> {
                 order.setCancelledAt(now);
                 order.setCancelReason(request.getCancelReason());
                 order.setCancelledBy(request.getCancelledBy() != null
                         ? request.getCancelledBy() : "Pharmacy");
-                restoreStock(order);
+                discardPatientConfirmationRequest(order);
+                markPaymentCancelledIfUnpaid(order);
+                if (STATUS_READY.equals(currentStatus)) {
+                    restoreFulfilledStock(order);
+                } else {
+                    releaseReservedStock(order);
+                }
             }
         }
 
@@ -472,9 +544,9 @@ public class PharmacyOrderServiceImpl implements PharmacyOrderService {
         }
         PharmacyOrder updated = orderRepository.save(order);
 
-        if (STATUS_DELIVERED.equals(targetStatus)) {
-            try { commissionService.vestPharmacyCommission(orderId); }
-            catch (Exception ex) { log.error("Vest failed for order {}: {}", orderId, ex.getMessage()); }
+        if (STATUS_DELIVERED.equals(targetStatus)
+                || (STATUS_COMPLETED.equals(targetStatus) && isPickupOrder(order))) {
+            commissionService.vestPharmacyCommission(orderId);
         }
 
         audit.log("ORDER_STATUS_CHANGED", String.valueOf(orderId), null,
@@ -517,7 +589,9 @@ public class PharmacyOrderServiceImpl implements PharmacyOrderService {
         order.setCancelledAt(LocalDateTime.now());
         order.setCancelledBy("Patient");
         order.setCancelReason(PharmacyServiceHelper.trimToNull(request.getCancelReason()));
-        restoreStock(order);
+        discardPatientConfirmationRequest(order);
+        markPaymentCancelledIfUnpaid(order);
+        releaseReservedStock(order);
 
         PharmacyOrder updated = orderRepository.save(order);
 
@@ -539,13 +613,18 @@ public class PharmacyOrderServiceImpl implements PharmacyOrderService {
         PharmacyOrder order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new ResourceNotFoundException("PharmacyOrder", "id", orderId));
 
+        if (isPrescriptionBasedOrder(order)) {
+            throw new BadRequestException("Prescription-based orders do not support quote revision. Update delivery contact instead.");
+        }
+
         if (order.getPatient() == null || !patientId.equals(order.getPatient().getPatientId())) {
             throw new ForbiddenException("You are not allowed to request revision for this order");
         }
 
         String currentStatus = normalizeStatus(order.getStatus());
-        if (!Set.of(STATUS_PENDING, STATUS_CONFIRMED).contains(currentStatus)) {
-            throw new BadRequestException("Order can only be revised when status is PENDING or CONFIRMED");
+        if (!STATUS_PENDING.equals(currentStatus) || !requiresPatientConfirmation(order)) {
+            throw new BadRequestException(
+                    "Order revision is only available while patient confirmation is pending");
         }
 
         if (PAYMENT_STATUS_PAID.equalsIgnoreCase(safeValue(order.getPaymentStatus(), ""))) {
@@ -556,6 +635,7 @@ public class PharmacyOrderServiceImpl implements PharmacyOrderService {
         order.setRevisionRequestNotes(PharmacyServiceHelper.trimToNull(request.getReason()));
         order.setRevisionRequestedAt(LocalDateTime.now());
         order.setRevisionResolvedAt(null);
+        discardPatientConfirmationRequest(order);
         order.setPatientConfirmedAt(null);
 
         PharmacyOrder updated = orderRepository.save(order);
@@ -578,12 +658,16 @@ public class PharmacyOrderServiceImpl implements PharmacyOrderService {
         PharmacyOrder order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new ResourceNotFoundException("PharmacyOrder", "id", orderId));
 
+        if (isPrescriptionBasedOrder(order)) {
+            throw new BadRequestException("Prescription-based orders do not support quote update. Update delivery contact instead.");
+        }
+
         if (order.getPharmacy() == null || !pharmacyId.equals(order.getPharmacy().getPharmacyId())) {
             throw new ForbiddenException("You are not allowed to update this order");
         }
 
         String currentStatus = normalizeStatus(order.getStatus());
-        if (!Set.of(STATUS_PENDING, STATUS_CONFIRMED, STATUS_REVISION_REQUESTED).contains(currentStatus)) {
+        if (!Set.of(STATUS_PENDING, STATUS_REVISION_REQUESTED).contains(currentStatus)) {
             throw new BadRequestException("Cannot update quote for order with status " + currentStatus);
         }
 
@@ -609,8 +693,8 @@ public class PharmacyOrderServiceImpl implements PharmacyOrderService {
         BigDecimal totalAmount = medicineAmount.add(deliveryFee);
 
         order.getOrderItems().clear();
-        order.setOrderItems(orderItems);
         attachOrderItems(order, orderItems);
+        order.getOrderItems().addAll(orderItems);
 
         order.setMedicineAmount(medicineAmount);
         order.setDeliveryFee(deliveryFee);
@@ -626,7 +710,9 @@ public class PharmacyOrderServiceImpl implements PharmacyOrderService {
 
         order.setStatus(STATUS_PENDING);
         order.setRevisionResolvedAt(LocalDateTime.now());
-        order.setPatientConfirmedAt(null);
+        requestPatientConfirmation(order, CONFIRMATION_REASON_DELIVERY_QUOTE);
+
+        revalidateStockAvailability(order);
 
         applyCommission(order, order.getPharmacy(), medicineAmount);
 
@@ -638,6 +724,106 @@ public class PharmacyOrderServiceImpl implements PharmacyOrderService {
         notifyPatientAboutOrderQuoteUpdatedAfterCommit(updated);
 
         return PharmacyOrderMapper.toResponse(updated);
+    }
+
+    // =========================================================================
+    // Pharmacy submits delivery fee quote (Task 2)
+    // =========================================================================
+    @Override
+    @Transactional
+    public PharmacyOrderResponse submitDeliveryQuote(Integer orderId, PharmacyDeliveryQuoteRequest request, String pharmacyId) {
+        PharmacyOrder order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new ResourceNotFoundException("PharmacyOrder", "id", orderId));
+
+        if (order.getPharmacy() == null || !pharmacyId.equals(order.getPharmacy().getPharmacyId())) {
+            throw new ForbiddenException("You are not allowed to quote this order");
+        }
+
+        if (!DELIVERY_TYPE_DELIVERY.equalsIgnoreCase(order.getDeliveryType())) {
+            throw new BadRequestException("Delivery quote is only for delivery orders");
+        }
+
+        if (PAYMENT_STATUS_PAID.equalsIgnoreCase(safeValue(order.getPaymentStatus(), ""))) {
+            throw new BadRequestException("Cannot update delivery fee for a paid order");
+        }
+
+        String currentStatus = normalizeStatus(order.getStatus());
+        if (!Set.of(STATUS_PENDING, STATUS_REVISION_REQUESTED).contains(currentStatus)) {
+            throw new BadRequestException("Cannot send delivery quote for order with status " + currentStatus);
+        }
+
+        BigDecimal deliveryFee = request.getDeliveryFee();
+        if (deliveryFee == null || deliveryFee.compareTo(BigDecimal.ZERO) < 0) {
+            throw new BadRequestException("Delivery fee must be greater than or equal to 0");
+        }
+
+        revalidateStockAvailability(order);
+
+        order.setDeliveryFee(deliveryFee);
+        order.setEstimatedDeliveryTime(request.getEstimatedDeliveryTime());
+        order.setPharmacistNotes(PharmacyServiceHelper.trimToNull(request.getPharmacistNotes()));
+        order.setTotalAmount(order.getMedicineAmount().add(deliveryFee));
+
+        applyCommission(order, order.getPharmacy(), order.getMedicineAmount());
+
+        requestPatientConfirmation(order, CONFIRMATION_REASON_DELIVERY_QUOTE);
+
+        PharmacyOrder saved = orderRepository.save(order);
+
+        audit.log("DELIVERY_QUOTE_SUBMITTED", String.valueOf(orderId), pharmacyId,
+                java.util.Map.of("deliveryFee", String.valueOf(deliveryFee)));
+
+        notifyPatientAboutDeliveryQuoteAfterCommit(saved);
+
+        return PharmacyOrderMapper.toResponse(saved);
+    }
+
+    // =========================================================================
+    // Patient confirms order total (Task 2)
+    // =========================================================================
+    @Override
+    @Transactional
+    public PharmacyOrderResponse confirmOrderTotalByPatient(Integer orderId, String patientId) {
+        PharmacyOrder order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new ResourceNotFoundException("PharmacyOrder", "id", orderId));
+
+        if (order.getPatient() == null || !patientId.equals(order.getPatient().getPatientId())) {
+            throw new ForbiddenException("You are not allowed to confirm this order");
+        }
+
+        if (PAYMENT_STATUS_PAID.equalsIgnoreCase(safeValue(order.getPaymentStatus(), ""))) {
+            throw new BadRequestException("Cannot confirm total for a paid order");
+        }
+
+        if (order.getPatientConfirmationRequestedAt() == null) {
+            throw new BadRequestException("No confirmation request is pending for this order");
+        }
+
+        String currentStatus = normalizeStatus(order.getStatus());
+        if (Set.of(STATUS_CANCELLED, STATUS_SHIPPING, STATUS_DELIVERED, STATUS_COMPLETED).contains(currentStatus)) {
+            throw new BadRequestException("Cannot confirm total for order with status " + currentStatus);
+        }
+
+        if (STATUS_PENDING.equals(currentStatus)) {
+            revalidateStockAvailability(order);
+            reserveStock(order);
+            order.setConfirmedAt(LocalDateTime.now());
+        }
+
+        clearPatientConfirmationRequest(order);
+
+        if (STATUS_PENDING.equals(currentStatus)) {
+            order.setStatus(STATUS_CONFIRMED);
+        }
+
+        PharmacyOrder saved = orderRepository.save(order);
+
+        audit.log("PATIENT_CONFIRMED_TOTAL", String.valueOf(orderId), patientId,
+                java.util.Map.of("status", safeValue(saved.getStatus(), "")));
+
+        notifyPharmacyAboutPatientConfirmationAfterCommit(saved);
+
+        return PharmacyOrderMapper.toResponse(saved);
     }
 
     // =========================================================================
@@ -675,6 +861,139 @@ public class PharmacyOrderServiceImpl implements PharmacyOrderService {
         PharmacyOrder order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new ResourceNotFoundException("PharmacyOrder", "id", orderId));
         return PharmacyOrderMapper.toResponse(order);
+    }
+
+    @Override
+    @Transactional
+    public Optional<PharmacyOrderResponse> tryAutoQuoteOrderRequest(Integer requestId, String pharmacyId) {
+        PharmacyConsultationRequest consultationRequest = consultationRequestRepository.findById(requestId)
+                .orElseThrow(() -> new ResourceNotFoundException("PharmacyConsultationRequest", "id", requestId));
+
+        validatePharmacyOwnsRequest(consultationRequest, pharmacyId);
+
+        if (REQUEST_STATUS_CANCELLED.equalsIgnoreCase(safeValue(consultationRequest.getStatus(), ""))) {
+            throw new BadRequestException("Cannot create order for a cancelled request");
+        }
+
+        if (!REQUEST_TYPE_ORDER_REQUEST.equals(PharmacyServiceHelper.requestTypeOf(consultationRequest))) {
+            return Optional.empty();
+        }
+
+        if (!STATUS_PENDING.equals(normalizeStatus(consultationRequest.getStatus()))) {
+            return Optional.empty();
+        }
+
+        if (consultationRequest.getOrder() != null
+                || orderRepository.existsByConsultationRequest_RequestId(consultationRequest.getRequestId())) {
+            throw new BadRequestException("An order has already been created for this request");
+        }
+
+        if (consultationRequest.getRequestPrescriptions() == null
+                || consultationRequest.getRequestPrescriptions().isEmpty()) {
+            return Optional.empty();
+        }
+
+        Pharmacy pharmacy = consultationRequest.getPharmacy();
+        validatePharmacyCanReceiveOrders(pharmacy);
+
+        List<PrescriptionHeader> prescriptionHeaders = consultationRequest.getRequestPrescriptions().stream()
+                .map(PharmacyConsultationRequestPrescription::getPrescriptionHeader)
+                .filter(Objects::nonNull)
+                .toList();
+
+        if (prescriptionHeaders.isEmpty()) {
+            return Optional.empty();
+        }
+
+        List<PharmacyOrderItem> orderItems = buildAutoQuoteOrderItems(pharmacy.getPharmacyId(), prescriptionHeaders);
+        if (orderItems.isEmpty()) {
+            return Optional.empty();
+        }
+
+        BigDecimal medicineAmount = calculateMedicineAmount(orderItems);
+        if (medicineAmount == null || medicineAmount.compareTo(BigDecimal.ZERO) <= 0) {
+            return Optional.empty();
+        }
+
+        Patient patient = consultationRequest.getPatient();
+        String deliveryType = normalizeDeliveryType(consultationRequest.getPreferredDeliveryType());
+        BigDecimal deliveryFee = BigDecimal.ZERO;
+
+        String deliveryAddress = consultationRequest.getDeliveryAddress();
+        Double deliveryLat = consultationRequest.getDeliveryLatitude();
+        Double deliveryLon = consultationRequest.getDeliveryLongitude();
+        String deliveryPhoneNumber = consultationRequest.getDeliveryPhoneNumber();
+        String deliveryAddressSource = consultationRequest.getDeliveryAddressSource();
+
+        // ponytail: Delivery requests skip auto-quote — pharmacy must set fee in Requests
+        if (DELIVERY_TYPE_DELIVERY.equals(deliveryType)) {
+            return Optional.empty();
+        }
+
+        if (!DELIVERY_TYPE_PICKUP.equals(deliveryType)) {
+            return Optional.empty();
+        }
+
+        boolean allItemsFulfillable = isEveryItemFulfillable(pharmacy.getPharmacyId(), orderItems);
+        if (!allItemsFulfillable) {
+            return Optional.empty();
+        }
+
+        deliveryFee = BigDecimal.ZERO;
+
+        if (deliveryPhoneNumber == null) {
+            deliveryPhoneNumber = patient != null && patient.getUser() != null
+                    ? patient.getUser().getPhoneNumber() : null;
+        }
+
+        LocalDateTime now = LocalDateTime.now();
+        BigDecimal totalAmount = medicineAmount;
+
+        PharmacyOrder order = PharmacyOrder.builder()
+                .orderNumber(generateOrderNumber())
+                .consultationRequest(consultationRequest)
+                .pharmacy(pharmacy)
+                .patient(patient)
+                .status(STATUS_CONFIRMED)
+                .confirmedAt(now)
+                .deliveryType(deliveryType)
+                .deliveryAddress(null)
+                .deliveryLatitude(null)
+                .deliveryLongitude(null)
+                .deliveryFee(deliveryFee)
+                .deliveryPhoneNumber(deliveryPhoneNumber)
+                .deliveryAddressSource(null)
+                .medicineAmount(medicineAmount)
+                .totalAmount(totalAmount)
+                .orderItems(orderItems)
+                .paymentStatus(PAYMENT_STATUS_PENDING)
+                .notes(consultationRequest.getAdditionalNotes())
+                .createdAt(now)
+                .build();
+        attachOrderItems(order, orderItems);
+
+        applyCommission(order, pharmacy, medicineAmount);
+        reserveStock(order);
+
+        PharmacyOrder savedOrder;
+        try {
+            savedOrder = orderRepository.save(order);
+        } catch (DataIntegrityViolationException e) {
+            return Optional.empty();
+        }
+
+        consultationRequest.setOrder(savedOrder);
+        consultationRequest.setStatus(REQUEST_STATUS_ORDER_CREATED);
+        consultationRequestRepository.save(consultationRequest);
+
+        audit.log("ORDER_CREATED_FROM_CONSULTATION", String.valueOf(savedOrder.getOrderId()), pharmacyId,
+                java.util.Map.of("consultationRequestId", String.valueOf(requestId),
+                        "totalAmount", String.valueOf(totalAmount)));
+
+        notifyPatientAboutNewOrderFromRequestAfterCommit(savedOrder);
+
+        notifyPharmacyAboutNewOrderAfterCommit(savedOrder);
+        return Optional.of(PharmacyOrderMapper.toResponse(savedOrder));
     }
 
     // =========================================================================
@@ -858,7 +1177,7 @@ public class PharmacyOrderServiceImpl implements PharmacyOrderService {
                     .medicationName(medicine.getName())
                     .totalSupplyDays(totalSupplyDays)
                     .quantity(quantity)
-                    .unit(PharmacyServiceHelper.firstNonBlank(itemRequest.getUnit(), medicine.getUnit()))
+                    .unit(requireMedicineUnit(medicine))
                     .frequency(PharmacyServiceHelper.trimToNull(itemRequest.getFrequency()))
                     .timing(normalizeOptionalTiming(itemRequest.getTimings(), itemRequest.getTiming()))
                     .route(PharmacyServiceHelper.trimToNull(itemRequest.getRoute()))
@@ -867,6 +1186,61 @@ public class PharmacyOrderServiceImpl implements PharmacyOrderService {
                     .build());
         }
 
+        return items;
+    }
+
+    private List<PharmacyOrderItem> buildAutoQuoteOrderItems(
+            String pharmacyId,
+            List<PrescriptionHeader> prescriptionHeaders
+    ) {
+        List<PharmacyOrderItem> items = new ArrayList<>();
+        for (PrescriptionHeader header : prescriptionHeaders) {
+            if (header.getPrescriptionItems() == null) continue;
+            for (PrescriptionItem prescriptionItem : header.getPrescriptionItems()) {
+                Medicine medicine = prescriptionItem.getMedicine();
+                if (medicine == null) {
+                    return List.of();
+                }
+
+                Optional<PharmacyInventory> inventoryOpt = inventoryRepository
+                        .findByPharmacy_PharmacyIdAndMedicine_MedicineId(pharmacyId, medicine.getMedicineId());
+                if (inventoryOpt.isEmpty() || !Boolean.TRUE.equals(inventoryOpt.get().getActive())) {
+                    return List.of();
+                }
+
+                int availableQty = inventoryOpt.get().getAvailableQuantity();
+                int prescriptionQty = defaultPositive(prescriptionItem.getQuantity());
+                if (availableQty < prescriptionQty) {
+                    return List.of();
+                }
+
+                BigDecimal price = normalizeUnitPrice(medicine.getPrice());
+                Integer quantity = defaultPositive(prescriptionItem.getQuantity());
+                Integer totalSupplyDays = defaultPositive(prescriptionItem.getTotalSupplyDays());
+                BigDecimal totalPrice = price.multiply(BigDecimal.valueOf(quantity));
+
+                if (totalPrice == null || totalPrice.compareTo(BigDecimal.ZERO) <= 0) {
+                    return List.of();
+                }
+
+                items.add(PharmacyOrderItem.builder()
+                        .medicine(medicine)
+                        .sourcePrescriptionHeader(header)
+                        .sourcePrescriptionItem(prescriptionItem)
+                        .medicationName(safeValue(PharmacyServiceHelper.firstNonBlank(
+                                prescriptionItem.getMedicationName(),
+                                medicine.getName()), "Medication"))
+                        .totalSupplyDays(totalSupplyDays)
+                        .quantity(quantity)
+                        .unit(prescriptionItem.getUnit())
+                        .frequency(prescriptionItem.getFrequency())
+                        .timing(prescriptionItem.getTiming())
+                        .route(prescriptionItem.getRoute())
+                        .totalPrice(totalPrice)
+                        .notes(prescriptionItem.getNotes())
+                        .build());
+            }
+        }
         return items;
     }
 
@@ -951,7 +1325,7 @@ public class PharmacyOrderServiceImpl implements PharmacyOrderService {
                     .medicationName(safeValue(medicine.getName(), "Medication"))
                     .totalSupplyDays(1)
                     .quantity(quantity)
-                    .unit(PharmacyServiceHelper.firstNonBlank(medicine.getUnit(), "unit"))
+                    .unit(requireMedicineUnit(medicine))
                     .frequency("As directed")
                     .timing(null)
                     .route(null)
@@ -961,6 +1335,15 @@ public class PharmacyOrderServiceImpl implements PharmacyOrderService {
         }
 
         return items;
+    }
+
+    private String requireMedicineUnit(Medicine medicine) {
+        String unit = PharmacyServiceHelper.trimToNull(medicine.getUnit());
+        if (unit == null) {
+            throw new BadRequestException("Unit is missing for medicine: "
+                    + safeValue(medicine.getName(), String.valueOf(medicine.getMedicineId())));
+        }
+        return unit;
     }
 
     private PrescriptionHeader resolveSourcePrescriptionHeader(
@@ -1106,6 +1489,20 @@ public class PharmacyOrderServiceImpl implements PharmacyOrderService {
         return status.trim().toUpperCase();
     }
 
+    private Set<String> allowedTransitionsFor(PharmacyOrder order, String currentStatus) {
+        if (STATUS_READY.equals(currentStatus)) {
+            return isPickupOrder(order)
+                    ? Set.of(STATUS_COMPLETED, STATUS_CANCELLED)
+                    : Set.of(STATUS_SHIPPING, STATUS_CANCELLED);
+        }
+        return ALLOWED_TRANSITIONS.getOrDefault(currentStatus, Set.of());
+    }
+
+    private boolean isPickupOrder(PharmacyOrder order) {
+        return order != null
+                && DELIVERY_TYPE_PICKUP.equalsIgnoreCase(safeValue(order.getDeliveryType(), ""));
+    }
+
     private void validateDeliveryRadius(Pharmacy pharmacy, Double deliveryLat, Double deliveryLon) {
         if (pharmacy.getDeliveryRadius() == null) {
             throw new BadRequestException("Pharmacy has no delivery radius configured");
@@ -1199,7 +1596,7 @@ public class PharmacyOrderServiceImpl implements PharmacyOrderService {
                 ? safeValue(order.getPatient().getFullName(), "Unknown patient")
                 : "Unknown patient";
         Integer orderId = order.getOrderId();
-        String actionUrl = "/pharmacy-orders/" + orderId;
+        String actionUrl = "/pharmacy-page/requests?orderId=" + orderId;
         String title = "Revision requested";
         String message = String.format(
                 "Patient %s requested changes for order %s.",
@@ -1567,22 +1964,80 @@ public class PharmacyOrderServiceImpl implements PharmacyOrderService {
         return value == null || value.isBlank() ? fallback : value;
     }
 
-    // ── Inventory helpers ───────────────────────────────────────────────────
-    // ponytail: skip items without inventory entry — pharmacy may sell OTC outside system
+    // ── Retail auto-confirm helpers ─────────────────────────────────────────
 
-    private void deductStock(PharmacyOrder order) {
+    private boolean isEveryItemFulfillable(String pharmacyId, List<PharmacyOrderItem> orderItems) {
+        for (PharmacyOrderItem item : orderItems) {
+            if (item.getMedicine() == null || item.getQuantity() == null) return false;
+            Optional<PharmacyInventory> invOpt = inventoryRepository
+                    .findByPharmacy_PharmacyIdAndMedicine_MedicineId(pharmacyId, item.getMedicine().getMedicineId());
+            if (invOpt.isEmpty() || !Boolean.TRUE.equals(invOpt.get().getActive())) return false;
+            if (invOpt.get().getAvailableQuantity() < item.getQuantity()) return false;
+        }
+        return true;
+    }
+
+    private boolean isRetailOrder(PharmacyOrder order) {
+        return order.getPrescriptionHeader() == null && order.getConsultationRequest() == null;
+    }
+
+    private boolean isOrderRequestOrder(PharmacyOrder order) {
+        return order.getConsultationRequest() != null
+                && REQUEST_TYPE_ORDER_REQUEST.equals(PharmacyServiceHelper.requestTypeOf(order.getConsultationRequest()));
+    }
+
+    private void revalidateStockAvailability(PharmacyOrder order) {
         if (order.getPharmacy() == null || order.getOrderItems() == null) return;
         String pharmacyId = order.getPharmacy().getPharmacyId();
         for (PharmacyOrderItem item : order.getOrderItems()) {
             if (item.getMedicine() == null || item.getQuantity() == null) continue;
-            inventoryRepository
-                .findByPharmacy_PharmacyIdAndMedicine_MedicineId(pharmacyId, item.getMedicine().getMedicineId())
+            Optional<PharmacyInventory> invOpt = inventoryRepository
+                    .findByPharmacy_PharmacyIdAndMedicine_MedicineId(pharmacyId, item.getMedicine().getMedicineId());
+            if (invOpt.isEmpty() || !Boolean.TRUE.equals(invOpt.get().getActive())) {
+                throw new BadRequestException("Insufficient stock for item: " + item.getMedicationName());
+            }
+            if (invOpt.get().getAvailableQuantity() < item.getQuantity()) {
+                throw new BadRequestException("Insufficient stock for item: " + item.getMedicationName());
+            }
+        }
+    }
+
+    // ── Inventory helpers ───────────────────────────────────────────────────
+    // ponytail: skip items without inventory entry — pharmacy may sell OTC outside system
+
+    private void reserveStock(PharmacyOrder order) {
+        if (order.getPharmacy() == null || order.getOrderItems() == null) return;
+        String pharmacyId = order.getPharmacy().getPharmacyId();
+        for (PharmacyOrderItem item : order.getOrderItems()) {
+            if (item.getMedicine() == null || item.getQuantity() == null) continue;
+            findInventoryForMutation(pharmacyId, item.getMedicine().getMedicineId())
                 .ifPresent(inv -> {
                     int qty = item.getQuantity();
-                    inv.setQuantity(Math.max(0, inv.getQuantity() - qty));
-                    inv.setReservedQuantity(inv.getReservedQuantity() + qty);
+                    if (!Boolean.TRUE.equals(inv.getActive()) || inv.getAvailableQuantity() < qty) {
+                        throw new BadRequestException("Insufficient stock for item: " + item.getMedicationName());
+                    }
+                    int reserved = inv.getReservedQuantity() == null ? 0 : inv.getReservedQuantity();
+                    inv.setReservedQuantity(reserved + qty);
                     inventoryRepository.save(inv);
                 });
+        }
+    }
+
+    private void fulfillReservedStock(PharmacyOrder order) {
+        if (order.getPharmacy() == null || order.getOrderItems() == null) return;
+        String pharmacyId = order.getPharmacy().getPharmacyId();
+        for (PharmacyOrderItem item : order.getOrderItems()) {
+            if (item.getMedicine() == null || item.getQuantity() == null) continue;
+            findInventoryForMutation(pharmacyId, item.getMedicine().getMedicineId()).ifPresent(inv -> {
+                int qty = item.getQuantity();
+                int reserved = inv.getReservedQuantity() == null ? 0 : inv.getReservedQuantity();
+                if (reserved < qty || inv.getQuantity() < qty) {
+                    throw new BadRequestException("Insufficient reserved stock for item: " + item.getMedicationName());
+                }
+                inv.setQuantity(inv.getQuantity() - qty);
+                inv.setReservedQuantity(reserved - qty);
+                inventoryRepository.save(inv);
+            });
         }
     }
 
@@ -1591,27 +2046,468 @@ public class PharmacyOrderServiceImpl implements PharmacyOrderService {
         String pharmacyId = order.getPharmacy().getPharmacyId();
         for (PharmacyOrderItem item : order.getOrderItems()) {
             if (item.getMedicine() == null || item.getQuantity() == null) continue;
-            inventoryRepository
-                .findByPharmacy_PharmacyIdAndMedicine_MedicineId(pharmacyId, item.getMedicine().getMedicineId())
+            findInventoryForMutation(pharmacyId, item.getMedicine().getMedicineId())
                 .ifPresent(inv -> {
                     int qty = item.getQuantity();
-                    inv.setReservedQuantity(Math.max(0, inv.getReservedQuantity() - qty));
+                    int reserved = inv.getReservedQuantity() == null ? 0 : inv.getReservedQuantity();
+                    inv.setReservedQuantity(Math.max(0, reserved - qty));
                     inventoryRepository.save(inv);
                 });
         }
     }
 
-    private void restoreStock(PharmacyOrder order) {
+    private Optional<PharmacyInventory> findInventoryForMutation(String pharmacyId, Integer medicineId) {
+        Optional<PharmacyInventory> locked = inventoryRepository.findByPharmacyAndMedicineForUpdate(pharmacyId, medicineId);
+        return locked.isPresent()
+                ? locked
+                : inventoryRepository.findByPharmacy_PharmacyIdAndMedicine_MedicineId(pharmacyId, medicineId);
+    }
+
+    @Override
+    @Transactional
+    public PharmacyOrderResponse updateDeliveryContact(Integer orderId, PharmacyDeliveryContactUpdateRequest request, String patientId) {
+        PharmacyOrder order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new ResourceNotFoundException("PharmacyOrder", "id", orderId));
+
+        if (order.getPatient() == null || !patientId.equals(order.getPatient().getPatientId())) {
+            throw new ForbiddenException("You are not allowed to update delivery contact for this order");
+        }
+
+        String currentStatus = normalizeStatus(order.getStatus());
+        if (!Set.of(STATUS_PENDING, STATUS_CONFIRMED, STATUS_PREPARING, STATUS_READY).contains(currentStatus)) {
+            throw new BadRequestException("Delivery contact can only be updated before shipping");
+        }
+
+        validateDeliveryOrderCanChangeContact(order);
+
+        // ponytail: address/lat/lng/source changes require pharmacy fee review
+        if (isAddressImpactingDeliveryFee(order, request)) {
+            throw new BadRequestException("Address changes require pharmacy delivery fee review");
+        }
+
+        order.setDeliveryPhoneNumber(request.getDeliveryPhoneNumber());
+
+        PharmacyOrder saved = orderRepository.save(order);
+
+        audit.log("DELIVERY_CONTACT_UPDATED", String.valueOf(orderId), patientId);
+
+        notifyPharmacyAboutDeliveryContactUpdateAfterCommit(saved);
+
+        return PharmacyOrderMapper.toResponse(saved);
+    }
+
+    @Override
+    @Transactional
+    public PharmacyDeliveryContactChangeResponse requestDeliveryContactChange(Integer orderId, PharmacyDeliveryContactUpdateRequest request, String patientId) {
+        PharmacyOrder order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new ResourceNotFoundException("PharmacyOrder", "id", orderId));
+
+        if (order.getPatient() == null || !patientId.equals(order.getPatient().getPatientId())) {
+            throw new ForbiddenException("You are not allowed to request delivery contact change for this order");
+        }
+
+        String currentStatus = normalizeStatus(order.getStatus());
+        if (!Set.of(STATUS_PENDING, STATUS_CONFIRMED).contains(currentStatus)) {
+            throw new BadRequestException("Delivery contact change can only be requested when status is PENDING or CONFIRMED");
+        }
+
+        validateDeliveryOrderCanChangeContact(order);
+
+        if (PAYMENT_STATUS_PAID.equalsIgnoreCase(safeValue(order.getPaymentStatus(), ""))) {
+            throw new BadRequestException("Cannot request delivery contact change for a paid order");
+        }
+
+        if (request.getDeliveryLatitude() == null || request.getDeliveryLongitude() == null
+                || request.getDeliveryAddressSource() == null || request.getDeliveryAddressSource().isBlank()
+                || request.getReason() == null || request.getReason().isBlank()) {
+            throw new BadRequestException("Address changes require confirmed coordinates, address source, and reason");
+        }
+
+        if (!isAddressImpactingDeliveryFee(order, request)) {
+            throw new BadRequestException("No address change detected");
+        }
+
+        if (deliveryContactChangeRequestRepository.existsByOrder_OrderIdAndStatus(orderId, "PENDING")) {
+            throw new BadRequestException("A pending delivery contact change request already exists for this order");
+        }
+
+        PharmacyDeliveryContactChangeRequest changeRequest = PharmacyDeliveryContactChangeRequest.builder()
+                .order(order)
+                .status("PENDING")
+                .oldDeliveryAddress(order.getDeliveryAddress())
+                .oldDeliveryLatitude(order.getDeliveryLatitude())
+                .oldDeliveryLongitude(order.getDeliveryLongitude())
+                .oldDeliveryPhoneNumber(order.getDeliveryPhoneNumber())
+                .oldDeliveryAddressSource(order.getDeliveryAddressSource())
+                .oldDeliveryFee(order.getDeliveryFee())
+                .oldTotalAmount(order.getTotalAmount())
+                .newDeliveryAddress(request.getDeliveryAddress())
+                .newDeliveryLatitude(request.getDeliveryLatitude())
+                .newDeliveryLongitude(request.getDeliveryLongitude())
+                .newDeliveryPhoneNumber(request.getDeliveryPhoneNumber())
+                .newDeliveryAddressSource(request.getDeliveryAddressSource())
+                .patientReason(request.getReason())
+                .build();
+
+        PharmacyDeliveryContactChangeRequest saved = deliveryContactChangeRequestRepository.save(changeRequest);
+
+        audit.log("DELIVERY_CONTACT_CHANGE_REQUESTED", String.valueOf(orderId), patientId);
+
+        notifyPharmacyAboutDeliveryContactChangeRequestAfterCommit(order);
+
+        return toDeliveryContactChangeResponse(saved);
+    }
+
+    @Override
+    @Transactional
+    public PharmacyDeliveryContactChangeResponse reviewDeliveryContactChange(Integer requestId, PharmacyDeliveryContactChangeReviewRequest request, String pharmacyId) {
+        PharmacyDeliveryContactChangeRequest changeRequest = deliveryContactChangeRequestRepository.findById(requestId)
+                .orElseThrow(() -> new ResourceNotFoundException("PharmacyDeliveryContactChangeRequest", "id", requestId));
+
+        if (!"PENDING".equals(changeRequest.getStatus())) {
+            throw new BadRequestException("Delivery contact change request is not pending");
+        }
+
+        if (changeRequest.getOrder() == null
+                || changeRequest.getOrder().getPharmacy() == null
+                || !pharmacyId.equals(changeRequest.getOrder().getPharmacy().getPharmacyId())) {
+            throw new ForbiddenException("You are not allowed to review this request");
+        }
+
+        String reviewStatus = request.getStatus();
+        if (!"APPROVED".equalsIgnoreCase(reviewStatus) && !"REJECTED".equalsIgnoreCase(reviewStatus)) {
+            throw new BadRequestException("Review status must be APPROVED or REJECTED");
+        }
+
+        if ("APPROVED".equalsIgnoreCase(reviewStatus)) {
+            PharmacyOrder order = changeRequest.getOrder();
+
+            if (PAYMENT_STATUS_PAID.equalsIgnoreCase(safeValue(order.getPaymentStatus(), ""))) {
+                throw new BadRequestException("Cannot change delivery fee for a paid order");
+            }
+
+            BigDecimal newDeliveryFee = request.getDeliveryFee();
+            if (newDeliveryFee == null || newDeliveryFee.compareTo(BigDecimal.ZERO) < 0) {
+                throw new BadRequestException("Delivery fee must be provided and >= 0");
+            }
+
+            order.setDeliveryAddress(changeRequest.getNewDeliveryAddress());
+            order.setDeliveryLatitude(changeRequest.getNewDeliveryLatitude());
+            order.setDeliveryLongitude(changeRequest.getNewDeliveryLongitude());
+            order.setDeliveryPhoneNumber(changeRequest.getNewDeliveryPhoneNumber());
+            order.setDeliveryAddressSource(changeRequest.getNewDeliveryAddressSource());
+            order.setDeliveryFee(newDeliveryFee);
+
+            BigDecimal oldTotal = order.getMedicineAmount() != null ? order.getMedicineAmount() : BigDecimal.ZERO;
+            BigDecimal newTotal = oldTotal.add(newDeliveryFee);
+            order.setTotalAmount(newTotal);
+
+            LocalDateTime estimatedDeliveryTime = request.getEstimatedDeliveryTime();
+            if (estimatedDeliveryTime == null && request.getEstimatedDeliveryMinutes() != null) {
+                estimatedDeliveryTime = LocalDateTime.now().plusMinutes(request.getEstimatedDeliveryMinutes());
+            }
+            if (estimatedDeliveryTime == null) {
+                throw new BadRequestException("Estimated delivery time must be provided");
+            }
+            order.setEstimatedDeliveryTime(estimatedDeliveryTime);
+
+            applyCommission(order, order.getPharmacy(), order.getMedicineAmount());
+
+            changeRequest.setNewDeliveryFee(newDeliveryFee);
+            changeRequest.setNewTotalAmount(newTotal);
+
+            BigDecimal oldFee = changeRequest.getOldDeliveryFee() != null
+                    ? changeRequest.getOldDeliveryFee() : order.getDeliveryFee();
+
+            boolean feeChanged = oldFee.compareTo(newDeliveryFee) != 0;
+            requestPatientConfirmation(order, CONFIRMATION_REASON_DELIVERY_CONTACT_FEE_CHANGE);
+
+            orderRepository.save(order);
+            notifyPatientAboutDeliveryContactChangeReviewAfterCommit(changeRequest, feeChanged);
+        }
+
+        changeRequest.setStatus(reviewStatus.toUpperCase());
+        changeRequest.setPharmacyReviewNotes(request.getPharmacyReviewNotes());
+        changeRequest.setReviewedAt(LocalDateTime.now());
+
+        PharmacyDeliveryContactChangeRequest saved = deliveryContactChangeRequestRepository.save(changeRequest);
+
+        String auditAction = "APPROVED".equalsIgnoreCase(reviewStatus)
+                ? "DELIVERY_CONTACT_CHANGE_APPROVED"
+                : "DELIVERY_CONTACT_CHANGE_REJECTED";
+        audit.log(auditAction, String.valueOf(changeRequest.getOrder().getOrderId()), pharmacyId);
+
+        notifyPatientAboutDeliveryContactChangeReviewAfterCommit(changeRequest);
+
+        return toDeliveryContactChangeResponse(saved);
+    }
+
+    // =========================================================================
+    // Patient confirmation helpers
+    // =========================================================================
+
+    private boolean requiresPatientConfirmation(PharmacyOrder order) {
+        return order != null
+                && order.getPatientConfirmationRequestedAt() != null
+                && order.getPatientConfirmedAt() == null
+                && !PAYMENT_STATUS_PAID.equalsIgnoreCase(safeValue(order.getPaymentStatus(), ""));
+    }
+
+    private void requestPatientConfirmation(PharmacyOrder order, String reason) {
+        order.setPatientConfirmedAt(null);
+        order.setPatientConfirmationRequestedAt(LocalDateTime.now());
+        order.setPatientConfirmationReason(reason);
+    }
+
+    private void clearPatientConfirmationRequest(PharmacyOrder order) {
+        order.setPatientConfirmedAt(LocalDateTime.now());
+        order.setPatientConfirmationRequestedAt(null);
+        order.setPatientConfirmationReason(null);
+    }
+
+    private void discardPatientConfirmationRequest(PharmacyOrder order) {
+        order.setPatientConfirmationRequestedAt(null);
+        order.setPatientConfirmationReason(null);
+    }
+
+    private void markPaymentCancelledIfUnpaid(PharmacyOrder order) {
+        if (order == null) return;
+        if (PAYMENT_STATUS_PAID.equalsIgnoreCase(safeValue(order.getPaymentStatus(), ""))) {
+            return;
+        }
+        order.setPaymentStatus(PAYMENT_STATUS_CANCELLED);
+    }
+
+    private String trimToEmpty(String value) {
+        return value == null ? "" : value.trim();
+    }
+
+    private boolean isAddressImpactingDeliveryFee(PharmacyOrder order, PharmacyDeliveryContactUpdateRequest request) {
+        return !Objects.equals(trimToEmpty(order.getDeliveryAddress()), trimToEmpty(request.getDeliveryAddress()))
+                || !Objects.equals(order.getDeliveryLatitude(), request.getDeliveryLatitude())
+                || !Objects.equals(order.getDeliveryLongitude(), request.getDeliveryLongitude())
+                || !Objects.equals(
+                        PharmacyServiceHelper.normalizeDeliveryAddressSourceSafely(order.getDeliveryAddressSource()),
+                        PharmacyServiceHelper.normalizeDeliveryAddressSourceSafely(request.getDeliveryAddressSource())
+                );
+    }
+
+    // =========================================================================
+    // Delivery contact helpers
+    // =========================================================================
+
+    private boolean isPrescriptionBasedOrder(PharmacyOrder order) {
+        return order.getPrescriptionHeader() != null
+                || (order.getConsultationRequest() != null
+                    && "ORDER_REQUEST".equalsIgnoreCase(
+                        PharmacyServiceHelper.requestTypeOf(order.getConsultationRequest())))
+                || (order.getOrderItems() != null
+                    && order.getOrderItems().stream().anyMatch(item -> item.getSourcePrescriptionItem() != null));
+    }
+
+    private void validateDeliveryOrderCanChangeContact(PharmacyOrder order) {
+        if (!DELIVERY_TYPE_DELIVERY.equalsIgnoreCase(order.getDeliveryType())) {
+            throw new BadRequestException("Delivery contact can only be updated for delivery orders");
+        }
+        if (order.getPatient() == null) {
+            throw new BadRequestException("Order has no patient");
+        }
+        if (order.getDeliveryAddress() == null || order.getDeliveryAddress().isBlank()) {
+            throw new BadRequestException("Delivery address is required");
+        }
+        if (order.getDeliveryPhoneNumber() == null || order.getDeliveryPhoneNumber().isBlank()) {
+            throw new BadRequestException("Delivery phone number is required");
+        }
+    }
+
+    private PharmacyDeliveryContactChangeResponse toDeliveryContactChangeResponse(PharmacyDeliveryContactChangeRequest request) {
+        return PharmacyDeliveryContactChangeResponse.builder()
+                .requestId(request.getRequestId())
+                .orderId(request.getOrder().getOrderId())
+                .status(request.getStatus())
+                .oldDeliveryAddress(request.getOldDeliveryAddress())
+                .oldDeliveryLatitude(request.getOldDeliveryLatitude())
+                .oldDeliveryLongitude(request.getOldDeliveryLongitude())
+                .oldDeliveryPhoneNumber(request.getOldDeliveryPhoneNumber())
+                .oldDeliveryAddressSource(request.getOldDeliveryAddressSource())
+                .newDeliveryAddress(request.getNewDeliveryAddress())
+                .newDeliveryLatitude(request.getNewDeliveryLatitude())
+                .newDeliveryLongitude(request.getNewDeliveryLongitude())
+                .newDeliveryPhoneNumber(request.getNewDeliveryPhoneNumber())
+                .newDeliveryAddressSource(request.getNewDeliveryAddressSource())
+                .patientReason(request.getPatientReason())
+                .pharmacyReviewNotes(request.getPharmacyReviewNotes())
+                .requestedAt(request.getRequestedAt())
+                .reviewedAt(request.getReviewedAt())
+                .oldDeliveryFee(request.getOldDeliveryFee())
+                .newDeliveryFee(request.getNewDeliveryFee())
+                .oldTotalAmount(request.getOldTotalAmount())
+                .newTotalAmount(request.getNewTotalAmount())
+                .build();
+    }
+
+    // =========================================================================
+    // Delivery contact notification helpers
+    // =========================================================================
+
+    private void notifyPharmacyAboutDeliveryContactUpdateAfterCommit(PharmacyOrder order) {
+        User pharmacyUser = resolvePharmacyUser(order, NotificationType.ORDER_STATUS);
+        if (pharmacyUser == null) return;
+
+        String orderNumber = safeValue(order.getOrderNumber(), "unknown order");
+        String patientName = order.getPatient() != null
+                ? safeValue(order.getPatient().getFullName(), "Unknown patient")
+                : "Unknown patient";
+        Integer orderId = order.getOrderId();
+        String actionUrl = "/pharmacy-orders/" + orderId;
+        String title = "Delivery contact updated";
+        String message = String.format(
+                "Patient %s updated delivery contact for order %s.",
+                patientName, orderNumber
+        );
+
+        runAfterCommit("delivery contact update notification orderId=" + orderId, () -> {
+            notificationService.sendWebSocketNotification(
+                    pharmacyUser,
+                    NotificationType.ORDER_STATUS,
+                    title,
+                    message,
+                    orderId,
+                    actionUrl
+            );
+        });
+    }
+
+    private void notifyPharmacyAboutDeliveryContactChangeRequestAfterCommit(PharmacyOrder order) {
+        User pharmacyUser = resolvePharmacyUser(order, NotificationType.ORDER_STATUS);
+        if (pharmacyUser == null) return;
+
+        String orderNumber = safeValue(order.getOrderNumber(), "unknown order");
+        String patientName = order.getPatient() != null
+                ? safeValue(order.getPatient().getFullName(), "Unknown patient")
+                : "Unknown patient";
+        Integer orderId = order.getOrderId();
+        String actionUrl = "/pharmacy-orders/" + orderId;
+        String title = "Delivery contact change requested";
+        String message = String.format(
+                "Patient %s requested delivery contact change for order %s.",
+                patientName, orderNumber
+        );
+
+        runAfterCommit("delivery contact change request notification orderId=" + orderId, () -> {
+            notificationService.sendWebSocketNotification(
+                    pharmacyUser,
+                    NotificationType.ORDER_STATUS,
+                    title,
+                    message,
+                    orderId,
+                    actionUrl
+            );
+        });
+    }
+
+    private void notifyPatientAboutDeliveryContactChangeReviewAfterCommit(PharmacyDeliveryContactChangeRequest changeRequest) {
+        notifyPatientAboutDeliveryContactChangeReviewAfterCommit(changeRequest, false);
+    }
+
+    private void notifyPatientAboutDeliveryContactChangeReviewAfterCommit(PharmacyDeliveryContactChangeRequest changeRequest, boolean feeChanged) {
+        PharmacyOrder order = changeRequest.getOrder();
+        if (order == null) return;
+
+        User patientUser = resolvePatientUser(order, NotificationType.ORDER_STATUS);
+        if (patientUser == null) return;
+
+        String orderNumber = safeValue(order.getOrderNumber(), "unknown order");
+        Integer orderId = order.getOrderId();
+        String actionUrl = "/pharmacy-orders/" + orderId;
+        boolean approved = "APPROVED".equalsIgnoreCase(changeRequest.getStatus());
+        String title;
+        String message;
+        if (approved && feeChanged) {
+            title = "Delivery address updated and fee changed";
+            message = String.format(
+                    "Your delivery change for order %s was approved. The updated total requires your confirmation.",
+                    orderNumber
+            );
+        } else if (approved) {
+            title = "Delivery contact change approved";
+            message = String.format("Your delivery contact change request for order %s has been approved.", orderNumber);
+        } else {
+            title = "Delivery contact change rejected";
+            message = String.format("Your delivery contact change request for order %s has been rejected.", orderNumber);
+        }
+
+        runAfterCommit("delivery contact change review notification orderId=" + orderId, () -> {
+            notificationService.sendWebSocketNotification(
+                    patientUser,
+                    NotificationType.ORDER_STATUS,
+                    title,
+                    message,
+                    orderId,
+                    actionUrl
+            );
+        });
+    }
+
+    private void notifyPatientAboutDeliveryQuoteAfterCommit(PharmacyOrder order) {
+        User patientUser = resolvePatientUser(order, NotificationType.ORDER_STATUS);
+        if (patientUser == null) return;
+
+        String orderNumber = safeValue(order.getOrderNumber(), "unknown order");
+        Integer orderId = order.getOrderId();
+        String actionUrl = "/pharmacy-orders/" + orderId;
+        String title = "Delivery fee quote ready";
+        String message = String.format(
+                "Pharmacy has submitted the delivery fee for order %s. Please confirm the total.",
+                orderNumber
+        );
+
+        runAfterCommit("delivery quote notification orderId=" + orderId, () -> {
+            notificationService.sendWebSocketNotification(
+                    patientUser,
+                    NotificationType.ORDER_STATUS,
+                    title,
+                    message,
+                    orderId,
+                    actionUrl
+            );
+        });
+    }
+
+    private void notifyPharmacyAboutPatientConfirmationAfterCommit(PharmacyOrder order) {
+        User pharmacyUser = resolvePharmacyUser(order, NotificationType.ORDER_STATUS);
+        if (pharmacyUser == null) return;
+
+        String orderNumber = safeValue(order.getOrderNumber(), "unknown order");
+        Integer orderId = order.getOrderId();
+        String actionUrl = "/pharmacy-orders/" + orderId;
+        String title = "Patient confirmed total";
+        String message = String.format(
+                "Patient confirmed the total for order %s.",
+                orderNumber
+        );
+
+        runAfterCommit("patient confirmation notification orderId=" + orderId, () -> {
+            notificationService.sendWebSocketNotification(
+                    pharmacyUser,
+                    NotificationType.ORDER_STATUS,
+                    title,
+                    message,
+                    orderId,
+                    actionUrl
+            );
+        });
+    }
+
+    private void restoreFulfilledStock(PharmacyOrder order) {
         if (order.getPharmacy() == null || order.getOrderItems() == null) return;
         String pharmacyId = order.getPharmacy().getPharmacyId();
         for (PharmacyOrderItem item : order.getOrderItems()) {
             if (item.getMedicine() == null || item.getQuantity() == null) continue;
-            inventoryRepository
-                .findByPharmacy_PharmacyIdAndMedicine_MedicineId(pharmacyId, item.getMedicine().getMedicineId())
+            findInventoryForMutation(pharmacyId, item.getMedicine().getMedicineId())
                 .ifPresent(inv -> {
                     int qty = item.getQuantity();
                     inv.setQuantity(inv.getQuantity() + qty);
-                    inv.setReservedQuantity(Math.max(0, inv.getReservedQuantity() - qty));
                     inventoryRepository.save(inv);
                 });
         }

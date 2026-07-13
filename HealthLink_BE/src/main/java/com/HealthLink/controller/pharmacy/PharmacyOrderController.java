@@ -2,8 +2,12 @@ package com.HealthLink.controller.pharmacy;
 
 import com.HealthLink.dto.pharmacy.CancelOrderRequest;
 import com.HealthLink.dto.pharmacy.PharmacyConsultationOrderCreateRequest;
+import com.HealthLink.dto.pharmacy.PharmacyDeliveryQuoteRequest;
 import com.HealthLink.dto.pharmacy.PharmacyOrderRequest;
 import com.HealthLink.dto.pharmacy.PharmacyOrderResponse;
+import com.HealthLink.dto.pharmacy.PharmacyDeliveryContactChangeResponse;
+import com.HealthLink.dto.pharmacy.PharmacyDeliveryContactChangeReviewRequest;
+import com.HealthLink.dto.pharmacy.PharmacyDeliveryContactUpdateRequest;
 import com.HealthLink.dto.pharmacy.PharmacyOrderRevisionRequest;
 import com.HealthLink.dto.pharmacy.PharmacyOrderStatusRequest;
 import com.HealthLink.dto.pharmacy.RetailOrderRequest;
@@ -151,6 +155,63 @@ public class PharmacyOrderController {
         String pharmacyId = resolveUserId(userDetails);
         PharmacyOrderResponse response = pharmacyOrderService.updateOrderQuote(orderId, request, pharmacyId);
         return ResponseEntity.ok(response);
+    }
+
+    @PatchMapping("/{orderId}/delivery-contact")
+    @PreAuthorize("hasRole('PATIENT')")
+    public ResponseEntity<PharmacyOrderResponse> updateDeliveryContact(
+            @PathVariable Integer orderId,
+            @Valid @RequestBody PharmacyDeliveryContactUpdateRequest request,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        String patientId = resolveUserId(userDetails);
+        return ResponseEntity.ok(
+            pharmacyOrderService.updateDeliveryContact(orderId, request, patientId)
+        );
+    }
+
+    @PostMapping("/{orderId}/delivery-contact-change-requests")
+    @PreAuthorize("hasRole('PATIENT')")
+    public ResponseEntity<PharmacyDeliveryContactChangeResponse> requestDeliveryContactChange(
+            @PathVariable Integer orderId,
+            @Valid @RequestBody PharmacyDeliveryContactUpdateRequest request,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        String patientId = resolveUserId(userDetails);
+        return ResponseEntity.status(HttpStatus.CREATED).body(
+            pharmacyOrderService.requestDeliveryContactChange(orderId, request, patientId)
+        );
+    }
+
+    @PatchMapping("/delivery-contact-change-requests/{requestId}/status")
+    @PreAuthorize("hasRole('PHARMACY')")
+    public ResponseEntity<PharmacyDeliveryContactChangeResponse> reviewDeliveryContactChange(
+            @PathVariable Integer requestId,
+            @Valid @RequestBody PharmacyDeliveryContactChangeReviewRequest request,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        var pharmacy = securityUtils.verifyPharmacyOwnershipByUser(userDetails);
+        return ResponseEntity.ok(
+            pharmacyOrderService.reviewDeliveryContactChange(requestId, request, pharmacy.getPharmacyId())
+        );
+    }
+
+    @PatchMapping("/{orderId}/delivery-quote")
+    @PreAuthorize("hasRole('PHARMACY')")
+    public ResponseEntity<PharmacyOrderResponse> submitDeliveryQuote(
+            @PathVariable Integer orderId,
+            @Valid @RequestBody PharmacyDeliveryQuoteRequest request,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        var pharmacy = securityUtils.verifyPharmacyOwnershipByUser(userDetails);
+        return ResponseEntity.ok(
+                pharmacyOrderService.submitDeliveryQuote(orderId, request, pharmacy.getPharmacyId())
+        );
+    }
+
+    @PostMapping("/{orderId}/patient-confirm")
+    @PreAuthorize("hasRole('PATIENT')")
+    public ResponseEntity<PharmacyOrderResponse> confirmOrderTotalByPatient(
+            @PathVariable Integer orderId,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        String patientId = resolveUserId(userDetails);
+        return ResponseEntity.ok(pharmacyOrderService.confirmOrderTotalByPatient(orderId, patientId));
     }
 
     private String resolveUserId(UserDetails userDetails) {

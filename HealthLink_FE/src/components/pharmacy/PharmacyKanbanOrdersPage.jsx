@@ -10,19 +10,20 @@ import {
   compactCardClass,
   compactCardSubtitle,
   compactCardMeta,
+  mergeWorkflowItemsWithOrders,
   paymentStatusTone,
   paymentStatusLabel,
 } from './workflow/pharmacyWorkflow';
 import PharmacyOrderDetailModal from './PharmacyOrderDetailModal';
 
-export default function PharmacyKanbanOrdersPage({ workItems, reload }) {
+export default function PharmacyKanbanOrdersPage({ workItems, orders, profile, reload }) {
   const [query, setQuery] = useState('');
   const [detailItem, setDetailItem] = useState(null);
   const [savingId, setSavingId] = useState(null);
 
   const activeItems = useMemo(
-    () => (Array.isArray(workItems) ? workItems : []).filter(isActiveOrderWorkItem),
-    [workItems],
+    () => mergeWorkflowItemsWithOrders(workItems, orders).filter(isActiveOrderWorkItem),
+    [orders, workItems],
   );
 
   const filteredItems = useMemo(
@@ -54,16 +55,12 @@ export default function PharmacyKanbanOrdersPage({ workItems, reload }) {
     }
   };
 
-  const handleChat = () => {
-    toast.info('Chat feature coming soon');
-  };
-
   return (
     <>
       <div className="pharmacy-workflow-header">
         <div className="pharmacy-workflow-title">
           <span className="material-symbols-outlined">view_column</span>
-          <h1>Kanban Orders</h1>
+          <h1>Orders flow</h1>
         </div>
         <div className="pharmacy-workflow-search">
           <span className="material-symbols-outlined">search</span>
@@ -75,74 +72,75 @@ export default function PharmacyKanbanOrdersPage({ workItems, reload }) {
         </div>
       </div>
       <div className="pharmacy-workflow-page pharmacy-workflow-surface">
+        <div className="pharmacy-kanban-board">
+          {columns.map((column) => (
+            <div className="pharmacy-kanban-column" key={column.key}>
+              <div className="pharmacy-kanban-column__header">
+                <strong>{column.label}</strong>
+                <span className="pharmacy-order-tab-count">{column.items.length}</span>
+              </div>
+              <div className="pharmacy-kanban-column__body">
+                {column.items.length === 0 ? (
+                  <div className="pharmacy-empty compact" style={{ padding: '16px 8px' }}>
+                    <p style={{ margin: 0, fontSize: 12 }}>No items</p>
+                  </div>
+                ) : (
+                  column.items.map((item) => {
+                    const itemKey = item.orderId || item.caseId || item.workItemId;
+                    const subtitle = compactCardSubtitle(item);
+                    const meta = compactCardMeta(item);
 
-      <div className="pharmacy-kanban-board">
-        {columns.map((column) => (
-          <div className="pharmacy-kanban-column" key={column.key}>
-            <div className="pharmacy-kanban-column__header">
-              <strong>{column.label}</strong>
-              <span className="pharmacy-order-tab-count">{column.items.length}</span>
-            </div>
-            <div className="pharmacy-kanban-column__body">
-              {column.items.length === 0 ? (
-                <div className="pharmacy-empty compact" style={{ padding: '16px 8px' }}>
-                  <p style={{ margin: 0, fontSize: 12 }}>No items</p>
-                </div>
-              ) : (
-                column.items.map((item) => {
-                  const itemKey = item.orderId || item.caseId || item.workItemId;
-                  const subtitle = compactCardSubtitle(item);
-                  const meta = compactCardMeta(item);
-
-                  return (
-                    <div
-                      className={`pharmacy-kanban-card ${compactCardClass(item)}`}
-                      key={itemKey}
-                      onClick={() => setDetailItem(item)}
-                      role="button"
-                      tabIndex={0}
-                      onKeyDown={(e) => { if (e.key === 'Enter') setDetailItem(item); }}
-                    >
-                      <div className="pharmacy-kanban-card__header">
-                        <span className={`pharmacy-status ${paymentStatusTone(item.paymentStatus)}`}>
-                          {paymentStatusLabel(item.paymentStatus)}
+                    return (
+                      <div
+                        className={`pharmacy-kanban-card ${compactCardClass(item)}`}
+                        key={itemKey}
+                        onClick={() => setDetailItem(item)}
+                        role="button"
+                        tabIndex={0}
+                        onKeyDown={(e) => { if (e.key === 'Enter') setDetailItem(item); }}
+                      >
+                        <div className="pharmacy-kanban-card__identity">
+                          <strong className="pharmacy-kanban-card__id">
+                            {item.orderNumber || `#${item.orderId}`}
+                          </strong>
+                          <span className={`pharmacy-status pharmacy-kanban-card__payment ${paymentStatusTone(item.paymentStatus)}`}>
+                            {paymentStatusLabel(item.paymentStatus)}
+                          </span>
+                        </div>
+                        {item.requiresPatientConfirmation && (
+                          <span className="pharmacy-kanban-card__meta pharmacy-kanban-card__confirmation">
+                            Awaiting confirmation
+                          </span>
+                        )}
+                        {subtitle && (
+                          <span className="pharmacy-kanban-card__subtitle">{subtitle}</span>
+                        )}
+                        {meta && (
+                          <span className="pharmacy-kanban-card__meta">{meta}</span>
+                        )}
+                        <span className="pharmacy-kanban-card__detail">
+                          Detail
+                          <span className="material-symbols-outlined">chevron_right</span>
                         </span>
-                        <span className="pharmacy-kanban-card__stage">{getWorkflowStage(item)}</span>
                       </div>
-                      <strong className="pharmacy-kanban-card__id">
-                        {item.orderNumber || `#${item.orderId}`}
-                      </strong>
-                      {subtitle && (
-                        <span className="pharmacy-kanban-card__subtitle">{subtitle}</span>
-                      )}
-                      {meta && (
-                        <span className="pharmacy-kanban-card__meta">{meta}</span>
-                      )}
-                      <span className="pharmacy-kanban-card__detail">
-                        Detail
-                        <span className="material-symbols-outlined">chevron_right</span>
-                      </span>
-                    </div>
-                  );
-                })
-              )}
+                    );
+                  })
+                )}
+              </div>
             </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
 
-      {detailItem && (
-        <PharmacyOrderDetailModal
-          item={detailItem}
-          onClose={() => setDetailItem(null)}
-          onStatusUpdate={handleQuickStatus}
-          onChat={handleChat}
-          savingId={savingId}
-        />
-      )}
-    </div>
+        {detailItem && (
+          <PharmacyOrderDetailModal
+            item={detailItem}
+            profile={profile}
+            onClose={() => setDetailItem(null)}
+            onStatusUpdate={handleQuickStatus}
+            savingId={savingId}
+          />
+        )}
+      </div>
     </>
   );
 }
-
-
