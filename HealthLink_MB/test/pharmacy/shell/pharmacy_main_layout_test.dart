@@ -5,6 +5,7 @@ import 'package:HealthLink/providers/auth_provider.dart';
 import 'package:HealthLink/providers/pharmacy/pharmacy_order_provider.dart';
 import 'package:HealthLink/providers/pharmacy/pharmacy_request_provider.dart';
 import 'package:HealthLink/providers/pharmacy/pharmacy_inventory_provider.dart';
+import 'package:HealthLink/providers/pharmacy/pharmacy_revenue_provider.dart';
 import 'package:HealthLink/providers/pharmacy/pharmacy_workflow_provider.dart';
 import 'package:HealthLink/screens/pharmacy/pharmacy_main_layout.dart';
 
@@ -70,6 +71,9 @@ Widget _buildTestApp({
         ),
         ChangeNotifierProvider<PharmacyInventoryProvider>(
           create: (_) => PharmacyInventoryProvider(),
+        ),
+        ChangeNotifierProvider<PharmacyRevenueProvider>(
+          create: (_) => PharmacyRevenueProvider(),
         ),
       ],
       child: const PharmacyMainLayout(),
