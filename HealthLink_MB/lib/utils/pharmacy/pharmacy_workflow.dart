@@ -1,4 +1,5 @@
 import '../../models/pharmacy/pharmacy_order.dart';
+import '../../models/pharmacy/pharmacy_work_item.dart';
 
 class PharmacyWorkflow {
   PharmacyWorkflow._();
@@ -91,5 +92,30 @@ class PharmacyWorkflow {
       default:
         return [];
     }
+  }
+
+  /// Filters and sorts work items to only those requiring pharmacy action.
+  /// Excludes terminal requests (CANCELLED, REJECTED) and terminal orders
+  /// (DELIVERED, COMPLETED, CANCELLED, REFUNDED). Results are sorted oldest-first.
+  static List<PharmacyWorkItem> actionableRequests(
+    Iterable<PharmacyWorkItem> items,
+  ) {
+    const terminalRequests = {'CANCELLED', 'REJECTED'};
+    const terminalOrders = {
+      'DELIVERED',
+      'COMPLETED',
+      'CANCELLED',
+      'REFUNDED',
+    };
+
+    final result = items.where((item) {
+      final requestStatus = item.requestStatus?.toUpperCase();
+      final orderStatus = item.orderStatus?.toUpperCase();
+      return !terminalRequests.contains(requestStatus) &&
+          !terminalOrders.contains(orderStatus);
+    }).toList();
+
+    result.sort((a, b) => a.createdAt.compareTo(b.createdAt));
+    return result;
   }
 }

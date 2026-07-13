@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import '../../models/pharmacy/pharmacy_work_item.dart';
 import '../../services/pharmacy/pharmacy_workflow_service.dart';
+import '../../utils/pharmacy/pharmacy_workflow.dart';
 
 class PharmacyWorkflowProvider extends ChangeNotifier {
   final PharmacyWorkflowService _workflowService;
@@ -25,7 +26,7 @@ class PharmacyWorkflowProvider extends ChangeNotifier {
       .length;
 
   int get pendingRequestsCount =>
-      _workItems.where((w) => w.requestStatus == 'PENDING').length;
+      PharmacyWorkflow.actionableRequests(_workItems).length;
 
   int get totalBadgeCount => pendingOrdersCount + pendingRequestsCount;
 
