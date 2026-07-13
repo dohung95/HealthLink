@@ -212,6 +212,40 @@ void main() {
     });
   });
 
+  group('Chat history', () {
+    test('order with pharmacyRequestId has chat history info', () {
+      final order = _sampleOrder(status: 'COMPLETED');
+      // Add pharmacyRequestId like the production model supports
+      final orderWithRequestId = PharmacyOrder(
+        orderId: order.orderId,
+        orderNumber: order.orderNumber,
+        pharmacyId: order.pharmacyId,
+        pharmacyName: order.pharmacyName,
+        patientId: order.patientId,
+        patientName: order.patientName,
+        status: order.status,
+        deliveryType: order.deliveryType,
+        paymentStatus: order.paymentStatus,
+        medicineAmount: order.medicineAmount,
+        deliveryFee: order.deliveryFee,
+        totalAmount: order.totalAmount,
+        platformFee: order.platformFee,
+        pharmacyEarning: order.pharmacyEarning,
+        items: order.items,
+        createdAt: order.createdAt,
+        confirmedAt: order.confirmedAt,
+        preparingAt: order.preparingAt,
+        pharmacyRequestId: 42,
+      );
+      expect(orderWithRequestId.pharmacyRequestId, 42);
+    });
+
+    test('order without pharmacyRequestId has null chat info', () {
+      final order = _sampleOrder(status: 'COMPLETED');
+      expect(order.pharmacyRequestId, isNull);
+    });
+  });
+
   group('Activity timeline fields', () {
     test('order has timeline timestamps for non-terminal statuses', () {
       final order = _sampleOrder(status: 'SHIPPING', deliveryType: 'DELIVERY');
