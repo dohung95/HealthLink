@@ -8,11 +8,13 @@ import com.HealthLink.entity.Appointment;
 import com.HealthLink.entity.ChatRoom;
 import com.HealthLink.entity.Message;
 import com.HealthLink.entity.User;
+import com.HealthLink.exception.BusinessException;
 import com.HealthLink.exception.ResourceNotFoundException;
 import com.HealthLink.repository.appointment.AppointmentRepository;
 import com.HealthLink.repository.auth.UserRepository;
 import com.HealthLink.repository.chat.ChatRoomRepository;
 import com.HealthLink.repository.chat.MessageRepository;
+import com.HealthLink.repository.pharmacy.PharmacyConsultationRequestRepository;
 import com.HealthLink.service.chat.ChatService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
@@ -37,6 +39,7 @@ public class ChatServiceImpl implements ChatService {
     private final UserRepository        userRepository;
     private final SimpMessagingTemplate messagingTemplate;
     private final com.HealthLink.service.chat.PresenceService presenceService;
+    private final PharmacyConsultationRequestRepository pharmacyConsultationRequestRepository;
 
     // -------------------------------------------------------------------------
     // Tạo hoặc lấy phòng chat
@@ -163,6 +166,17 @@ public class ChatServiceImpl implements ChatService {
         if (room.getBlockedBy() != null) {
             throw new IllegalStateException("You cannot send messages because this conversation is blocked.");
         }
+
+        // Kiểm tra nếu phòng chat này thuộc về một pharmacy request đã có order
+        // → không cho phép gửi tin nhắn (read-only history)
+        pharmacyConsultationRequestRepository
+            .findByChatRoomId(room.getChatRoomId())
+            .filter(pharmacyReq -> pharmacyReq.getOrder() != null)
+            .ifPresent(pharmacyReq -> {
+                throw new BusinessException(
+                    "This pharmacy request has ended. Chat is read-only."
+                );
+            });
 
         // Tạo entity User tạm cho sender (chỉ cần ID để JPA set foreign key)
         User sender = User.builder().id(senderId).build();
