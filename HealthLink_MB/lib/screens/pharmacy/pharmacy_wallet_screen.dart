@@ -379,7 +379,20 @@ class _WithdrawalPinDialogState extends State<_WithdrawalPinDialog> {
   int? _lockedMinutes;
 
   @override
+  void initState() {
+    super.initState();
+    // Listen for PIN text changes so the dialog rebuilds and re-evaluates
+    // the Withdraw button enabled/disabled condition.
+    _pinCtrl.addListener(_onPinChanged);
+  }
+
+  void _onPinChanged() {
+    if (mounted) setState(() {});
+  }
+
+  @override
   void dispose() {
+    _pinCtrl.removeListener(_onPinChanged);
     _pinCtrl.dispose();
     _focusNode.dispose();
     super.dispose();
@@ -493,26 +506,6 @@ class _WithdrawalPinDialogState extends State<_WithdrawalPinDialog> {
             style: theme.textTheme.titleMedium
                 ?.copyWith(fontWeight: FontWeight.w600),
           ),
-          // PayPal email destination
-          if (widget.paypalEmail.isNotEmpty) ...[        
-            const SizedBox(height: 4),
-            Row(
-              children: [
-                Icon(Icons.email_outlined,
-                    size: 14, color: theme.colorScheme.onSurfaceVariant),
-                const SizedBox(width: 4),
-                Flexible(
-                  child: Text(
-                    'To: ${widget.paypalEmail}',
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-              ],
-            ),
-          ],
           const SizedBox(height: 16),
           PartnerPinCodeField(
             controller: _pinCtrl,
