@@ -56,6 +56,7 @@ class PharmacyRevenueProvider extends ChangeNotifier {
   // ── Actions ──────────────────────────────────────────────────────────
 
   /// Fetch all transactions from the API.
+  /// Guards against duplicate in-flight requests.
   Future<void> load({
     required String token,
     required String pharmacyId,
@@ -72,7 +73,10 @@ class PharmacyRevenueProvider extends ChangeNotifier {
       final service = _serviceFactory(pharmacyId);
       try {
         final txs = await service.getTransactions(token);
-        if (version != _loadVersion) return; // stale
+        if (version != _loadVersion) {
+          // Stale — discard silently; loading handled by newer request
+          return;
+        }
         _cachedTransactions = txs;
         _updatedAt = now ?? DateTime.now();
         _error = null;
@@ -80,7 +84,9 @@ class PharmacyRevenueProvider extends ChangeNotifier {
         service.close();
       }
     } catch (e) {
-      if (version != _loadVersion) return;
+      if (version != _loadVersion) {
+        return; // stale error — ignore
+      }
       _error = e.toString();
     }
 
@@ -89,16 +95,43 @@ class PharmacyRevenueProvider extends ChangeNotifier {
   }
 
   /// Re-fetch all transactions.
+  /// Unlike [load], this bypasses the in-flight guard so an explicit
+  /// refresh can supersede an earlier load. Existing cached data is
+  /// preserved during the request — only replaced on success.
   Future<void> refresh({
     required String token,
     required String pharmacyId,
     DateTime? now,
   }) async {
-    // Clear cache so UI shows loading state
-    _cachedTransactions = [];
     _loadVersion++;
+    final version = _loadVersion;
+    _loading = true;
+    _error = null;
     notifyListeners();
-    await load(token: token, pharmacyId: pharmacyId, now: now);
+
+    try {
+      final service = _serviceFactory(pharmacyId);
+      try {
+        final txs = await service.getTransactions(token);
+        if (version != _loadVersion) {
+          return; // stale — keep existing cache
+        }
+        _cachedTransactions = txs;
+        _updatedAt = now ?? DateTime.now();
+        _error = null;
+      } finally {
+        service.close();
+      }
+    } catch (e) {
+      if (version != _loadVersion) {
+        return; // stale error — keep existing cache
+      }
+      _error = e.toString();
+      // Cache intentionally preserved on failure
+    }
+
+    _loading = false;
+    notifyListeners();
   }
 
   /// Switch range type and optionally reset month/year.
