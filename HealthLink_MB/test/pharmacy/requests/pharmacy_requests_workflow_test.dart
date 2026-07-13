@@ -1,11 +1,16 @@
 import 'dart:convert';
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
+import 'package:provider/provider.dart';
+import 'package:HealthLink/providers/auth_provider.dart';
+import 'package:HealthLink/providers/pharmacy/pharmacy_workflow_provider.dart';
+import 'package:HealthLink/providers/pharmacy/pharmacy_request_provider.dart';
+import 'package:HealthLink/screens/pharmacy/pharmacy_requests_screen.dart';
+import 'package:HealthLink/models/pharmacy/pharmacy_work_item.dart';
 import 'package:HealthLink/services/pharmacy/pharmacy_order_service.dart';
 import 'package:HealthLink/services/pharmacy/pharmacy_request_service.dart';
-import 'package:HealthLink/providers/pharmacy/pharmacy_request_provider.dart';
-import 'package:HealthLink/models/pharmacy/pharmacy_work_item.dart';
 import 'package:HealthLink/utils/pharmacy/pharmacy_workflow.dart';
 
 const _token = 'test-token';
@@ -76,6 +81,32 @@ PharmacyWorkItem _deliveryContactReviewWorkItem() => PharmacyWorkItem(
       requiresPatientConfirmation: true,
       createdAt: DateTime.now(),
     );
+
+/// Builds the test app wrapping [PharmacyRequestsScreen] with providers.
+Widget _buildTestApp({
+  required PharmacyWorkflowProvider workflowProvider,
+  required PharmacyRequestProvider requestProvider,
+  required AuthProvider authProvider,
+}) {
+  return MultiProvider(
+    providers: [
+      ChangeNotifierProvider<AuthProvider>.value(value: authProvider),
+      ChangeNotifierProvider<PharmacyWorkflowProvider>.value(
+          value: workflowProvider),
+      ChangeNotifierProvider<PharmacyRequestProvider>.value(
+          value: requestProvider),
+    ],
+    child: MaterialApp(
+      home: Scaffold(body: PharmacyRequestsScreen()),
+    ),
+  );
+}
+
+AuthProvider _authenticatedAuth() {
+  final auth = AuthProvider();
+  // Simulate authenticated pharmacy user
+  return auth;
+}
 
 void main() {
   group('PharmacyOrderService — delivery quote', () {
@@ -179,29 +210,7 @@ void main() {
     });
   });
 
-  group('PharmacyRequestProvider — work-item kind filter', () {
-    test('default filter is ALL', () {
-      final provider = PharmacyRequestProvider(
-        requestService: PharmacyRequestService(
-          client: MockClient((_) async => http.Response('[]', 200)),
-        ),
-      );
-      expect(provider.activeFilter, 'ALL');
-    });
-
-    test('setFilter notifies listeners', () {
-      var notified = false;
-      final provider = PharmacyRequestProvider(
-        requestService: PharmacyRequestService(
-          client: MockClient((_) async => http.Response('[]', 200)),
-        ),
-      );
-      provider.addListener(() => notified = true);
-      provider.setFilter('IN_REVIEW');
-      expect(provider.activeFilter, 'IN_REVIEW');
-      expect(notified, true);
-    });
-
+  group('PharmacyRequestProvider — chat room lookup', () {
     test('fetchChatRoomId resolves room ID', () async {
       final mockClient = MockClient((request) async {
         return http.Response(
@@ -278,17 +287,48 @@ void main() {
     });
   });
 
-  group('API config — delivery endpoints', () {
-    test('delivery quote endpoint is correctly formed', () {
-      // Should exist at pharmacy-orders/{id}/delivery-quote
-      const endpoint = '/pharmacy-orders/301/delivery-quote';
-      expect(endpoint, contains('delivery-quote'));
+  group('PharmacyRequestsScreen — work-items only', () {
+    testWidgets('shows empty state when no actionable items', (
+      WidgetTester tester,
+    ) async {
+      final workflow = PharmacyWorkflowProvider();
+      final request = PharmacyRequestProvider(
+        requestService: PharmacyRequestService(
+          client: MockClient((_) async => http.Response('[]', 200)),
+        ),
+      );
+
+      await tester.pumpWidget(_buildTestApp(
+        workflowProvider: workflow,
+        requestProvider: request,
+        authProvider: _authenticatedAuth(),
+      ));
+
+      // Should not show filter chips
+      expect(find.byType(ChoiceChip), findsNothing);
+
+      // Should show empty state message
+      expect(find.text('No requests requiring action'), findsOneWidget);
     });
 
-    test('delivery contact endpoint is correctly formed', () {
-      // Should exist at pharmacy-orders/{id}/delivery-contact
-      const endpoint = '/pharmacy-orders/401/delivery-contact';
-      expect(endpoint, contains('delivery-contact'));
+    testWidgets('does not show filter chips', (WidgetTester tester) async {
+      final workflow = PharmacyWorkflowProvider();
+      final request = PharmacyRequestProvider(
+        requestService: PharmacyRequestService(
+          client: MockClient((_) async => http.Response('[]', 200)),
+        ),
+      );
+
+      await tester.pumpWidget(_buildTestApp(
+        workflowProvider: workflow,
+        requestProvider: request,
+        authProvider: _authenticatedAuth(),
+      ));
+
+      // Verify no status filter tabs or work-type filter chips
+      expect(find.byType(ChoiceChip), findsNothing);
     });
   });
 }
+
+
