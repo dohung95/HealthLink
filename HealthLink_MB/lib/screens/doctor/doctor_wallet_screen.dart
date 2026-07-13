@@ -6,8 +6,10 @@ import '../../models/doctor/wallet_balance.dart';
 import '../../models/doctor/commission_transaction.dart';
 import '../../models/doctor/settlement.dart';
 import '../../services/doctor/doctor_wallet_service.dart';
+import '../../services/partner/partner_security_service.dart';
 import '../../config/doctor_theme.dart';
 import '../../widgets/doctor/doctor_widgets.dart';
+import '../../widgets/partner/partner_pin_wizard.dart';
 import 'doctor_withdraw_sheet.dart';
 
 class DoctorWalletScreen extends StatefulWidget {
@@ -29,6 +31,11 @@ class _DoctorWalletScreenState extends State<DoctorWalletScreen> with SingleTick
   List<CommissionTransaction> _transactions = [];
   List<Settlement> _settlements = [];
 
+  final _securityService = PartnerSecurityService();
+  bool _loadingPinStatus = true;
+  bool _pinConfigured = false;
+  bool _pinLocked = false;
+
   @override
   void initState() {
     super.initState();
@@ -39,12 +46,50 @@ class _DoctorWalletScreenState extends State<DoctorWalletScreen> with SingleTick
       if (mounted) setState(() {});
     });
     _initService();
+    _loadPinStatus();
   }
 
   @override
   void dispose() {
     _tabController.dispose();
+    _securityService.close();
     super.dispose();
+  }
+
+  Future<void> _loadPinStatus() async {
+    final token = context.read<AuthProvider>().accessToken;
+    if (token == null) {
+      if (mounted) setState(() => _loadingPinStatus = false);
+      return;
+    }
+    try {
+      final status = await _securityService.getPinStatus(token);
+      if (mounted) {
+        setState(() {
+          _pinConfigured = status['configured'] == true;
+          _pinLocked = status['locked'] == true;
+          _loadingPinStatus = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) setState(() => _loadingPinStatus = false);
+    }
+  }
+
+  void _openPinWizard() {
+    final token = context.read<AuthProvider>().accessToken;
+    if (token == null) return;
+    showDialog(
+      context: context,
+      builder: (_) => PartnerPinWizard(
+        service: _securityService,
+        token: token,
+        onSuccess: () {
+          showDoctorNotice(context, _pinConfigured ? 'Withdrawal PIN updated.' : 'Withdrawal PIN configured.');
+          _loadPinStatus();
+        },
+      ),
+    );
   }
 
   void _initService() {
@@ -115,7 +160,7 @@ class _DoctorWalletScreenState extends State<DoctorWalletScreen> with SingleTick
                           physics: const AlwaysScrollableScrollPhysics(),
                           child: Padding(
                             padding: const EdgeInsets.all(20),
-                            child: Column(children: [_buildBalanceCard(), const SizedBox(height: 20), _buildTabs()]),
+                            child: Column(children: [_buildBalanceCard(), const SizedBox(height: 20), _buildSecurityCard(), const SizedBox(height: 20), _buildTabs()]),
                           ),
                         ),
                       ),
@@ -202,6 +247,53 @@ class _DoctorWalletScreenState extends State<DoctorWalletScreen> with SingleTick
               ),
             ),
           ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSecurityCard() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: DS.cardDecoration,
+      child: Row(
+        children: [
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(color: DS.secondary, borderRadius: BorderRadius.circular(10)),
+            child: Icon(
+              _pinConfigured ? Icons.lock_outline : Icons.lock_open_outlined,
+              size: 20,
+              color: _pinConfigured ? DS.emerald600 : DS.mutedForeground,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('Withdrawal PIN', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: DS.foreground)),
+                const SizedBox(height: 2),
+                Text(
+                  _pinLocked
+                      ? 'Temporarily locked after too many attempts'
+                      : _pinConfigured
+                          ? 'Configured — required for every withdrawal'
+                          : 'Optional. Once configured, every withdrawal requires it.',
+                  style: TextStyle(fontSize: 12, color: _pinLocked ? DS.rose600 : DS.mutedForeground),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          _loadingPinStatus
+              ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: DS.primary))
+              : TextButton(
+                  onPressed: _openPinWizard,
+                  child: Text(_pinConfigured ? 'Update' : 'Set up'),
+                ),
         ],
       ),
     );

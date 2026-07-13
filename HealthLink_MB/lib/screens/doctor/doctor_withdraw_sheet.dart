@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
+import 'package:provider/provider.dart';
+import '../../providers/auth_provider.dart';
 import '../../services/doctor/doctor_wallet_service.dart';
+import '../../services/partner/partner_security_service.dart';
 import '../../config/doctor_theme.dart';
 import '../../widgets/doctor/doctor_widgets.dart';
+import '../../widgets/partner/partner_pin_wizard.dart';
 
 class DoctorWithdrawSheet extends StatefulWidget {
   const DoctorWithdrawSheet({super.key, required this.walletService, required this.maxAmount, required this.onSuccess});
@@ -19,15 +23,65 @@ class DoctorWithdrawSheet extends StatefulWidget {
 class _DoctorWithdrawSheetState extends State<DoctorWithdrawSheet> {
   final _amountController = TextEditingController();
   final _paypalEmailController = TextEditingController();
+  final _pinController = TextEditingController();
+  final _securityService = PartnerSecurityService();
   bool _isLoading = false;
 
+  bool _loadingPinStatus = true;
+  bool _pinConfigured = false;
+  bool _pinLocked = false;
+
   String _formatCurrency(double amount) => NumberFormat.currency(symbol: '\$', decimalDigits: 2).format(amount);
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _loadPinStatus());
+  }
 
   @override
   void dispose() {
     _amountController.dispose();
     _paypalEmailController.dispose();
+    _pinController.dispose();
+    _securityService.close();
     super.dispose();
+  }
+
+  Future<void> _loadPinStatus() async {
+    final token = context.read<AuthProvider>().accessToken;
+    if (token == null) {
+      if (mounted) setState(() => _loadingPinStatus = false);
+      return;
+    }
+    try {
+      final status = await _securityService.getPinStatus(token);
+      if (mounted) {
+        setState(() {
+          _pinConfigured = status['configured'] == true;
+          _pinLocked = status['locked'] == true;
+          _loadingPinStatus = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) setState(() => _loadingPinStatus = false);
+    }
+  }
+
+  void _openPinWizard() {
+    final token = context.read<AuthProvider>().accessToken;
+    if (token == null) return;
+    showDialog(
+      context: context,
+      builder: (_) => PartnerPinWizard(
+        service: _securityService,
+        token: token,
+        onSuccess: () {
+          showDoctorNotice(context, 'Withdrawal PIN configured.');
+          _loadPinStatus();
+        },
+      ),
+    );
   }
 
   Future<void> _submitWithdrawal() async {
@@ -40,10 +94,18 @@ class _DoctorWithdrawSheetState extends State<DoctorWithdrawSheet> {
     if (paypal.isEmpty) { _showError('PayPal email is required'); return; }
     if (!RegExp(r'^\S+@\S+\.\S+$').hasMatch(paypal)) { _showError('Enter a valid PayPal email'); return; }
 
+    if (_pinConfigured && _pinLocked) { _showError('Withdrawal PIN is temporarily locked. Try again later.'); return; }
+    final pin = _pinController.text.trim();
+    if (_pinConfigured && pin.length != 6) { _showError('Enter your six-digit withdrawal PIN'); return; }
+
     setState(() => _isLoading = true);
 
     try {
-      await widget.walletService.requestWithdrawal(amount: amount, paypalEmail: paypal);
+      await widget.walletService.requestWithdrawal(
+        amount: amount,
+        paypalEmail: paypal,
+        pin: _pinConfigured ? pin : null,
+      );
 
       if (mounted) {
         Navigator.pop(context);
@@ -108,6 +170,8 @@ class _DoctorWithdrawSheetState extends State<DoctorWithdrawSheet> {
                 ),
                 const SizedBox(height: 4),
                 const Text('Must match the PayPal email in your profile settings.', style: TextStyle(fontSize: 12, color: DS.mutedForeground)),
+                const SizedBox(height: 16),
+                _buildPinSection(),
               ]),
             ),
 
@@ -128,6 +192,60 @@ class _DoctorWithdrawSheetState extends State<DoctorWithdrawSheet> {
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildPinSection() {
+    if (_loadingPinStatus) {
+      return const SizedBox(
+        height: 20,
+        width: 20,
+        child: CircularProgressIndicator(strokeWidth: 2, color: DS.primary),
+      );
+    }
+
+    if (!_pinConfigured) {
+      return Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(color: DS.secondary, borderRadius: BorderRadius.circular(10)),
+        child: Row(
+          children: [
+            const Icon(Icons.pin_outlined, size: 18, color: DS.mutedForeground),
+            const SizedBox(width: 10),
+            const Expanded(
+              child: Text(
+                'Withdrawal PIN is optional until you configure it.',
+                style: TextStyle(fontSize: 12, color: DS.mutedForeground),
+              ),
+            ),
+            TextButton(onPressed: _openPinWizard, child: const Text('Set up')),
+          ],
+        ),
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            const Text('Withdrawal PIN *', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: DS.foreground)),
+            const Spacer(),
+            if (_pinLocked)
+              const Text('Temporarily locked', style: TextStyle(fontSize: 12, color: DS.rose600, fontWeight: FontWeight.w600)),
+          ],
+        ),
+        const SizedBox(height: 8),
+        TextField(
+          controller: _pinController,
+          obscureText: true,
+          keyboardType: TextInputType.number,
+          maxLength: 6,
+          enabled: !_pinLocked,
+          inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+          decoration: DS.inputDecoration(hintText: '••••••').copyWith(counterText: ''),
+        ),
+      ],
     );
   }
 }
