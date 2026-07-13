@@ -63,7 +63,7 @@ class _DoctorNotificationCenterSheetState extends State<DoctorNotificationCenter
 
   void _showMessage(String message, {bool isError = false}) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message), behavior: SnackBarBehavior.floating, backgroundColor: isError ? Colors.red : null));
+    showDoctorNotice(context, message, isError: isError);
   }
 
   String _groupOf(DateTime date) {

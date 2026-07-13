@@ -205,7 +205,7 @@ class DoctorService {
         .timeout(ApiConfig.connectTimeout);
 
     if (res.statusCode != 200) {
-      throw Exception('Failed to start consultation: ${res.statusCode}');
+      throw Exception(_extractErrorMessage(res.body) ?? 'Failed to start consultation: ${res.statusCode}');
     }
   }
 

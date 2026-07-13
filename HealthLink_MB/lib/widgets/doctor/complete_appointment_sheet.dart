@@ -6,6 +6,7 @@ import '../../providers/auth_provider.dart';
 import '../../services/doctor/doctor_service.dart';
 import '../../services/patient/patient_pharmacy/medicine_service.dart';
 import '../../config/doctor_theme.dart';
+import 'doctor_widgets.dart';
 
 class CompleteAppointmentSheet extends StatefulWidget {
   final int appointmentId;
@@ -114,9 +115,7 @@ class _CompleteAppointmentSheetState extends State<CompleteAppointmentSheet> {
   void _addMedicine(Map<String, dynamic> medicine) {
     final id = medicine['medicineId'];
     if (_rows.any((r) => r.medicine['medicineId'] == id)) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Medicine already added'), behavior: SnackBarBehavior.floating),
-      );
+      showDoctorNotice(context, 'Medicine already added');
       return;
     }
     setState(() {
@@ -193,15 +192,9 @@ class _CompleteAppointmentSheetState extends State<CompleteAppointmentSheet> {
       await DoctorService.completeAppointment(token, widget.appointmentId);
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Appointment completed'),
-            backgroundColor: Colors.green,
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
         widget.onCompleted();
         Navigator.pop(context);
+        showDoctorNotice(context, 'Appointment completed');
       }
     } catch (e) {
       if (mounted) {

@@ -135,6 +135,7 @@ class DoctorWalletService {
     required double amount,
     String? paypalEmail,
     String? notes,
+    String? pin,
   }) async {
     final body = <String, dynamic>{
       'amount': amount,
@@ -146,6 +147,10 @@ class DoctorWalletService {
 
     if (notes != null && notes.isNotEmpty) {
       body['notes'] = notes;
+    }
+
+    if (pin != null && pin.isNotEmpty) {
+      body['pin'] = pin;
     }
 
     final response = await http

@@ -2,14 +2,19 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/doctor/doctor_service.dart';
+import '../../services/doctor/doctor_clinical_result_service.dart';
 import '../../services/patient/patient_service.dart';
 import '../../services/patient/vitals/vital_sign_service.dart';
 import '../../models/doctor/doctor_appointment.dart';
+import '../../models/doctor/doctor_clinical_result.dart';
 import '../../models/patient/patient_profile.dart';
 import '../../config/api_config.dart';
 import '../../config/doctor_theme.dart';
 import '../../widgets/doctor/doctor_widgets.dart';
 import '../../widgets/doctor/complete_appointment_sheet.dart';
+import '../../widgets/doctor/clinical_results_section.dart';
+import '../../widgets/doctor/clinical_result_detail_sheet.dart';
+import '../../widgets/doctor/clinical_result_editor_sheet.dart';
 
 List<String> _splitList(String? raw) {
   if (raw == null || raw.trim().isEmpty) return [];
@@ -40,6 +45,10 @@ class _DoctorAppointmentDetailScreenState extends State<DoctorAppointmentDetailS
 
   bool _isLoading = true;
   String? _error;
+
+  List<DoctorClinicalResult> _clinicalResults = const [];
+  bool _isLoadingClinicalResults = false;
+  String? _clinicalResultsError;
 
   @override
   void initState() {
@@ -74,12 +83,41 @@ class _DoctorAppointmentDetailScreenState extends State<DoctorAppointmentDetailS
           _vitals = results[2] as Map<String, dynamic>?;
           _isLoading = false;
         });
+        // Load riêng, không chặn toàn bộ appointment detail nếu API này lỗi.
+        _loadClinicalResults();
       }
     } catch (e) {
       if (mounted) {
         setState(() {
           _error = e.toString().replaceFirst('Exception: ', '');
           _isLoading = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _loadClinicalResults() async {
+    setState(() {
+      _isLoadingClinicalResults = true;
+      _clinicalResultsError = null;
+    });
+
+    try {
+      final token = context.read<AuthProvider>().accessToken;
+      if (token == null) throw Exception('Not authenticated');
+      final results = await DoctorClinicalResultService(accessToken: token)
+          .getAppointmentResults(_appointment.appointmentId);
+      if (mounted) {
+        setState(() {
+          _clinicalResults = results;
+          _isLoadingClinicalResults = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _clinicalResultsError = e.toString().replaceFirst('Exception: ', '');
+          _isLoadingClinicalResults = false;
         });
       }
     }
@@ -98,6 +136,11 @@ class _DoctorAppointmentDetailScreenState extends State<DoctorAppointmentDetailS
 
   bool get _canStart => !_isCompleted && !_isCancelled && !_hasStarted && _hasTimeArrived;
   bool get _canJoinOrComplete => _hasStarted && !_isCompleted && !_isCancelled;
+
+  /// Khớp `canManageClinicalResults` bên web (useAppointmentDetail.js): không cancelled,
+  /// có patientId, và consultation đã start hoặc appointment đã completed.
+  bool get _canManageClinicalResults =>
+      !_isCancelled && _appointment.patientId != null && (_hasStarted || _isCompleted);
 
   String? get _startHint {
     if (_isCompleted) return 'Appointment already completed';
@@ -122,28 +165,18 @@ class _DoctorAppointmentDetailScreenState extends State<DoctorAppointmentDetailS
       if (token == null) return;
       await DoctorService.startConsultation(token, _appointment.appointmentId);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Consultation started'), behavior: SnackBarBehavior.floating),
-        );
+        await showDoctorNotice(context, 'Consultation started');
         _load();
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e'), behavior: SnackBarBehavior.floating, backgroundColor: DS.rose700),
-        );
+        showDoctorNotice(context, e.toString().replaceFirst('Exception: ', ''), isError: true);
       }
     }
   }
 
   void _handleJoinRoom() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Connecting call with ${_appointment.patientName ?? "patient"}...'),
-        behavior: SnackBarBehavior.floating,
-        backgroundColor: DS.primary,
-      ),
-    );
+    showDoctorNotice(context, 'Connecting call with ${_appointment.patientName ?? "patient"}...');
   }
 
   void _handleComplete() {
@@ -157,6 +190,74 @@ class _DoctorAppointmentDetailScreenState extends State<DoctorAppointmentDetailS
         onCompleted: _load,
       ),
     );
+  }
+
+  // ── Clinical Results ───────────────────────────────────────────────────
+
+  void _openCreateClinicalResult() {
+    final token = context.read<AuthProvider>().accessToken;
+    if (token == null) return;
+    showClinicalResultEditorSheet(
+      context,
+      appointmentId: _appointment.appointmentId,
+      accessToken: token,
+      onSaved: _loadClinicalResults,
+    );
+  }
+
+  void _openEditClinicalResult(DoctorClinicalResult result) {
+    final token = context.read<AuthProvider>().accessToken;
+    if (token == null) return;
+    showClinicalResultEditorSheet(
+      context,
+      appointmentId: _appointment.appointmentId,
+      accessToken: token,
+      existing: result,
+      onSaved: _loadClinicalResults,
+    );
+  }
+
+  void _openClinicalResultDetail(DoctorClinicalResult result) {
+    showClinicalResultDetailSheet(
+      context,
+      result: result,
+      canManage: _canManageClinicalResults,
+      onEdit: () => _openEditClinicalResult(result),
+      onPublish: () => _handlePublishClinicalResult(result),
+      onDelete: () => _handleDeleteClinicalResult(result),
+    );
+  }
+
+  Future<void> _handlePublishClinicalResult(DoctorClinicalResult result) async {
+    final token = context.read<AuthProvider>().accessToken;
+    if (token == null) return;
+    try {
+      await DoctorClinicalResultService(accessToken: token).publishResult(result.documentId);
+      if (mounted) {
+        await showDoctorNotice(context, 'Clinical result published.');
+        _loadClinicalResults();
+      }
+    } catch (e) {
+      if (mounted) {
+        showDoctorNotice(context, e.toString().replaceFirst('Exception: ', ''), isError: true);
+      }
+    }
+  }
+
+  Future<void> _handleDeleteClinicalResult(DoctorClinicalResult result) async {
+    final token = context.read<AuthProvider>().accessToken;
+    if (token == null) return;
+    try {
+      await DoctorClinicalResultService(accessToken: token).deleteResult(result.documentId);
+      if (mounted) {
+        await showDoctorNotice(context, 'Clinical result deleted.');
+        _loadClinicalResults();
+      }
+    } catch (e) {
+      if (mounted) {
+        showDoctorNotice(context, e.toString().replaceFirst('Exception: ', ''), isError: true);
+      }
+    }
   }
 
   @override
@@ -233,6 +334,16 @@ class _DoctorAppointmentDetailScreenState extends State<DoctorAppointmentDetailS
             _buildAllergiesCard(),
             const SizedBox(height: 16),
             _buildVitalsCard(),
+            const SizedBox(height: 16),
+            ClinicalResultsSection(
+              results: _clinicalResults,
+              isLoading: _isLoadingClinicalResults,
+              error: _clinicalResultsError,
+              canManage: _canManageClinicalResults,
+              onRetry: _loadClinicalResults,
+              onAdd: _openCreateClinicalResult,
+              onOpen: _openClinicalResultDetail,
+            ),
             const SizedBox(height: 16),
             _buildEmergencyContactCard(),
           ],
