@@ -60,38 +60,65 @@ public class PharmacyInventoryServiceImpl implements PharmacyInventoryService {
     private final MedicineRepository medicineRepository;
     private final MedicineCategoryService categoryService;
 
-    @Override
+@Override
     @Transactional(readOnly = true)
     public Page<PharmacyInventoryResponse> getInventory(String pharmacyId, String query,
-                                                          Boolean lowStock, Boolean active,
-                                                          Boolean expiringSoon,
-                                                          Integer categoryId,
-                                                          int page, int size) {
+                                                           String dosageForm,
+                                                           Boolean lowStock, Boolean active,
+                                                           Boolean expiringSoon,
+                                                           Boolean availableOnly,
+                                                           Integer categoryId,
+                                                           int page, int size) {
         PageRequest pageRequest = PageRequest.of(page, size, Sort.by("createdAt").descending());
-        Page<PharmacyInventory> inventoryPage;
+        String normalizedQuery = normalizeFilter(query);
+        String normalizedDosageForm = normalizeFilter(dosageForm);
+        boolean lowStockFilter = Boolean.TRUE.equals(lowStock);
+        boolean expiringSoonFilter = Boolean.TRUE.equals(expiringSoon);
+        boolean availableOnlyFilter = Boolean.TRUE.equals(availableOnly);
+        LocalDate today = LocalDate.now();
+        LocalDate expiryLimit = today.plusDays(30);
 
+        Page<PharmacyInventory> inventoryPage;
         if (categoryId != null) {
             Set<Integer> categoryIds = categoryService.getActiveCategoryAndDescendantIds(categoryId);
             if (categoryIds.isEmpty()) {
                 return Page.empty(pageRequest);
             }
-            inventoryPage = inventoryRepository.findByPharmacyIdAndCategoryIds(pharmacyId, categoryIds, pageRequest);
-        } else if (query != null && !query.isBlank()) {
-            inventoryPage = inventoryRepository.searchByPharmacyId(pharmacyId, query, pageRequest);
-        } else if (Boolean.TRUE.equals(lowStock)) {
-            inventoryPage = inventoryRepository.findLowStockByPharmacyId(pharmacyId, LOW_STOCK_THRESHOLD, pageRequest);
-        } else if (Boolean.TRUE.equals(expiringSoon)) {
-            LocalDate today = LocalDate.now();
-            inventoryPage = inventoryRepository.findExpiringSoon(pharmacyId, today, today.plusDays(30), pageRequest);
-        } else if (Boolean.TRUE.equals(active)) {
-            inventoryPage = inventoryRepository.findByPharmacyIdAndActive(pharmacyId, true, pageRequest);
-        } else if (Boolean.FALSE.equals(active)) {
-            inventoryPage = inventoryRepository.findByPharmacyIdAndActive(pharmacyId, false, pageRequest);
+            inventoryPage = inventoryRepository.findInventoryByFiltersAndCategoryIds(
+                    pharmacyId,
+                    normalizedQuery,
+                    normalizedDosageForm,
+                    active,
+                    lowStockFilter,
+                    expiringSoonFilter,
+                    availableOnlyFilter,
+                    categoryIds,
+                    today,
+                    expiryLimit,
+                    LOW_STOCK_THRESHOLD,
+                    pageRequest);
         } else {
-            inventoryPage = inventoryRepository.findByPharmacy_PharmacyId(pharmacyId, pageRequest);
+            inventoryPage = inventoryRepository.findInventoryByFilters(
+                    pharmacyId,
+                    normalizedQuery,
+                    normalizedDosageForm,
+                    active,
+                    lowStockFilter,
+                    expiringSoonFilter,
+                    availableOnlyFilter,
+                    today,
+                    expiryLimit,
+                    LOW_STOCK_THRESHOLD,
+                    pageRequest);
         }
 
         return inventoryPage.map(this::toResponse);
+    }
+
+    private String normalizeFilter(String value) {
+        if (value == null) return null;
+        String trimmed = value.trim();
+        return trimmed.isEmpty() ? null : trimmed;
     }
 
     @Override
@@ -116,9 +143,6 @@ public class PharmacyInventoryServiceImpl implements PharmacyInventoryService {
                 throw new BadRequestException("Reserved quantity must be >= 0");
             }
             inventory.setReservedQuantity(request.getReservedQuantity());
-        }
-        if (request.getUnit() != null) {
-            inventory.setUnit(request.getUnit());
         }
         if (request.getExpiryDate() != null) {
             inventory.setExpiryDate(request.getExpiryDate());
@@ -359,9 +383,6 @@ public class PharmacyInventoryServiceImpl implements PharmacyInventoryService {
                 if (row.getReservedQuantity() != null) {
                     existing.setReservedQuantity(row.getReservedQuantity());
                 }
-                if (row.getUnit() != null) {
-                    existing.setUnit(row.getUnit());
-                }
                 existing.setExpiryDate(row.getExpiryDate());
                 existing.setActive(row.isActive());
                 existing.setLastImportedAt(now);
@@ -374,7 +395,7 @@ public class PharmacyInventoryServiceImpl implements PharmacyInventoryService {
                         .medicine(medicine)
                         .quantity(row.getQuantity())
                         .reservedQuantity(row.getReservedQuantity() != null ? row.getReservedQuantity() : 0)
-                        .unit(row.getUnit() != null ? row.getUnit() : medicine.getUnit())
+                        .unit(medicine.getUnit())
                         .expiryDate(row.getExpiryDate())
                         .active(row.isActive())
                         .lastImportedAt(now)
@@ -483,13 +504,14 @@ public class PharmacyInventoryServiceImpl implements PharmacyInventoryService {
                 .genericName(inv.getMedicine().getGenericName())
                 .dosageForm(inv.getMedicine().getDosageForm())
                 .strength(inv.getMedicine().getStrength())
-                .unit(inv.getUnit())
+                .unit(inv.getMedicine() != null ? PharmacyServiceHelper.trimToNull(inv.getMedicine().getUnit()) : null)
                 .quantity(inv.getQuantity())
                 .reservedQuantity(inv.getReservedQuantity())
                 .availableQuantity(inv.getAvailableQuantity())
                 .expiryDate(inv.getExpiryDate())
                 .active(inv.getActive())
                 .minStockLevel(inv.getMinStockLevel())
+                .price(inv.getMedicine().getPrice())
                 .expiringSoon(computeExpiringSoon(inv))
                 .lastImportedAt(inv.getLastImportedAt())
                 .createdAt(inv.getCreatedAt())

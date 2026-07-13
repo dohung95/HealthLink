@@ -1,9 +1,13 @@
 import MedicineSearchPanel from '../MedicineSearchPanel';
 
-export default function MedicineLibraryPanel({ onAddMedicine, selectedMedicineIds }) {
+export default function MedicineLibraryPanel({ onAddMedicine, selectedMedicineIds, inventoryItems }) {
   return (
     <div className="medicine-library-panel">
-      <MedicineSearchPanel onSelect={onAddMedicine} selectedIds={selectedMedicineIds} />
+      <MedicineSearchPanel
+        items={inventoryItems}
+        onSelect={onAddMedicine}
+        selectedIds={selectedMedicineIds}
+      />
     </div>
   );
 }

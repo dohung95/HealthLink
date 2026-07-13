@@ -3,10 +3,15 @@ import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/pharmacy/pharmacy_order_provider.dart';
-import '../../providers/pharmacy/pharmacy_request_provider.dart';
+import '../../providers/pharmacy/pharmacy_workflow_provider.dart';
+import '../../providers/pharmacy/pharmacy_inventory_provider.dart';
 import '../../models/pharmacy/pharmacy_order.dart';
+import '../../models/pharmacy/pharmacy_work_item.dart';
+import '../../models/chat/conversation.dart';
 import '../../widgets/pharmacy/order_status_chip.dart';
-import '../chat/chat_list_screen.dart' show MessagesScreen;
+import '../../utils/pharmacy/pharmacy_workflow.dart';
+import '../chat/chat_room_screen.dart';
+import 'pharmacy_quote_editor_screen.dart';
 
 class PharmacyOrderDetailScreen extends StatefulWidget {
   final String orderId;
@@ -38,6 +43,8 @@ class _PharmacyOrderDetailScreenState
       {String? cancelReason}) async {
     final auth = context.read<AuthProvider>();
     if (auth.accessToken == null) return;
+    final pharmacyId =
+        auth.pharmacyProfile?['pharmacyId']?.toString() ?? auth.userId!;
     final success =
         await context.read<PharmacyOrderProvider>().updateOrderStatus(
               auth.accessToken!,
@@ -46,15 +53,29 @@ class _PharmacyOrderDetailScreenState
               cancelReason: cancelReason,
             );
     if (success && mounted) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Order $newStatus')),
       );
+      final orderProvider = context.read<PharmacyOrderProvider>();
+      final workflowProvider = context.read<PharmacyWorkflowProvider>();
+      final inventoryProvider = context.read<PharmacyInventoryProvider>();
+      await Future.wait([
+        orderProvider.fetchOrderDetail(auth.accessToken!, widget.orderId),
+        orderProvider.refreshOrders(auth.accessToken!, pharmacyId),
+        workflowProvider.refresh(auth.accessToken!, pharmacyId),
+        if (newStatus == 'READY')
+          inventoryProvider.refresh(auth.accessToken!, pharmacyId),
+      ]);
     }
   }
 
   void _showStatusActionSheet(PharmacyOrder order) {
-    final actions = _getAvailableActions(order.status);
+    final actions = _getAvailableActions(order);
     if (actions.isEmpty) return;
+
+    final isPickupCompletion = order.deliveryType == 'PICKUP' &&
+        order.status == 'READY';
 
     showModalBottomSheet(
       context: context,
@@ -67,15 +88,17 @@ class _PharmacyOrderDetailScreenState
               child: Text('Update Status',
                   style: Theme.of(ctx).textTheme.titleMedium),
             ),
-            ...actions.map((action) => ListTile(
-                  leading: Icon(action.icon, color: action.color),
-                  title: Text(action.label),
-                  onTap: () {
+            ...actions.map((a) => ListTile(
+                  leading: Icon(a.icon, color: a.color),
+                  title: Text(a.label),
+                  onTap: () async {
                     Navigator.pop(ctx);
-                    if (action.value == 'CANCELLED') {
+                    if (a.value == 'CANCELLED') {
                       _showCancelDialog();
+                    } else if (isPickupCompletion && a.value == 'COMPLETED') {
+                      _showPickupCompleteDialog(order);
                     } else {
-                      _updateStatus(action.value);
+                      await _updateStatus(a.value);
                     }
                   },
                 )),
@@ -86,42 +109,80 @@ class _PharmacyOrderDetailScreenState
     );
   }
 
-  List<_StatusAction> _getAvailableActions(String status) {
-    switch (status) {
-      case 'PENDING':
+  List<_StatusAction> _getAvailableActions(PharmacyOrder order) {
+    final workflowActions = _actionsFromWorkItem(order);
+    if (workflowActions != null) return workflowActions;
+    return _fallbackActions(order);
+  }
+
+  List<_StatusAction>? _actionsFromWorkItem(PharmacyOrder order) {
+    final workflowProvider = context.read<PharmacyWorkflowProvider>();
+    final workItem = workflowProvider.workItems.where((w) =>
+        w.sourceId == order.orderId &&
+        (w.sourceType == WorkItemSourceType.pickupOrder ||
+            w.sourceType == WorkItemSourceType.deliveryOrder)).toList();
+    if (workItem.isEmpty) return null;
+    final item = workItem.first;
+    if (item.availableActions.isEmpty) return null;
+
+    final actions = <_StatusAction>[];
+    for (final a in item.availableActions) {
+      switch (a.toUpperCase()) {
+        case 'MARK_READY':
+          actions.add(_StatusAction('Mark Ready', 'READY',
+              Icons.check_circle_outline, Colors.teal));
+          break;
+        case 'START_SHIPPING':
+          actions.add(_StatusAction('Start Shipping', 'SHIPPING',
+              Icons.local_shipping, Colors.orange));
+          break;
+        case 'CANCEL':
+          actions.add(_StatusAction(
+              'Cancel', 'CANCELLED', Icons.cancel, Colors.red));
+          break;
+        case 'CONFIRM':
+          actions.add(_StatusAction(
+              'Confirm', 'CONFIRMED', Icons.check_circle, Colors.green));
+          break;
+        case 'DELIVER':
+          actions.add(_StatusAction('Mark Delivered', 'DELIVERED',
+              Icons.check_circle, Colors.green));
+          break;
+        case 'COMPLETE':
+          actions.add(_StatusAction(
+              'Mark Complete', 'COMPLETED', Icons.task_alt, Colors.green));
+          break;
+      }
+    }
+    return actions.isNotEmpty ? actions : null;
+  }
+
+  List<_StatusAction> _fallbackActions(PharmacyOrder order) {
+    final canProgress = PharmacyWorkflow.canProgressOrder(order);
+    if (!canProgress) return [];
+
+    final next = PharmacyWorkflow.getNextOrderStatus(
+      status: order.status,
+      deliveryType: order.deliveryType ?? 'PICKUP',
+    );
+
+    if (next == null) return [];
+
+    switch (next) {
+      case 'COMPLETED':
         return [
-          _StatusAction(
-              'Confirm', 'CONFIRMED', Icons.check_circle, Colors.green),
-          _StatusAction('Cancel', 'CANCELLED', Icons.cancel, Colors.red),
-        ];
-      case 'CONFIRMED':
-        return [
-          _StatusAction('Start Preparing', 'PREPARING', Icons.inventory,
-              Colors.indigo),
-          _StatusAction('Cancel', 'CANCELLED', Icons.cancel, Colors.red),
-        ];
-      case 'PREPARING':
-        return [
-          _StatusAction('Mark Ready', 'READY', Icons.check_circle_outline,
-              Colors.teal),
-          _StatusAction('Cancel', 'CANCELLED', Icons.cancel, Colors.red),
-        ];
-      case 'READY':
-        return [
-          _StatusAction('Start Shipping', 'SHIPPING', Icons.local_shipping,
-              Colors.orange),
-          _StatusAction(
-              'Mark Delivered', 'DELIVERED', Icons.check_circle, Colors.green),
+          _StatusAction('Mark Complete', 'COMPLETED',
+              Icons.task_alt, Colors.green),
         ];
       case 'SHIPPING':
         return [
-          _StatusAction('Mark Delivered', 'DELIVERED', Icons.check_circle,
-              Colors.green),
+          _StatusAction('Start Shipping', 'SHIPPING',
+              Icons.local_shipping, Colors.orange),
         ];
       case 'DELIVERED':
         return [
-          _StatusAction(
-              'Mark Complete', 'COMPLETED', Icons.task_alt, Colors.green),
+          _StatusAction('Mark Delivered', 'DELIVERED',
+              Icons.check_circle, Colors.green),
         ];
       default:
         return [];
@@ -162,19 +223,51 @@ class _PharmacyOrderDetailScreenState
     );
   }
 
+  void _showPickupCompleteDialog(PharmacyOrder order) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Complete Pickup'),
+        content: Text(
+          'Mark order ${order.orderNumber} as picked up?\n\n'
+          'Patient: ${order.patientName}\n'
+          'Items: ${order.items.length}\n'
+          'Total: \$${order.totalAmount.toStringAsFixed(2)}',
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Cancel')),
+          FilledButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              _updateStatus('COMPLETED');
+            },
+            child: const Text('Confirm Pickup'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final provider = context.watch<PharmacyOrderProvider>();
 
     final order = provider.currentOrder;
-    final canEdit = order != null &&
-        (order.status == 'PENDING' || order.status == 'CONFIRMED');
+    final canEditQuote = order != null &&
+        (order.status == 'PENDING' || order.status == 'REVISION_REQUESTED');
+    final hasStatusActions = order != null &&
+        (_actionsFromWorkItem(order) != null ||
+            _fallbackActions(order).isNotEmpty);
+    final hasOrderActions = canEditQuote || hasStatusActions;
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Order Detail'),
         actions: [
-          if (canEdit)
+          if (hasOrderActions)
             PopupMenuButton<String>(
               icon: const Icon(Icons.more_vert),
               onSelected: (value) {
@@ -185,14 +278,18 @@ class _PharmacyOrderDetailScreenState
                 }
               },
               itemBuilder: (_) => [
-                const PopupMenuItem(
-                    value: 'status',
-                    child:
-                        ListTile(leading: Icon(Icons.update), title: Text('Update Status'))),
-                const PopupMenuItem(
-                    value: 'quote',
-                    child: ListTile(
-                        leading: Icon(Icons.edit), title: Text('Edit Quote'))),
+                if (hasStatusActions)
+                  const PopupMenuItem(
+                      value: 'status',
+                      child: ListTile(
+                          leading: Icon(Icons.update),
+                          title: Text('Update Status'))),
+                if (canEditQuote)
+                  const PopupMenuItem(
+                      value: 'quote',
+                      child: ListTile(
+                          leading: Icon(Icons.edit),
+                          title: Text('Edit Quote'))),
               ],
             ),
         ],
@@ -222,7 +319,17 @@ class _PharmacyOrderDetailScreenState
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                      builder: (_) => const MessagesScreen()),
+                    builder: (_) => ChatRoomScreen(
+                      conversation: Conversation(
+                        id: 'request-${order.pharmacyRequestId!}',
+                        partnerId: order.patientId,
+                        partnerName: order.patientName,
+                        lastMessage: '',
+                        lastMessageTime: DateTime.now(),
+                        isLastMessageRead: true,
+                      ),
+                    ),
+                  ),
                 );
               },
               child: const Icon(Icons.chat),
@@ -255,6 +362,15 @@ class _PharmacyOrderDetailScreenState
               style: theme.textTheme.bodySmall),
           const Divider(height: 24),
 
+          Text('WORKFLOW',
+              style: theme.textTheme.labelLarge
+                  ?.copyWith(color: theme.colorScheme.primary)),
+          const SizedBox(height: 4),
+          _infoRow('Status', PharmacyWorkflow.workflowLabel(order.status)),
+          _infoRow('Fulfillment',
+              PharmacyWorkflow.fulfillmentLabel(order.deliveryType ?? 'PICKUP')),
+          const Divider(height: 16),
+
           Text('PATIENT',
               style: theme.textTheme.labelLarge
                   ?.copyWith(color: theme.colorScheme.primary)),
@@ -280,10 +396,21 @@ class _PharmacyOrderDetailScreenState
             if (order.deliveryPhoneNumber != null)
               _infoRow('Phone', order.deliveryPhoneNumber!),
             if (order.deliveryFee != null)
-              _infoRow(
-                  'Delivery fee', '\$${order.deliveryFee!.toStringAsFixed(2)}'),
+              _infoRow('Delivery fee', '\$${order.deliveryFee!.toStringAsFixed(2)}'),
             const Divider(height: 16),
           ],
+
+          Text('PAYMENT',
+              style: theme.textTheme.labelLarge
+                  ?.copyWith(color: theme.colorScheme.primary)),
+          const SizedBox(height: 4),
+          _infoRow('Status',
+              PharmacyWorkflow.paymentLabel(order.paymentStatus ?? 'UNPAID')),
+          if (order.paymentMethod != null)
+            _infoRow('Method', order.paymentMethod!),
+          if (order.paidAt != null)
+            _infoRow('Paid at', dateFmt.format(order.paidAt!)),
+          const Divider(height: 16),
 
           Text('ITEMS',
               style: theme.textTheme.labelLarge
@@ -340,20 +467,32 @@ class _PharmacyOrderDetailScreenState
                     fontWeight: FontWeight.bold,
                     color: theme.colorScheme.primary)),
           ]),
-          if (order.paymentStatus != null) ...[
+
+          if (order.platformFee != null || order.pharmacyEarning != null) ...[
+            const Divider(height: 16),
+            Text('EARNINGS',
+                style: theme.textTheme.labelLarge
+                    ?.copyWith(color: theme.colorScheme.primary)),
             const SizedBox(height: 4),
-            _infoRow('Payment', order.paymentStatus!),
+            if (order.platformFee != null)
+              _infoRow(
+                  'Platform fee', '\$${order.platformFee!.toStringAsFixed(2)}'),
+            if (order.pharmacyEarning != null)
+              _infoRow('Pharmacy earning',
+                  '\$${order.pharmacyEarning!.toStringAsFixed(2)}'),
           ],
           const Divider(height: 24),
 
-          Text('TIMELINE',
+          Text('ACTIVITY TIMELINE',
               style: theme.textTheme.labelLarge
                   ?.copyWith(color: theme.colorScheme.primary)),
           const SizedBox(height: 8),
+          _timelineItem(theme, 'Created', order.createdAt),
           _timelineItem(theme, 'Confirmed', order.confirmedAt),
           _timelineItem(theme, 'Preparing', order.preparingAt),
           _timelineItem(theme, 'Shipped', order.shippedAt),
           _timelineItem(theme, 'Delivered', order.deliveredAt),
+          _timelineItem(theme, 'Paid', order.paidAt),
           if (order.cancelReason != null)
             _timelineItem(theme, 'Cancelled: ${order.cancelReason}',
                 order.cancelledAt,
@@ -370,8 +509,40 @@ class _PharmacyOrderDetailScreenState
             ],
           ],
 
+          if (order.status == 'CANCELLED' || order.status == 'COMPLETED') ...[
+            const Divider(height: 24),
+            _buildChatButton(theme, order),
+          ],
+
           const SizedBox(height: 100),
         ],
+      ),
+    );
+  }
+
+  Widget _buildChatButton(ThemeData theme, PharmacyOrder order) {
+    return SizedBox(
+      width: double.infinity,
+      child: OutlinedButton.icon(
+        onPressed: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => ChatRoomScreen(
+                conversation: Conversation(
+                  id: 'request-${order.pharmacyRequestId ?? order.orderId}',
+                  partnerId: order.patientId,
+                  partnerName: order.patientName,
+                  lastMessage: '',
+                  lastMessageTime: DateTime.now(),
+                  isLastMessageRead: true,
+                ),
+              ),
+            ),
+          );
+        },
+        icon: const Icon(Icons.chat),
+        label: const Text('Chat with Patient'),
       ),
     );
   }
@@ -404,12 +575,13 @@ class _PharmacyOrderDetailScreenState
             height: 12,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: dt != null ? c : theme.colorScheme.surfaceVariant,
+              color: dt != null ? c : theme.colorScheme.surfaceContainerHighest,
             ),
           ),
           const SizedBox(width: 12),
-          Text(label, style: theme.textTheme.bodyMedium),
-          const Spacer(),
+          Expanded(
+            child: Text(label, style: theme.textTheme.bodyMedium),
+          ),
           if (dt != null)
             Text(DateFormat('dd/MM HH:mm').format(dt),
                 style: theme.textTheme.bodySmall),
@@ -418,101 +590,16 @@ class _PharmacyOrderDetailScreenState
     );
   }
 
-  Future<void> _showQuoteDialog(PharmacyOrder order) async {
-    final controllers = order.items.map((item) {
-      return TextEditingController(
-          text: item.unitPrice?.toStringAsFixed(2) ?? '0.00');
-    }).toList();
-    final deliveryController = TextEditingController(
-      text: order.deliveryFee?.toStringAsFixed(2) ?? '0.00',
-    );
-
-    final saved = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Edit Quote'),
-        content: SizedBox(
-          width: double.maxFinite,
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                ...order.items.asMap().entries.map((entry) {
-                  final i = entry.key;
-                  final item = entry.value;
-                  return Padding(
-                    padding: const EdgeInsets.only(bottom: 12),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(item.medicationName,
-                            style: const TextStyle(
-                                fontWeight: FontWeight.w500)),
-                        Text('Qty: ${item.quantity}',
-                            style: const TextStyle(fontSize: 12)),
-                        TextField(
-                          controller: controllers[i],
-                          decoration: const InputDecoration(
-                            labelText: 'Unit Price',
-                            prefixText: '\$',
-                            isDense: true,
-                          ),
-                          keyboardType: TextInputType.number,
-                        ),
-                      ],
-                    ),
-                  );
-                }),
-                const Divider(),
-                TextField(
-                  controller: deliveryController,
-                  decoration: const InputDecoration(
-                    labelText: 'Delivery Fee',
-                    prefixText: '\$',
-                    isDense: true,
-                  ),
-                  keyboardType: TextInputType.number,
-                ),
-              ],
-            ),
-          ),
+  void _showQuoteDialog(PharmacyOrder order) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => PharmacyQuoteEditorScreen(
+          mode: QuoteEditorMode.updateQuote,
+          orderId: widget.orderId,
         ),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Cancel')),
-          FilledButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Save Quote'),
-          ),
-        ],
       ),
     );
-
-    if (saved == true && mounted) {
-      final items = order.items.asMap().entries.map((entry) {
-        final i = entry.key;
-        final item = entry.value;
-        return {
-          'medicineId': item.medicineId,
-          'quantity': item.quantity,
-          'unitPrice': double.tryParse(controllers[i].text) ?? 0,
-          'totalSupplyDays': item.totalSupplyDays ?? 1,
-          'medicationName': item.medicationName,
-        };
-      }).toList();
-
-      final auth = context.read<AuthProvider>();
-      if (auth.accessToken != null) {
-        await context.read<PharmacyOrderProvider>().updateQuote(
-              auth.accessToken!,
-              widget.orderId,
-              items,
-              deliveryFee: double.tryParse(deliveryController.text),
-            );
-      }
-    }
   }
 }
 

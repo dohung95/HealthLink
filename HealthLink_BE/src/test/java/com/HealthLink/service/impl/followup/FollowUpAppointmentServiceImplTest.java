@@ -780,11 +780,20 @@ class FollowUpAppointmentServiceImplTest {
                 .appointment(source)
                 .consultationType("HomeVisit")
                 .followUpDate(LocalDateTime.now().plusDays(3))
+                .followUpAppointmentId(1180)
                 .followUpStatus(FollowUpStatus.NONE)
+                .build();
+        Appointment proposal = Appointment.builder()
+                .appointmentId(1180)
+                .doctor(source.getDoctor())
+                .patient(patient)
+                .appointmentTime(consultation.getFollowUpDate())
+                .status("FOLLOW_UP_PROPOSED")
                 .build();
 
         when(consultationRepository.findByAppointment_AppointmentId(1179))
                 .thenReturn(Optional.of(consultation));
+        when(appointmentRepository.findById(1180)).thenReturn(Optional.of(proposal));
         when(consultationRepository.save(any(Consultation.class)))
                 .thenAnswer(invocation -> invocation.getArgument(0));
 
@@ -792,6 +801,7 @@ class FollowUpAppointmentServiceImplTest {
 
         assertThat(response.getFollowUpStatus()).isEqualTo("PENDING_PAYMENT");
         assertThat(consultation.getFollowUpStatus()).isEqualTo(FollowUpStatus.PENDING_PAYMENT);
+        assertThat(proposal.getStatus()).isEqualTo("AWAITING_PAYMENT");
         assertThat(consultation.getHomeVisitLatitude()).isNull();
         assertThat(consultation.getHomeVisitLongitude()).isNull();
     }

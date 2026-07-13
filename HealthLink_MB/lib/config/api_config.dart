@@ -190,6 +190,36 @@ class ApiConfig {
   /// PATCH /api/chat/rooms/{id}/read – Đánh dấu đã đọc.
   static String chatMarkAsRead(String id) => '$baseUrl/chat/rooms/$id/read';
 
+  // ── Partner Wallet Endpoints ──────────────────────────────────────────────
+  static String partnerWalletBalance(String partnerId) =>
+      '$baseUrl/payment/partner/$partnerId/balance';
+  static String partnerWalletTransactions(String partnerId) =>
+      '$baseUrl/payment/partner/$partnerId/transactions';
+  static String partnerSettlements(String partnerId) =>
+      '$baseUrl/payment/partner/$partnerId/settlements';
+  static String partnerSettle(String partnerId) =>
+      '$baseUrl/payment/partner/$partnerId/settle';
+
+  // ── Partner PIN Security Endpoints ─────────────────────────────────────────
+  static const String partnerPinStatus =
+      '$baseUrl/payment/partner/security/pin';
+  static const String partnerPinRequestOtp =
+      '$baseUrl/payment/partner/security/pin/request-otp';
+  static const String partnerPinVerifyOtp =
+      '$baseUrl/payment/partner/security/pin/verify-otp';
+  static const String partnerPinSet =
+      '$baseUrl/payment/partner/security/pin';
+
+  // ── Pharmacy Password OTP Endpoints ────────────────────────────────────────
+  static const String pharmacyPasswordRequestOtp =
+      '$baseUrl/account/pharmacy/auth/password/request-otp';
+  static const String pharmacyPasswordChangeWithOtp =
+      '$baseUrl/account/pharmacy/auth/password/change-with-otp';
+
+  // ── Pharmacy Online Toggle Endpoint ────────────────────────────────────────
+  static const String pharmacyToggleOnline =
+      '$baseUrl/account/pharmacy/profile/toggle-online';
+
   // ── HTTP Config ───────────────────────────────────────────────────────────
   static const Duration connectTimeout = Duration(seconds: 15);
   static const Duration receiveTimeout = Duration(seconds: 15);
@@ -239,12 +269,20 @@ class ApiConfig {
   static String pharmacyOrdersByPharmacy(String id) => '$baseUrl/pharmacy-orders/pharmacy/$id';
   static String pharmacyOrderUpdateStatus(String id) => '$baseUrl/pharmacy-orders/$id/status';
   static String pharmacyOrderUpdateQuote(String id) => '$baseUrl/pharmacy-orders/$id/quote';
+  static String pharmacyOrderDeliveryQuote(String id) => '$baseUrl/pharmacy-orders/$id/delivery-quote';
+  static String pharmacyOrderDeliveryContactReview(String id) => '$baseUrl/pharmacy-orders/$id/delivery-contact';
   static String pharmacyRequestsByPharmacy(String id) => '$baseUrl/pharmacy-requests/pharmacy/$id';
   static String pharmacyRequestUpdateStatus(String id) => '$baseUrl/pharmacy-requests/$id/status';
   static String pharmacyRequestPrescriptions(String id) => '$baseUrl/pharmacy-requests/$id/prescriptions';
   static String pharmacyRequestCreateOrder(String id) => '$baseUrl/pharmacy-requests/$id/order';
   static String pharmacyWorkItems(String id) => '$baseUrl/pharmacy-work-items/pharmacy/$id';
   static String pharmacyRequestChatRoom(String id) => '$baseUrl/pharmacy-requests/$id/chat-room';
+  static String pharmacyInventory(String pharmacyId) => '$baseUrl/pharmacy/inventory/$pharmacyId';
+  static String pharmacyInventoryPage(String pharmacyId, {int page = 0, int size = 20}) =>
+      '$baseUrl/pharmacy/inventory/$pharmacyId?page=$page&size=$size';
+  static const String pharmacyInventoryTemplate = '$baseUrl/pharmacy/inventory/template';
+  static const String pharmacyInventoryImport = '$baseUrl/pharmacy/inventory/import';
+  static String pharmacyInventoryItemUpdate(int inventoryId) => '$baseUrl/pharmacy/inventory/$inventoryId';
 
   static String markNotificationAsRead(int notificationId) =>
       '$baseUrl/notifications/$notificationId/read';

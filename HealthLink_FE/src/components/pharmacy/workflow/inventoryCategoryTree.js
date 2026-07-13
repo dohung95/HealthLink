@@ -1,12 +1,33 @@
-export function flattenCategoryTree(nodes, depth = 0) {
+export function flattenCategoryTree(nodes, expandedIds = new Set(), depth = 0) {
   const flat = [];
-  for (const node of nodes) {
-    flat.push({ ...node, depth, key: node.categoryId });
-    if (node.children?.length) {
-      flat.push(...flattenCategoryTree(node.children, depth + 1));
+  for (const node of nodes || []) {
+    const children = Array.isArray(node.children) ? node.children : [];
+    const hasChildren = children.length > 0;
+    flat.push({
+      ...node,
+      children,
+      childCount: children.length,
+      depth,
+      hasChildren,
+      key: node.categoryId,
+    });
+    if (hasChildren && expandedIds.has(node.categoryId)) {
+      flat.push(...flattenCategoryTree(children, expandedIds, depth + 1));
     }
   }
   return flat;
+}
+
+export function collectExpandableCategoryIds(nodes) {
+  const ids = [];
+  for (const node of nodes || []) {
+    const children = Array.isArray(node.children) ? node.children : [];
+    if (children.length > 0) {
+      ids.push(node.categoryId);
+      ids.push(...collectExpandableCategoryIds(children));
+    }
+  }
+  return ids;
 }
 
 export function buildCategoryTree(items) {

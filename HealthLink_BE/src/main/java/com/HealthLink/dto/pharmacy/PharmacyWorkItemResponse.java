@@ -42,6 +42,9 @@ public class PharmacyWorkItemResponse {
     private String orderNumber;
     private String orderStatus;
     private String paymentStatus;
+    private Boolean requiresPatientConfirmation;
+    private LocalDateTime patientConfirmationRequestedAt;
+    private String patientConfirmationReason;
     private LocalDateTime patientConfirmedAt;
     private BigDecimal medicineAmount;
     private BigDecimal deliveryFee;
@@ -65,4 +68,23 @@ public class PharmacyWorkItemResponse {
     private LocalDateTime revisionResolvedAt;
     private BigDecimal platformFee;
     private BigDecimal pharmacyEarning;
+
+    private Integer deliveryContactChangeRequestId;
+    private String oldDeliveryAddress;
+    private Double oldDeliveryLatitude;
+    private Double oldDeliveryLongitude;
+    private String oldDeliveryPhoneNumber;
+    private String oldDeliveryAddressSource;
+    private String newDeliveryAddress;
+    private Double newDeliveryLatitude;
+    private Double newDeliveryLongitude;
+    private String newDeliveryPhoneNumber;
+    private String newDeliveryAddressSource;
+    private String deliveryContactChangeStatus;
+    private String deliveryContactChangeReason;
+    private LocalDateTime deliveryContactChangeRequestedAt;
+    private BigDecimal oldDeliveryFee;
+    private BigDecimal newDeliveryFee;
+    private BigDecimal oldTotalAmount;
+    private BigDecimal newTotalAmount;
 }

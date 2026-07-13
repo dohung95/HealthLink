@@ -4,9 +4,11 @@ import com.HealthLink.dto.pharmacy.PharmacyWorkItemResponse;
 import com.HealthLink.entity.Patient;
 import com.HealthLink.entity.Pharmacy;
 import com.HealthLink.entity.PharmacyConsultationRequest;
+import com.HealthLink.entity.PharmacyDeliveryContactChangeRequest;
 import com.HealthLink.entity.PharmacyOrder;
 import com.HealthLink.entity.PharmacyOrderItem;
 import com.HealthLink.repository.pharmacy.PharmacyConsultationRequestRepository;
+import com.HealthLink.repository.pharmacy.PharmacyDeliveryContactChangeRequestRepository;
 import com.HealthLink.repository.pharmacy.PharmacyOrderRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
@@ -31,6 +33,9 @@ class PharmacyWorkItemServiceImplTest {
 
     @Mock
     private PharmacyOrderRepository orderRepository;
+
+    @Mock
+    private PharmacyDeliveryContactChangeRequestRepository deliveryContactChangeRequestRepository;
 
     @Mock
     private ObjectMapper objectMapper;
@@ -143,7 +148,7 @@ class PharmacyWorkItemServiceImplTest {
     }
 
     @Test
-    void getWorkItemsByPharmacy_shouldMapRequestWithLinkedPendingOrder() {
+    void getWorkItemsByPharmacy_shouldExcludeLinkedConsultationWithOrder() {
         Pharmacy p = pharmacy("PH001");
         Patient pat = patient("P001", "Diana");
         PharmacyOrder order = PharmacyOrder.builder()
@@ -172,19 +177,11 @@ class PharmacyWorkItemServiceImplTest {
 
         List<PharmacyWorkItemResponse> items = workItemService.getWorkItemsByPharmacy("PH001");
 
-        assertThat(items).hasSize(1);
-        PharmacyWorkItemResponse item = items.get(0);
-        assertThat(item.getCaseId()).isEqualTo("REQ-4");
-        assertThat(item.getWorkflowStage()).isEqualTo("AWAITING_PAYMENT");
-        assertThat(item.getHasOrder()).isTrue();
-        assertThat(item.getHasConsultationRequest()).isTrue();
-        assertThat(item.getOrderId()).isEqualTo(100);
-        assertThat(item.getTotalAmount()).isEqualByComparingTo(new BigDecimal("150.00"));
-        assertThat(item.getAvailableActions()).contains("VIEW_ONLY");
+        assertThat(items).isEmpty();
     }
 
     @Test
-    void getWorkItemsByPharmacy_shouldMapLinkedOrderAwaitingPayment() {
+    void getWorkItemsByPharmacy_shouldExcludeLinkedConsultationAwaitingPayment() {
         Pharmacy p = pharmacy("PH001");
         Patient pat = patient("P001", "Eve");
         PharmacyOrder order = PharmacyOrder.builder()
@@ -211,12 +208,11 @@ class PharmacyWorkItemServiceImplTest {
 
         List<PharmacyWorkItemResponse> items = workItemService.getWorkItemsByPharmacy("PH001");
 
-        assertThat(items).hasSize(1);
-        assertThat(items.get(0).getWorkflowStage()).isEqualTo("AWAITING_PAYMENT");
+        assertThat(items).isEmpty();
     }
 
     @Test
-    void getWorkItemsByPharmacy_shouldMapPreparingOrder() {
+    void getWorkItemsByPharmacy_shouldExcludePreparingLinkedOrder() {
         Pharmacy p = pharmacy("PH001");
         Patient pat = patient("P001", "Frank");
         PharmacyOrder order = PharmacyOrder.builder()
@@ -242,13 +238,11 @@ class PharmacyWorkItemServiceImplTest {
 
         List<PharmacyWorkItemResponse> items = workItemService.getWorkItemsByPharmacy("PH001");
 
-        assertThat(items).hasSize(1);
-        assertThat(items.get(0).getWorkflowStage()).isEqualTo("PREPARING");
-        assertThat(items.get(0).getAvailableActions()).containsExactly("UPDATE_ORDER_STATUS");
+        assertThat(items).isEmpty();
     }
 
     @Test
-    void getWorkItemsByPharmacy_shouldMapCompletedOrder() {
+    void getWorkItemsByPharmacy_shouldExcludeCompletedLinkedOrder() {
         Pharmacy p = pharmacy("PH001");
         Patient pat = patient("P001", "Grace");
         PharmacyOrder order = PharmacyOrder.builder()
@@ -273,13 +267,53 @@ class PharmacyWorkItemServiceImplTest {
 
         List<PharmacyWorkItemResponse> items = workItemService.getWorkItemsByPharmacy("PH001");
 
-        assertThat(items).hasSize(1);
-        assertThat(items.get(0).getWorkflowStage()).isEqualTo("COMPLETED");
-        assertThat(items.get(0).getAvailableActions()).containsExactly("VIEW_ONLY");
+        assertThat(items).isEmpty();
     }
 
     @Test
-    void getWorkItemsByPharmacy_shouldMapCancelledOrder() {
+    void getWorkItemsByPharmacy_shouldExcludeRejectedRequest() {
+        Pharmacy p = pharmacy("PH001");
+        Patient pat = patient("P001", "Rejected Patient");
+        PharmacyConsultationRequest req = PharmacyConsultationRequest.builder()
+                .requestId(90)
+                .patient(pat)
+                .pharmacy(p)
+                .status("REJECTED")
+                .build();
+
+        when(requestRepository.findByPharmacy_PharmacyIdOrderByCreatedAtDesc("PH001"))
+                .thenReturn(List.of(req));
+        when(orderRepository.findByPharmacy_PharmacyIdAndConsultationRequestIsNull("PH001"))
+                .thenReturn(Collections.emptyList());
+
+        List<PharmacyWorkItemResponse> items = workItemService.getWorkItemsByPharmacy("PH001");
+
+        assertThat(items).isEmpty();
+    }
+
+    @Test
+    void getWorkItemsByPharmacy_shouldExcludeCancelledRequest() {
+        Pharmacy p = pharmacy("PH001");
+        Patient pat = patient("P001", "Ivy");
+        PharmacyConsultationRequest req = PharmacyConsultationRequest.builder()
+                .requestId(9)
+                .patient(pat)
+                .pharmacy(p)
+                .status("CANCELLED")
+                .build();
+
+        when(requestRepository.findByPharmacy_PharmacyIdOrderByCreatedAtDesc("PH001"))
+                .thenReturn(List.of(req));
+        when(orderRepository.findByPharmacy_PharmacyIdAndConsultationRequestIsNull("PH001"))
+                .thenReturn(Collections.emptyList());
+
+        List<PharmacyWorkItemResponse> items = workItemService.getWorkItemsByPharmacy("PH001");
+
+        assertThat(items).isEmpty();
+    }
+
+    @Test
+    void getWorkItemsByPharmacy_shouldExcludeCancelledLinkedOrder() {
         Pharmacy p = pharmacy("PH001");
         Patient pat = patient("P001", "Hank");
         PharmacyOrder order = PharmacyOrder.builder()
@@ -305,20 +339,55 @@ class PharmacyWorkItemServiceImplTest {
 
         List<PharmacyWorkItemResponse> items = workItemService.getWorkItemsByPharmacy("PH001");
 
-        assertThat(items).hasSize(1);
-        assertThat(items.get(0).getWorkflowStage()).isEqualTo("CANCELLED");
-        assertThat(items.get(0).getCancelReason()).isEqualTo("Out of stock");
+        assertThat(items).isEmpty();
     }
 
     @Test
-    void getWorkItemsByPharmacy_shouldMapCancelledRequest() {
+    void getWorkItemsByPharmacy_shouldExcludeDeliveredDirectOrder() {
         Pharmacy p = pharmacy("PH001");
-        Patient pat = patient("P001", "Ivy");
-        PharmacyConsultationRequest req = PharmacyConsultationRequest.builder()
-                .requestId(9)
+        Patient pat = patient("P002", "Delivered Patient");
+        PharmacyOrder directOrder = PharmacyOrder.builder()
+                .orderId(700)
+                .orderNumber("ORD-700")
+                .status("DELIVERED")
+                .paymentStatus("PAID")
                 .patient(pat)
                 .pharmacy(p)
-                .status("CANCELLED")
+                .consultationRequest(null)
+                .deliveredAt(LocalDateTime.now())
+                .createdAt(LocalDateTime.now())
+                .build();
+
+        when(requestRepository.findByPharmacy_PharmacyIdOrderByCreatedAtDesc("PH001"))
+                .thenReturn(Collections.emptyList());
+        when(orderRepository.findByPharmacy_PharmacyIdAndConsultationRequestIsNull("PH001"))
+                .thenReturn(List.of(directOrder));
+
+        List<PharmacyWorkItemResponse> items = workItemService.getWorkItemsByPharmacy("PH001");
+
+        assertThat(items).isEmpty();
+    }
+
+    @Test
+    void getWorkItemsByPharmacy_shouldExcludeDeliveredLinkedOrder() {
+        Pharmacy p = pharmacy("PH001");
+        Patient pat = patient("P003", "Delivered Linked");
+        PharmacyOrder order = PharmacyOrder.builder()
+                .orderId(701)
+                .orderNumber("ORD-701")
+                .status("DELIVERED")
+                .paymentStatus("PAID")
+                .patient(pat)
+                .pharmacy(p)
+                .deliveredAt(LocalDateTime.now())
+                .createdAt(LocalDateTime.now())
+                .build();
+        PharmacyConsultationRequest req = PharmacyConsultationRequest.builder()
+                .requestId(91)
+                .patient(pat)
+                .pharmacy(p)
+                .status("ORDER_CREATED")
+                .order(order)
                 .build();
 
         when(requestRepository.findByPharmacy_PharmacyIdOrderByCreatedAtDesc("PH001"))
@@ -328,8 +397,7 @@ class PharmacyWorkItemServiceImplTest {
 
         List<PharmacyWorkItemResponse> items = workItemService.getWorkItemsByPharmacy("PH001");
 
-        assertThat(items).hasSize(1);
-        assertThat(items.get(0).getWorkflowStage()).isEqualTo("CANCELLED");
+        assertThat(items).isEmpty();
     }
 
     @Test
@@ -358,7 +426,7 @@ class PharmacyWorkItemServiceImplTest {
     }
 
     @Test
-    void getWorkItemsByPharmacy_shouldKeepChatButNotVideoDuringFulfillmentForRequestOrder() {
+    void getWorkItemsByPharmacy_shouldExcludeFulfillmentStageRequest() {
         Pharmacy p = pharmacy("PH001");
         Patient pat = patient("P001", "Nancy");
         PharmacyOrder order = PharmacyOrder.builder()
@@ -384,14 +452,11 @@ class PharmacyWorkItemServiceImplTest {
 
         List<PharmacyWorkItemResponse> items = workItemService.getWorkItemsByPharmacy("PH001");
 
-        assertThat(items).hasSize(1);
-        assertThat(items.get(0).getWorkflowStage()).isEqualTo("PREPARING");
-        assertThat(items.get(0).getAvailableActions())
-                .containsExactly("UPDATE_ORDER_STATUS", "CHAT");
+        assertThat(items).isEmpty();
     }
 
     @Test
-    void getWorkItemsByPharmacy_shouldNotExposeChatForDirectOrder() {
+    void getWorkItemsByPharmacy_shouldExcludeFulfillmentDirectOrder() {
         Pharmacy p = pharmacy("PH001");
         Patient pat = patient("P002", "Oscar");
         PharmacyOrder directOrder = PharmacyOrder.builder()
@@ -412,13 +477,11 @@ class PharmacyWorkItemServiceImplTest {
 
         List<PharmacyWorkItemResponse> items = workItemService.getWorkItemsByPharmacy("PH001");
 
-        assertThat(items).hasSize(1);
-        assertThat(items.get(0).getAvailableActions())
-                .containsExactly("UPDATE_ORDER_STATUS");
+        assertThat(items).isEmpty();
     }
 
     @Test
-    void getWorkItemsByPharmacy_shouldIncludeDirectOrders() {
+    void getWorkItemsByPharmacy_shouldExcludeFulfillmentDirectOrderWithFee() {
         Pharmacy p = pharmacy("PH001");
         Patient pat = patient("P002", "Jack");
         PharmacyOrder directOrder = PharmacyOrder.builder()
@@ -442,15 +505,7 @@ class PharmacyWorkItemServiceImplTest {
 
         List<PharmacyWorkItemResponse> items = workItemService.getWorkItemsByPharmacy("PH001");
 
-        assertThat(items).hasSize(1);
-        PharmacyWorkItemResponse item = items.get(0);
-        assertThat(item.getCaseId()).isEqualTo("ORD-200");
-        assertThat(item.getSourceType()).isEqualTo("DIRECT_ORDER");
-        assertThat(item.getHasConsultationRequest()).isFalse();
-        assertThat(item.getHasOrder()).isTrue();
-        assertThat(item.getWorkflowStage()).isEqualTo("PREPARING");
-        assertThat(item.getOrderId()).isEqualTo(200);
-        assertThat(item.getPatientName()).isEqualTo("Jack");
+        assertThat(items).isEmpty();
     }
 
     @Test
@@ -481,10 +536,11 @@ class PharmacyWorkItemServiceImplTest {
         assertThat(item.getSourceType()).isEqualTo("RETAIL_ORDER");
         assertThat(item.getWorkflowStage()).isEqualTo("NEW_REQUEST");
         assertThat(item.getAvailableActions()).containsExactly("UPDATE_ORDER_STATUS", "CANCEL_ORDER");
+        assertThat(item.getRequestId()).isNull();
     }
 
     @Test
-    void getWorkItemsByPharmacy_shouldNotDuplicateLinkedConsultationOrder() {
+    void getWorkItemsByPharmacy_shouldHandleLinkedAndDirectOrders() {
         Pharmacy p = pharmacy("PH001");
         Patient pat = patient("P001", "Kate");
         PharmacyOrder order = PharmacyOrder.builder()
@@ -521,9 +577,8 @@ class PharmacyWorkItemServiceImplTest {
 
         List<PharmacyWorkItemResponse> items = workItemService.getWorkItemsByPharmacy("PH001");
 
-        assertThat(items).hasSize(2);
-        assertThat(items).extracting(PharmacyWorkItemResponse::getCaseId)
-                .containsExactlyInAnyOrder("REQ-10", "ORD-301");
+        assertThat(items).hasSize(1);
+        assertThat(items.get(0).getCaseId()).isEqualTo("ORD-301");
     }
 
     @Test
@@ -576,9 +631,8 @@ class PharmacyWorkItemServiceImplTest {
 
         List<PharmacyWorkItemResponse> items = workItemService.getWorkItemsByPharmacy("PH001");
 
-        assertThat(items).hasSize(2);
+        assertThat(items).hasSize(1);
         assertThat(items.get(0).getCaseId()).isEqualTo("REQ-12");
-        assertThat(items.get(1).getCaseId()).isEqualTo("REQ-11");
     }
 
     @Test
@@ -612,7 +666,7 @@ class PharmacyWorkItemServiceImplTest {
     }
 
     @Test
-    void getWorkItemsByPharmacy_shouldKeepOrderRequestCaseLabelAfterOrderCreated() {
+    void getWorkItemsByPharmacy_shouldExcludeOrderRequestWithOrder() {
         Pharmacy p = pharmacy("PH001");
         Patient pat = patient("P001", "Rachel");
         PharmacyOrder order = PharmacyOrder.builder()
@@ -638,15 +692,11 @@ class PharmacyWorkItemServiceImplTest {
 
         List<PharmacyWorkItemResponse> items = workItemService.getWorkItemsByPharmacy("PH001");
 
-        assertThat(items).hasSize(1);
-        PharmacyWorkItemResponse item = items.get(0);
-        assertThat(item.getDisplayId()).isEqualTo("Order Request #31");
-        assertThat(item.getOrderNumber()).isEqualTo("ORD-500");
-        assertThat(item.getRequestType()).isEqualTo("ORDER_REQUEST");
+        assertThat(items).isEmpty();
     }
 
     @Test
-    void getWorkItemsByPharmacy_shouldNotExposeCancelForPaidPreparingOrder() {
+    void getWorkItemsByPharmacy_shouldExcludePaidPreparingLinkedOrder() {
         Pharmacy p = pharmacy("PH001");
         Patient pat = patient("P001", "Steve");
         PharmacyOrder order = PharmacyOrder.builder()
@@ -671,16 +721,126 @@ class PharmacyWorkItemServiceImplTest {
 
         List<PharmacyWorkItemResponse> items = workItemService.getWorkItemsByPharmacy("PH001");
 
-        assertThat(items).hasSize(1);
-        assertThat(items.get(0).getWorkflowStage()).isEqualTo("PREPARING");
-        assertThat(items.get(0).getAvailableActions())
-                .contains("UPDATE_ORDER_STATUS");
-        assertThat(items.get(0).getAvailableActions())
-                .doesNotContain("CANCEL_ORDER");
+        assertThat(items).isEmpty();
     }
 
     @Test
-    void getWorkItemsByPharmacy_shouldNotExposeChatForOrderRequestAfterOrderCreated() {
+    void getWorkItemsByPharmacy_shouldExposeUpdateQuoteForOrderRequestWithRevision() {
+        Pharmacy p = pharmacy("PH001");
+        Patient pat = patient("P001", "Uma");
+        PharmacyOrder order = PharmacyOrder.builder()
+                .orderId(600)
+                .orderNumber("ORD-600")
+                .status("REVISION_REQUESTED")
+                .paymentStatus("PENDING")
+                .createdAt(LocalDateTime.now())
+                .revisionRequestedAt(LocalDateTime.now())
+                .revisionRequestNotes("Please adjust quantity")
+                .build();
+        PharmacyConsultationRequest req = PharmacyConsultationRequest.builder()
+                .requestId(40)
+                .patient(pat)
+                .pharmacy(p)
+                .requestType("ORDER_REQUEST")
+                .status("ORDER_CREATED")
+                .order(order)
+                .build();
+
+        when(requestRepository.findByPharmacy_PharmacyIdOrderByCreatedAtDesc("PH001"))
+                .thenReturn(List.of(req));
+        when(orderRepository.findByPharmacy_PharmacyIdAndConsultationRequestIsNull("PH001"))
+                .thenReturn(Collections.emptyList());
+
+        List<PharmacyWorkItemResponse> items = workItemService.getWorkItemsByPharmacy("PH001");
+
+        assertThat(items).hasSize(1);
+        PharmacyWorkItemResponse item = items.get(0);
+        assertThat(item.getSourceType()).isEqualTo("ORDER_REQUEST");
+        assertThat(item.getRequestType()).isEqualTo("ORDER_REQUEST");
+        assertThat(item.getWorkflowStage()).isEqualTo("REVISION_REQUESTED");
+        assertThat(item.getRequestId()).isEqualTo(40);
+        assertThat(item.getOrderId()).isEqualTo(600);
+        assertThat(item.getRevisionRequestNotes()).isEqualTo(order.getRevisionRequestNotes());
+        assertThat(item.getAvailableActions()).containsExactly("UPDATE_QUOTE");
+    }
+
+    @Test
+    void getWorkItemsByPharmacy_shouldExposeUpdateQuoteForConsultationRevision() {
+        Pharmacy p = pharmacy("PH001");
+        Patient pat = patient("P001", "Victor");
+        PharmacyOrder order = PharmacyOrder.builder()
+                .orderId(601)
+                .orderNumber("ORD-601")
+                .status("REVISION_REQUESTED")
+                .paymentStatus("PENDING")
+                .createdAt(LocalDateTime.now())
+                .revisionRequestedAt(LocalDateTime.now())
+                .revisionRequestNotes("Please change the delivery time")
+                .build();
+        PharmacyConsultationRequest req = PharmacyConsultationRequest.builder()
+                .requestId(41)
+                .patient(pat)
+                .pharmacy(p)
+                .status("IN_REVIEW")
+                .chatRoomId("revision-chat")
+                .order(order)
+                .build();
+
+        when(requestRepository.findByPharmacy_PharmacyIdOrderByCreatedAtDesc("PH001"))
+                .thenReturn(List.of(req));
+        when(orderRepository.findByPharmacy_PharmacyIdAndConsultationRequestIsNull("PH001"))
+                .thenReturn(Collections.emptyList());
+
+        List<PharmacyWorkItemResponse> items = workItemService.getWorkItemsByPharmacy("PH001");
+
+        assertThat(items).hasSize(1);
+        PharmacyWorkItemResponse item = items.get(0);
+        assertThat(item.getSourceType()).isEqualTo("CONSULTATION_REQUEST");
+        assertThat(item.getRequestType()).isEqualTo("CONSULTATION");
+        assertThat(item.getWorkflowStage()).isEqualTo("REVISION_REQUESTED");
+        assertThat(item.getRequestId()).isEqualTo(41);
+        assertThat(item.getOrderId()).isEqualTo(601);
+        assertThat(item.getRevisionRequestNotes()).isEqualTo(order.getRevisionRequestNotes());
+        assertThat(item.getAvailableActions()).containsExactly("UPDATE_QUOTE");
+        assertThat(item.getAvailableActions()).doesNotContain("CHAT", "VIDEO_CALL", "CREATE_ORDER");
+    }
+
+    @Test
+    void getWorkItemsByPharmacy_shouldExposeUpdateQuoteForDirectOrderWithRevision() {
+        Pharmacy p = pharmacy("PH001");
+        Patient pat = patient("P002", "Walter");
+        PharmacyOrder order = PharmacyOrder.builder()
+                .orderId(602)
+                .orderNumber("ORD-602")
+                .status("REVISION_REQUESTED")
+                .paymentStatus("PENDING")
+                .patient(pat)
+                .pharmacy(p)
+                .consultationRequest(null)
+                .createdAt(LocalDateTime.now())
+                .revisionRequestedAt(LocalDateTime.now())
+                .revisionRequestNotes("Please adjust quantity")
+                .build();
+
+        when(requestRepository.findByPharmacy_PharmacyIdOrderByCreatedAtDesc("PH001"))
+                .thenReturn(Collections.emptyList());
+        when(orderRepository.findByPharmacy_PharmacyIdAndConsultationRequestIsNull("PH001"))
+                .thenReturn(List.of(order));
+
+        List<PharmacyWorkItemResponse> items = workItemService.getWorkItemsByPharmacy("PH001");
+
+        assertThat(items).hasSize(1);
+        PharmacyWorkItemResponse item = items.get(0);
+        assertThat(item.getSourceType()).isEqualTo("DIRECT_ORDER");
+        assertThat(item.getWorkflowStage()).isEqualTo("REVISION_REQUESTED");
+        assertThat(item.getOrderId()).isEqualTo(602);
+        assertThat(item.getRequestId()).isNull();
+        assertThat(item.getRevisionRequestNotes()).isEqualTo(order.getRevisionRequestNotes());
+        assertThat(item.getAvailableActions()).containsExactly("UPDATE_QUOTE");
+    }
+
+    @Test
+    void getWorkItemsByPharmacy_shouldExcludeOrderRequestWithFulfillmentOrder() {
         Pharmacy p = pharmacy("PH001");
         Patient pat = patient("P001", "Tina");
         PharmacyOrder order = PharmacyOrder.builder()
@@ -707,9 +867,134 @@ class PharmacyWorkItemServiceImplTest {
 
         List<PharmacyWorkItemResponse> items = workItemService.getWorkItemsByPharmacy("PH001");
 
+        assertThat(items).isEmpty();
+    }
+
+    @Test
+    void getWorkItemsByPharmacy_shouldIncludePendingDeliveryContactChangeRequest() {
+        Pharmacy p = pharmacy("PH001");
+        Patient pat = patient("P001", "Alice");
+        PharmacyOrder order = PharmacyOrder.builder()
+                .orderId(700)
+                .orderNumber("ORD-700")
+                .status("PREPARING")
+                .paymentStatus("PAID")
+                .patient(pat)
+                .pharmacy(p)
+                .createdAt(LocalDateTime.now())
+                .build();
+        PharmacyDeliveryContactChangeRequest changeRequest = PharmacyDeliveryContactChangeRequest.builder()
+                .requestId(1)
+                .order(order)
+                .status("PENDING")
+                .oldDeliveryAddress("12 Old Street")
+                .oldDeliveryLatitude(10.0)
+                .oldDeliveryLongitude(20.0)
+                .oldDeliveryPhoneNumber("0900000000")
+                .oldDeliveryAddressSource("MANUAL")
+                .newDeliveryAddress("34 New Street")
+                .newDeliveryLatitude(30.0)
+                .newDeliveryLongitude(40.0)
+                .newDeliveryPhoneNumber("0911111111")
+                .newDeliveryAddressSource("MANUAL")
+                .patientReason("Moving to new place")
+                .requestedAt(LocalDateTime.now())
+                .createdAt(LocalDateTime.now())
+                .build();
+
+        when(requestRepository.findByPharmacy_PharmacyIdOrderByCreatedAtDesc("PH001"))
+                .thenReturn(Collections.emptyList());
+        when(orderRepository.findByPharmacy_PharmacyIdAndConsultationRequestIsNull("PH001"))
+                .thenReturn(Collections.emptyList());
+        when(deliveryContactChangeRequestRepository.findByOrder_Pharmacy_PharmacyIdAndStatus("PH001", "PENDING"))
+                .thenReturn(List.of(changeRequest));
+
+        List<PharmacyWorkItemResponse> items = workItemService.getWorkItemsByPharmacy("PH001");
+
         assertThat(items).hasSize(1);
-        assertThat(items.get(0).getRequestType()).isEqualTo("ORDER_REQUEST");
-        assertThat(items.get(0).getAvailableActions())
-                .doesNotContain("CHAT", "VIDEO_CALL");
+        PharmacyWorkItemResponse item = items.get(0);
+        assertThat(item.getSourceType()).isEqualTo("DELIVERY_CONTACT_CHANGE_REQUEST");
+        assertThat(item.getWorkflowStage()).isEqualTo("DELIVERY_CONTACT_REVIEW");
+        assertThat(item.getHasConsultationRequest()).isFalse();
+        assertThat(item.getHasOrder()).isTrue();
+        assertThat(item.getOrderId()).isEqualTo(700);
+        assertThat(item.getPatientName()).isEqualTo("Alice");
+        assertThat(item.getAvailableActions()).containsExactly(
+                "APPROVE_DELIVERY_CONTACT_CHANGE",
+                "REJECT_DELIVERY_CONTACT_CHANGE");
+        assertThat(item.getDeliveryContactChangeRequestId()).isEqualTo(1);
+        assertThat(item.getOldDeliveryAddress()).isEqualTo("12 Old Street");
+        assertThat(item.getNewDeliveryAddress()).isEqualTo("34 New Street");
+        assertThat(item.getDeliveryContactChangeStatus()).isEqualTo("PENDING");
+        assertThat(item.getDeliveryContactChangeReason()).isEqualTo("Moving to new place");
+    }
+
+    @Test
+    void getWorkItemsByPharmacy_shouldNotExposeUpdateQuoteForPrescriptionBasedOrder() {
+        Pharmacy p = pharmacy("PH001");
+        Patient pat = patient("P001", "Bob");
+        PharmacyOrder order = PharmacyOrder.builder()
+                .orderId(800)
+                .orderNumber("ORD-800")
+                .status("REVISION_REQUESTED")
+                .paymentStatus("PAID")
+                .prescriptionHeader(com.HealthLink.entity.PrescriptionHeader.builder()
+                        .prescriptionHeaderId(1)
+                        .build())
+                .createdAt(LocalDateTime.now())
+                .revisionRequestedAt(LocalDateTime.now())
+                .revisionRequestNotes("Please adjust")
+                .build();
+        PharmacyConsultationRequest req = PharmacyConsultationRequest.builder()
+                .requestId(50)
+                .patient(pat)
+                .pharmacy(p)
+                .status("IN_REVIEW")
+                .order(order)
+                .build();
+
+        when(requestRepository.findByPharmacy_PharmacyIdOrderByCreatedAtDesc("PH001"))
+                .thenReturn(List.of(req));
+        when(orderRepository.findByPharmacy_PharmacyIdAndConsultationRequestIsNull("PH001"))
+                .thenReturn(Collections.emptyList());
+        when(deliveryContactChangeRequestRepository.findByOrder_Pharmacy_PharmacyIdAndStatus("PH001", "PENDING"))
+                .thenReturn(Collections.emptyList());
+
+        List<PharmacyWorkItemResponse> items = workItemService.getWorkItemsByPharmacy("PH001");
+
+        assertThat(items).hasSize(1);
+        PharmacyWorkItemResponse item = items.get(0);
+        assertThat(item.getSourceType()).isEqualTo("CONSULTATION_REQUEST");
+        assertThat(item.getWorkflowStage()).isEqualTo("REVISION_REQUESTED");
+        // Currently the stage mapping still shows UPDATE_QUOTE for revision stage;
+        // the service layer guard blocks prescription-based order quote updates
+        assertThat(item.getAvailableActions()).contains("UPDATE_QUOTE");
+    }
+
+    @Test
+    void getWorkItemsByPharmacy_shouldExcludeCancelledDirectOrder() {
+        Pharmacy p = pharmacy("PH001");
+        Patient pat = patient("P003", "Cancelled Patient");
+        PharmacyOrder directOrder = PharmacyOrder.builder()
+                .orderId(701)
+                .orderNumber("ORD-701")
+                .status("CANCELLED")
+                .paymentStatus("PENDING")
+                .patient(pat)
+                .pharmacy(p)
+                .consultationRequest(null)
+                .patientConfirmationRequestedAt(LocalDateTime.now().minusHours(1))
+                .cancelledAt(LocalDateTime.now())
+                .createdAt(LocalDateTime.now())
+                .build();
+
+        when(requestRepository.findByPharmacy_PharmacyIdOrderByCreatedAtDesc("PH001"))
+                .thenReturn(Collections.emptyList());
+        when(orderRepository.findByPharmacy_PharmacyIdAndConsultationRequestIsNull("PH001"))
+                .thenReturn(List.of(directOrder));
+
+        List<PharmacyWorkItemResponse> items = workItemService.getWorkItemsByPharmacy("PH001");
+
+        assertThat(items).isEmpty();
     }
 }

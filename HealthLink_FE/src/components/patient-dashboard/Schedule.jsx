@@ -389,7 +389,8 @@ const Schedule = () => {
       try {
         const data = await appointmentService.getAvailableSlots(
           selectedDoctorId,
-          date
+          date,
+          consultationType
         );
 
         setSlots(data.slots || []);

@@ -7,29 +7,18 @@ import com.HealthLink.entity.Doctor;
 import com.HealthLink.exception.BusinessException;
 import com.HealthLink.repository.doctor.DoctorRepository;
 import com.HealthLink.service.geocoding.GeocodingService;
-import com.fasterxml.jackson.databind.JsonNode;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.boot.web.client.RestTemplateBuilder;
-import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpMethod;
-import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
-import org.springframework.web.client.RestTemplate;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
-import java.net.URLEncoder;
-import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
 import java.util.List;
 
 @Service
 @Slf4j
 public class HomeVisitLocationService {
 
-    private final RestTemplate restTemplate;
     private final DoctorRepository doctorRepository;
     private final GeocodingService geocodingService;
 
@@ -45,29 +34,13 @@ public class HomeVisitLocationService {
     @Value("${home-visit.average-speed-kmh:25}")
     private double averageSpeedKmh;
 
-    public HomeVisitLocationService(RestTemplateBuilder builder, DoctorRepository doctorRepository, GeocodingService geocodingService) {
-        this.restTemplate = builder.build();
+    public HomeVisitLocationService(DoctorRepository doctorRepository, GeocodingService geocodingService) {
         this.doctorRepository = doctorRepository;
         this.geocodingService = geocodingService;
     }
 
     public GeocodeResponse geocode(String address) {
-        try {
-            return geocodingService.geocode(address);
-        } catch (Exception e) {
-            log.warn("Gogoduk geocode failed, falling back to Nominatim: {}", e.getMessage());
-            List<HomeVisitGeocodeResponse> results = geocodeByNominatim(address);
-            if (results.isEmpty()) {
-                throw new BusinessException("Cannot geocode address");
-            }
-            HomeVisitGeocodeResponse first = results.get(0);
-            return GeocodeResponse.builder()
-                    .latitude(first.getLatitude())
-                    .longitude(first.getLongitude())
-                    .formattedAddress(first.getDisplayName())
-                    .provider("NOMINATIM")
-                    .build();
-        }
+        return geocodingService.geocode(address);
     }
 
     public GeocodeResponse geocodeClinicAddressWithFallback(String address) {
@@ -83,46 +56,13 @@ public class HomeVisitLocationService {
             throw new BusinessException("Address is required");
         }
 
-        String encodedAddress = URLEncoder.encode(address, StandardCharsets.UTF_8);
-
-        String url = "https://nominatim.openstreetmap.org/search"
-                + "?q=" + encodedAddress
-                + "&format=json"
-                + "&limit=5"
-                + "&countrycodes=vn"
-                + "&addressdetails=1";
-
-        HttpHeaders headers = new HttpHeaders();
-        headers.set("User-Agent", "HealthLink-EProject/1.0");
-
-        HttpEntity<Void> entity = new HttpEntity<>(headers);
-
-        ResponseEntity<JsonNode> response = restTemplate.exchange(
-                url,
-                HttpMethod.GET,
-                entity,
-                JsonNode.class
-        );
-
-        JsonNode body = response.getBody();
-
-        List<HomeVisitGeocodeResponse> results = new ArrayList<>();
-
-        if (body == null || !body.isArray()) {
-            return results;
-        }
-
-        for (JsonNode item : body) {
-            results.add(
-                    HomeVisitGeocodeResponse.builder()
-                            .displayName(item.path("display_name").asText())
-                            .latitude(parseDouble(item.path("lat").asText()))
-                            .longitude(parseDouble(item.path("lon").asText()))
-                            .build()
-            );
-        }
-
-        return results;
+        return geocodingService.search(address, 5).stream()
+                .map(result -> HomeVisitGeocodeResponse.builder()
+                        .displayName(result.getFormattedAddress())
+                        .latitude(result.getLatitude())
+                        .longitude(result.getLongitude())
+                        .build())
+                .toList();
     }
 
     public HomeVisitEstimateResponse estimate(String doctorId, Double visitLatitude, Double visitLongitude) {
@@ -194,11 +134,4 @@ public class HomeVisitLocationService {
         return earthRadiusKm * c;
     }
 
-    private Double parseDouble(String value) {
-        try {
-            return Double.parseDouble(value);
-        } catch (Exception e) {
-            return null;
-        }
-    }
 }

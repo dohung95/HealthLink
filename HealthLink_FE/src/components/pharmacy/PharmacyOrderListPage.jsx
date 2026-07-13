@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { money, dateTime } from '../../utils/pharmacy/pharmacyHelpers';
 import {
@@ -6,35 +6,33 @@ import {
   getWorkflowStage,
   isOrderListWorkItem,
   matchesPharmacyWorkflowSearch,
+  mergeWorkflowItemsWithOrders,
 } from './workflow/pharmacyWorkflow';
 import PharmacyOrderDetailModal from './PharmacyOrderDetailModal';
 
-const PAGE_SIZE = 6;
+const PAGE_SIZE = 10;
+
+function resolveOrderListTab(searchParams) {
+  const requested = searchParams.get('tab') || 'ALL';
+  return ORDER_LIST_TABS.some((tab) => tab.key === requested) ? requested : 'ALL';
+}
 
 export default function PharmacyOrderListPage({ workItems, orders }) {
   const [searchParams, setSearchParams] = useSearchParams();
-  const initialTab = searchParams.get('tab') || 'PAYMENT_DUE';
-  const [activeTab, setActiveTab] = useState(
-    ORDER_LIST_TABS.some((t) => t.key === initialTab) ? initialTab : 'PAYMENT_DUE',
-  );
+  const [activeTab, setActiveTab] = useState(() => resolveOrderListTab(searchParams));
   const [query, setQuery] = useState('');
   const [page, setPage] = useState(1);
   const [detailItem, setDetailItem] = useState(null);
-  const allItems = useMemo(() => {
-    const workItemList = Array.isArray(workItems) ? workItems : [];
-    const orderList = Array.isArray(orders) ? orders : [];
-    const seenOrderIds = new Set(workItemList.map((item) => item.orderId).filter(Boolean));
-    const extraOrders = orderList
-      .filter((order) => order.orderId && !seenOrderIds.has(order.orderId))
-      .map((order) => ({
-        ...order,
-        workflowStage: order.status || 'UNKNOWN',
-        orderStatus: order.status,
-        hasOrder: true,
-        displayId: order.orderNumber || `#${order.orderId}`,
-      }));
-    return [...workItemList, ...extraOrders].filter(isOrderListWorkItem);
-  }, [orders, workItems]);
+
+  useEffect(() => {
+    const nextTab = resolveOrderListTab(searchParams);
+    setActiveTab((current) => (current === nextTab ? current : nextTab));
+    setPage(1);
+    setDetailItem(null);
+  }, [searchParams]);
+  const allItems = useMemo(() => (
+    mergeWorkflowItemsWithOrders(workItems, orders).filter(isOrderListWorkItem)
+  ), [orders, workItems]);
 
   const visibleItems = useMemo(() => {
     const tab = ORDER_LIST_TABS.find((t) => t.key === activeTab);
@@ -47,6 +45,12 @@ export default function PharmacyOrderListPage({ workItems, orders }) {
 
   const pages = Math.max(1, Math.ceil(visibleItems.length / PAGE_SIZE));
   const pagedItems = visibleItems.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+
+  useEffect(() => {
+    if (page > pages) {
+      setPage(pages);
+    }
+  }, [page, pages]);
 
   const tabCounts = useMemo(() => {
     const counts = {};
@@ -64,7 +68,7 @@ export default function PharmacyOrderListPage({ workItems, orders }) {
 
   const switchTab = (key) => {
     setActiveTab(key);
-    setSearchParams(key === 'PAYMENT_DUE' ? {} : { tab: key });
+    setSearchParams(key === 'ALL' ? {} : { tab: key });
     setPage(1);
     setDetailItem(null);
   };
@@ -153,6 +157,11 @@ export default function PharmacyOrderListPage({ workItems, orders }) {
                       <span className={`pharmacy-status ${paymentStatusTone(getWorkflowStage(item))}`}>
                         {getWorkflowStage(item)}
                       </span>
+                      {item.requiresPatientConfirmation && (
+                        <span className="pharmacy-status is-warning" style={{ fontSize: 10, marginLeft: 4 }}>
+                          Awaiting patient confirmation
+                        </span>
+                      )}
                     </td>
                     <td>
                       <span className={`pharmacy-status ${paymentStatusTone(item.paymentStatus)}`} style={{ fontSize: 10 }}>
@@ -197,16 +206,11 @@ export default function PharmacyOrderListPage({ workItems, orders }) {
         <PharmacyOrderDetailModal
           item={detailItem}
           onClose={() => setDetailItem(null)}
-          onChat={handleChat}
         />
       )}
     </div>
     </>
   );
-}
-
-function handleChat() {
-  // no-op placeholder
 }
 
 function paymentStatusTone(status) {

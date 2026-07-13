@@ -10,7 +10,7 @@ import {
   summarizeInventoryRisk,
 } from '../../utils/pharmacy/pharmacyOverviewMetrics';
 
-export default function PharmacyOverviewTab({ orders, workItems, balance }) {
+export default function PharmacyOverviewTab({ orders, workItems, balance, transactions }) {
   const [inventorySummary, setInventorySummary] = useState({
     total: 0,
     lowStock: 0,
@@ -51,33 +51,28 @@ export default function PharmacyOverviewTab({ orders, workItems, balance }) {
     <>
       <div className="pharmacy-metrics-grid is-overview-dashboard">
         <MetricCard
-          label="New Requests"
-          value={overviewMetrics.newRequests}
-          hint="Awaiting intake"
-          icon="support_agent"
-          tone="warning"
-        />
-        <MetricCard
           label="Active Orders"
           value={overviewMetrics.activeOrders}
-          hint="In workflow"
+          hint="Payment due, preparing, ready, shipping"
           icon="receipt_long"
           tone="info"
         />
         <MetricCard
-          label="Payment Due"
-          value={overviewMetrics.paymentDueCount}
-          hint={`${money(overviewMetrics.unpaidValue)} unpaid`}
-          icon="payments"
-          tone="warning"
-        />
-        <MetricCard
           label="Inventory Risk"
           value={overviewMetrics.inventoryRiskTotal}
-          hint={`${inventorySummary.lowStock} low / ${inventorySummary.out} out / ${inventorySummary.expiringSoon} expiring`}
+          hint={`${inventorySummary.out} out / ${inventorySummary.lowStock} low / ${inventorySummary.expiringSoon} expiring`}
           icon="inventory_2"
           tone="danger"
         />
+        <MetricCard
+          label="Completion Rate"
+          value={<span className="pharmacy-metric-rate is-success">Completed {overviewMetrics.completedRate}%</span>}
+          hint={`${overviewMetrics.completed} completed / ${overviewMetrics.cancelledAndRefunded} cancelled`}
+          icon="task_alt"
+          tone="success"
+        >
+          <span className="pharmacy-metric-rate is-danger">Cancelled {overviewMetrics.cancelledRate}%</span>
+        </MetricCard>
         <MetricCard
           label="Revenue"
           value={money(overviewMetrics.revenueValue)}
@@ -85,19 +80,12 @@ export default function PharmacyOverviewTab({ orders, workItems, balance }) {
           icon="monitoring"
           tone="success"
         />
-        <MetricCard
-          label="Completion Rate"
-          value={<span className="pharmacy-metric-rate is-success">Completed {overviewMetrics.completedRate}%</span>}
-          icon="task_alt"
-          tone="success"
-        >
-          <span className="pharmacy-metric-rate is-danger">Cancelled {overviewMetrics.cancelledRate}%</span>
-        </MetricCard>
       </div>
 
       <PharmacyOverviewReports
         workItems={workItems}
         orders={orders}
+        transactions={transactions}
         balance={balance}
         inventorySummary={inventorySummary}
       />

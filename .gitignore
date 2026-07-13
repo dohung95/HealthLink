@@ -86,6 +86,7 @@ lerna-debug.log*
 HealthLink_FE/dist/
 HealthLink_FE/.vite/
 HealthLink_FE/test-results/
+/HealthLink_FE/e2e/
 
 # === Custom ignores cho file XML do IDE sinh ra ===
 HealthLink/HealthLink_BE/HealthLink_BEynbactions.xml
@@ -206,3 +207,11 @@ scripts/repo-harness/
 .ai/harness/mcp/index-events.jsonl
 .ai/harness/mcp/metrics.jsonl
 .ai/harness/mcp/trace.jsonl
+
+# Playwright
+node_modules/
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/
+/playwright/.auth/

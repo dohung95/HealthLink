@@ -14,38 +14,54 @@ class PharmacyOrdersScreen extends StatefulWidget {
   State<PharmacyOrdersScreen> createState() => _PharmacyOrdersScreenState();
 }
 
-class _PharmacyOrdersScreenState extends State<PharmacyOrdersScreen> {
+class _PharmacyOrdersScreenState extends State<PharmacyOrdersScreen>
+    with SingleTickerProviderStateMixin {
+  late final TabController _tabController;
   final ScrollController _scrollController = ScrollController();
   final List<String> _statusFilters = [
     'ALL',
-    'PENDING',
-    'CONFIRMED',
-    'PREPARING',
-    'READY',
-    'SHIPPING',
-    'DELIVERED',
+    'COMPLETED',
     'CANCELLED',
   ];
 
   @override
   void initState() {
     super.initState();
+    _tabController = TabController(length: 2, vsync: this);
+    _tabController.addListener(_onTabChanged);
     _scrollController.addListener(_onScroll);
     WidgetsBinding.instance.addPostFrameCallback((_) => _loadOrders());
   }
 
   @override
   void dispose() {
+    _tabController.removeListener(_onTabChanged);
+    _tabController.dispose();
     _scrollController.removeListener(_onScroll);
     _scrollController.dispose();
     super.dispose();
+  }
+
+  void _onTabChanged() {
+    final provider = context.read<PharmacyOrderProvider>();
+    final isFlow = _tabController.index == 0;
+    if (provider.flowView != isFlow) {
+      provider.setFlowView(isFlow);
+      final auth = context.read<AuthProvider>();
+      if (auth.accessToken != null) {
+        provider.fetchOrders(
+          auth.accessToken!,
+          auth.pharmacyProfile?['pharmacyId']?.toString() ?? auth.userId!,
+        );
+      }
+    }
   }
 
   void _onScroll() {
     if (_scrollController.position.pixels >=
         _scrollController.position.maxScrollExtent - 200) {
       final provider = context.read<PharmacyOrderProvider>();
-      if (provider.hasMore && !provider.isLoading) {
+      if (!provider.flowView && provider.hasMore && !provider.isLoading) {
         final auth = context.read<AuthProvider>();
         if (auth.accessToken != null) {
           provider.fetchOrders(
@@ -77,8 +93,24 @@ class _PharmacyOrdersScreenState extends State<PharmacyOrdersScreen> {
       ),
       body: Column(
         children: [
-          _buildFilterChips(theme),
-          Expanded(child: _buildOrdersList(theme)),
+          TabBar(
+            controller: _tabController,
+            tabs: const [
+              Tab(text: 'Flow'),
+              Tab(text: 'History'),
+            ],
+          ),
+          if (!context.watch<PharmacyOrderProvider>().flowView)
+            _buildFilterChips(theme),
+          Expanded(
+            child: TabBarView(
+              controller: _tabController,
+              children: [
+                _buildFlowView(theme),
+                _buildHistoryList(theme),
+              ],
+            ),
+          ),
         ],
       ),
     );
@@ -93,7 +125,7 @@ class _PharmacyOrdersScreenState extends State<PharmacyOrdersScreen> {
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: 12),
         itemCount: _statusFilters.length,
-        separatorBuilder: (_, __) => const SizedBox(width: 6),
+        separatorBuilder: (_, _) => const SizedBox(width: 6),
         itemBuilder: (_, i) {
           final filter = _statusFilters[i];
           final isSelected = provider.activeFilter == filter;
@@ -117,7 +149,7 @@ class _PharmacyOrdersScreenState extends State<PharmacyOrdersScreen> {
     );
   }
 
-  Widget _buildOrdersList(ThemeData theme) {
+  Widget _buildFlowView(ThemeData theme) {
     final provider = context.watch<PharmacyOrderProvider>();
 
     if (provider.isLoading && provider.orders.isEmpty) {
@@ -142,7 +174,8 @@ class _PharmacyOrdersScreenState extends State<PharmacyOrdersScreen> {
       );
     }
 
-    if (provider.orders.isEmpty) {
+    final grouped = provider.flowGroupedOrders;
+    if (grouped.isEmpty) {
       return Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -150,7 +183,85 @@ class _PharmacyOrdersScreenState extends State<PharmacyOrdersScreen> {
             Icon(Icons.receipt_long,
                 size: 64, color: theme.colorScheme.outlineVariant),
             const SizedBox(height: 12),
-            Text('No orders found', style: theme.textTheme.titleMedium),
+            Text('No active orders', style: theme.textTheme.titleMedium),
+          ],
+        ),
+      );
+    }
+
+    return RefreshIndicator(
+      onRefresh: () async {
+        final auth = context.read<AuthProvider>();
+        if (auth.accessToken != null) {
+          await context.read<PharmacyOrderProvider>().refreshOrders(
+                auth.accessToken!,
+                auth.pharmacyProfile?['pharmacyId']?.toString() ??
+                    auth.userId!,
+              );
+        }
+      },
+      child: ListView(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+        children: [
+          for (final entry in grouped.entries) ...[
+            Padding(
+              padding: const EdgeInsets.only(top: 12, bottom: 4),
+              child: Row(
+                children: [
+                  OrderStatusChip(status: entry.key),
+                  const SizedBox(width: 8),
+                  Text('${entry.value.length}',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant)),
+                ],
+              ),
+            ),
+            for (final order in entry.value)
+              _buildOrderCard(order, theme),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHistoryList(ThemeData theme) {
+    final provider = context.watch<PharmacyOrderProvider>();
+
+    if (provider.isLoading && provider.orders.isEmpty) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    if (provider.error != null && provider.orders.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.error_outline,
+                size: 48, color: theme.colorScheme.error),
+            const SizedBox(height: 12),
+            Text(provider.error!,
+                style: TextStyle(color: theme.colorScheme.error)),
+            const SizedBox(height: 12),
+            FilledButton.tonal(
+                onPressed: _loadOrders, child: const Text('Retry')),
+          ],
+        ),
+      );
+    }
+
+    final terminal = provider.orders
+        .where((o) => o.status == 'COMPLETED' || o.status == 'CANCELLED')
+        .toList();
+
+    if (terminal.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.receipt_long,
+                size: 64, color: theme.colorScheme.outlineVariant),
+            const SizedBox(height: 12),
+            Text('No history yet', style: theme.textTheme.titleMedium),
           ],
         ),
       );
@@ -170,9 +281,9 @@ class _PharmacyOrdersScreenState extends State<PharmacyOrdersScreen> {
       child: ListView.builder(
         controller: _scrollController,
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-        itemCount: provider.orders.length + (provider.hasMore ? 1 : 0),
+        itemCount: terminal.length + (provider.hasMore ? 1 : 0),
         itemBuilder: (_, i) {
-          if (i >= provider.orders.length) {
+          if (i >= terminal.length) {
             return const Center(
               child: Padding(
                 padding: EdgeInsets.all(16),
@@ -180,17 +291,14 @@ class _PharmacyOrdersScreenState extends State<PharmacyOrdersScreen> {
               ),
             );
           }
-          final order = provider.orders[i];
-          return _buildOrderCard(order, theme);
+          return _buildOrderCard(terminal[i], theme);
         },
       ),
     );
   }
 
   Widget _buildOrderCard(PharmacyOrder order, ThemeData theme) {
-    final timeStr = order.createdAt != null
-        ? DateFormat('HH:mm').format(order.createdAt)
-        : '';
+    final timeStr = DateFormat('HH:mm').format(order.createdAt);
 
     return Card(
       margin: const EdgeInsets.symmetric(vertical: 4),
@@ -243,13 +351,11 @@ class _PharmacyOrdersScreenState extends State<PharmacyOrdersScreen> {
                 children: [
                   Text('${order.items.length} items',
                       style: theme.textTheme.bodySmall),
-                  if (timeStr.isNotEmpty) ...[
-                    const SizedBox(width: 12),
-                    Icon(Icons.access_time,
-                        size: 14, color: theme.colorScheme.onSurfaceVariant),
-                    const SizedBox(width: 2),
-                    Text(timeStr, style: theme.textTheme.bodySmall),
-                  ],
+                  const SizedBox(width: 12),
+                  Icon(Icons.access_time,
+                      size: 14, color: theme.colorScheme.onSurfaceVariant),
+                  const SizedBox(width: 2),
+                  Text(timeStr, style: theme.textTheme.bodySmall),
                 ],
               ),
             ],

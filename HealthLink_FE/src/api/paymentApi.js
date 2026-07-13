@@ -157,6 +157,26 @@ export const paymentApi = {
     return response.data;
   },
 
+  getPartnerPinStatus: async () => {
+    const response = await axiosInstance.get('/api/payment/partner/security/pin');
+    return response.data;
+  },
+
+  requestPartnerPinOtp: async () => {
+    const response = await axiosInstance.post('/api/payment/partner/security/pin/request-otp');
+    return response.data;
+  },
+
+  verifyPartnerPinOtp: async (payload) => {
+    const response = await axiosInstance.post('/api/payment/partner/security/pin/verify-otp', payload);
+    return response.data;
+  },
+
+  setPartnerPin: async (payload) => {
+    const response = await axiosInstance.put('/api/payment/partner/security/pin', payload);
+    return response.data;
+  },
+
   createFollowUpPayPalOrder: async (appointmentId) => {
     const response = await axiosInstance.post(`/api/payment/follow-up/${appointmentId}/create`);
     return response.data;

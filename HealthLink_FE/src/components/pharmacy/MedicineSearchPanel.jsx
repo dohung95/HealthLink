@@ -64,7 +64,7 @@ function hasSelectedId(selectedIds, medicineId) {
     || selectedIds.has(Number(medicineId));
 }
 
-export default function MedicineSearchPanel({ onSelect, selectedIds = new Set() }) {
+export default function MedicineSearchPanel({ onSelect, selectedIds = new Set(), items }) {
   const [query, setQuery] = useState('');
   const [medicines, setMedicines] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -79,6 +79,13 @@ export default function MedicineSearchPanel({ onSelect, selectedIds = new Set() 
   const suggestionsRef = useRef(null);
 
   useEffect(() => {
+    if (items) {
+      setMedicines(Array.isArray(items) ? items : []);
+      setLoading(false);
+      setError(false);
+      return;
+    }
+
     let cancelled = false;
 
     setLoading(true);
@@ -101,7 +108,7 @@ export default function MedicineSearchPanel({ onSelect, selectedIds = new Set() 
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [items]);
 
   useEffect(() => {
     const handler = (event) => {

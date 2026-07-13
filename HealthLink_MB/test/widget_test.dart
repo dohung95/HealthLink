@@ -2,12 +2,17 @@
 import 'dart:ui';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:HealthLink/main.dart';
 import 'package:HealthLink/providers/auth_provider.dart';
-import 'package:HealthLink/providers/chat/chat_provider.dart';
+import 'package:HealthLink/providers/locale_provider.dart';
+import 'package:HealthLink/providers/theme_provider.dart';
+import 'package:HealthLink/screens/auth/login_screen.dart';
 
 void main() {
   testWidgets('HealthLink smoke test', (WidgetTester tester) async {
+    SharedPreferences.setMockInitialValues({});
+
     // Set a larger surface size to avoid overflow issues in test environment (default is 800x600)
     tester.view.physicalSize = const Size(1080, 2400);
     tester.view.devicePixelRatio = 1.0;
@@ -23,11 +28,13 @@ void main() {
       MultiProvider(
         providers: [
           ChangeNotifierProvider<AuthProvider>(create: (_) => AuthProvider()),
-          ChangeNotifierProvider<ChatProvider>(create: (_) => ChatProvider()),
+          ChangeNotifierProvider<ThemeProvider>(create: (_) => ThemeProvider()),
+          ChangeNotifierProvider<LocaleProvider>(create: (_) => LocaleProvider()),
         ],
         child: const HealthLinkApp(),
       ),
     );
+    await tester.pumpAndSettle();
 
     // Verify that our welcome screen is shown
     expect(find.text('Your health journey starts here'), findsOneWidget);
@@ -37,7 +44,7 @@ void main() {
     await tester.tap(find.text('Get Started'));
     await tester.pumpAndSettle();
 
-    // Verify that we are navigated to the RegisterScreen
-    expect(find.text('Create Account'), findsOneWidget);
+    // Verify that we are navigated to the login screen.
+    expect(find.byType(LoginScreen), findsOneWidget);
   });
 }

@@ -74,7 +74,7 @@ public class EmailService {
 
     // gửi email xác nhận thay đổi email
     public void sendVerificationEmail(String toEmail, String recipientName, String verificationCode) {
-        log.info("sendVerificationEmail called - to: {}, name: {}, code: {}", toEmail, recipientName, verificationCode);
+        log.info("sendVerificationEmail called - to: {}, name: {}", toEmail, recipientName);
         String subject = appName + " - Email Verification";
         String content = buildEmailVerificationContent(recipientName, verificationCode, toEmail);
         sendHtmlEmail(toEmail, subject, content);

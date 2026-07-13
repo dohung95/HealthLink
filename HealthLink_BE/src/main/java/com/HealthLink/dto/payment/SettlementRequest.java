@@ -7,6 +7,8 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import lombok.ToString;
+import jakarta.validation.constraints.Pattern;
 
 import java.math.BigDecimal;
 
@@ -46,4 +48,8 @@ public class SettlementRequest {
      * Ghi chú hoặc lý do rút tiền (tùy chọn, tối đa 500 ký tự).
      */
     private String notes;
+
+    @Pattern(regexp = "\\d{6}", message = "PIN must contain exactly 6 digits")
+    @ToString.Exclude
+    private String pin;
 }

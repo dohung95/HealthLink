@@ -1,36 +1,26 @@
 import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
-import { medicineApi } from '../../../api/medicineApi';
 import pharmacyApi from '../../../api/pharmacyApi';
 import { money } from '../../../utils/pharmacy/pharmacyHelpers';
-import OrderItemCard from '../OrderItemCard';
 import DeliveryDurationPicker from './DeliveryDurationPicker';
 import MedicineLibraryPanel from './MedicineLibraryPanel';
+import OrderItemEditor from './OrderItemEditor';
 import RequestSummaryPanel from './RequestSummaryPanel';
-
-const VALID_TIMINGS = new Set(['MORNING', 'AFTERNOON', 'EVENING']);
-
-function normalizeTimingForPayload(rawTiming) {
-  if (!rawTiming) return '';
-  const tokens = String(rawTiming)
-    .split(',')
-    .map((token) => token.trim().toUpperCase())
-    .filter((token) => VALID_TIMINGS.has(token));
-  return [...new Set(tokens)].join(',');
-}
+import { normalizeTimings, serializeFrequency, serializeTimings } from './orderItemSchedule';
 
 function lineTotal(item) {
   return Number(item.totalPrice || 0);
 }
 
 function toOrderItemPayload(item) {
-  const timing = normalizeTimingForPayload(item.timing);
+  const timing = serializeTimings(item.timing);
+  const frequency = serializeFrequency(item.frequency);
   return {
     medicineId: item.medicineId,
     totalSupplyDays: Number(item.totalSupplyDays || 1),
     quantity: Number(item.quantity || 1),
     unit: item.unit || undefined,
-    frequency: item.frequency || undefined,
+    frequency: frequency || undefined,
     timing: timing || undefined,
     route: item.route || undefined,
     notes: item.notes || undefined,
@@ -71,13 +61,14 @@ function getTimingText(item) {
 
 function normalizeTimingWithNotesFallback(item) {
   const rawTiming = getTimingText(item);
-  const normalized = normalizeTimingForPayload(rawTiming);
+  const normalized = serializeTimings(rawTiming);
   const rawTokens = String(rawTiming)
     .split(',')
     .map((token) => token.trim())
     .filter(Boolean);
+  const normalizedTimings = new Set(normalizeTimings(rawTiming));
   const invalidTokens = rawTokens.filter(
-    (token) => !VALID_TIMINGS.has(token.trim().toUpperCase()),
+    (token) => !normalizedTimings.has(token.trim().toUpperCase()),
   );
   const existingNotes = item.notes || item.instructions || '';
   if (invalidTokens.length > 0 && !normalized) {
@@ -157,35 +148,107 @@ function normalizeDelivery(value) {
   return String(value || '').trim().toUpperCase() === 'DELIVERY';
 }
 
+function isPrescriptionSourcedItem(item) {
+  return Boolean(item?.sourcePrescriptionItemId || item?.sourcePrescriptionHeaderId);
+}
+
 export default function CreateOrderModal({
   request,
   profile,
   onClose,
   onCreated,
   variant = 'default',
-  onChatRequest,
-  onVideoCallRequest,
+  mode = 'createFromRequest',
+  orderId,
 }) {
   const isConsultMode = variant === 'consult';
+  const isQuoteRevision = mode === 'updateQuote';
   const isOrderRequest = request?.requestType === 'ORDER_REQUEST' || request?.sourceType === 'ORDER_REQUEST';
-  const [leftTab, setLeftTab] = useState(isConsultMode ? 'summary' : 'prescriptions');
-  const isSummaryTab = isConsultMode && leftTab === 'summary';
+  const effectiveOrderId = orderId || request?.orderId || null;
+  const [leftTab, setLeftTab] = useState(isConsultMode || isQuoteRevision ? 'summary' : 'prescriptions');
+  const showSummaryTab = isConsultMode || isQuoteRevision;
+  const isSummaryTab = showSummaryTab && leftTab === 'summary';
   const isMedicinesTab = !isOrderRequest && leftTab === 'medicine';
   const [orderItems, setOrderItems] = useState([]);
   const [prescriptions, setPrescriptions] = useState([]);
   const [loadingPrescriptions, setLoadingPrescriptions] = useState(false);
   const [deliveryEnabled, setDeliveryEnabled] = useState(false);
   const [deliveryFee, setDeliveryFee] = useState('');
-  const [expandedItemId, setExpandedItemId] = useState(null);
   const [deliveryMinuteDigits, setDeliveryMinuteDigits] = useState([0, 4, 5]);
   const [creatingOrder, setCreatingOrder] = useState(false);
   const [medicineCatalog, setMedicineCatalog] = useState([]);
+  const [existingOrder, setExistingOrder] = useState(null);
+  const [existingOrderLoadError, setExistingOrderLoadError] = useState(false);
+  const [existingOrderReloadKey, setExistingOrderReloadKey] = useState(0);
+
+  const existingOrderItems = useMemo(
+    () => existingOrder?.items ?? existingOrder?.orderItems ?? [],
+    [existingOrder],
+  );
+  const hasPrescriptionSource = existingOrderItems.some(isPrescriptionSourcedItem);
+  const isExistingOrderLoading = isQuoteRevision && !existingOrder && !existingOrderLoadError;
+  const canEditMedicineIdentity = !isOrderRequest
+    && !hasPrescriptionSource
+    && (!isQuoteRevision || Boolean(existingOrder));
 
   useEffect(() => {
+    if (mode !== 'updateQuote' || !effectiveOrderId) return;
+    let alive = true;
+    setExistingOrder(null);
+    setExistingOrderLoadError(false);
+    pharmacyApi.getOrderById(effectiveOrderId)
+      .then((data) => {
+        if (!alive) return;
+        setExistingOrder(data);
+      })
+      .catch(() => {
+        if (!alive) return;
+        setExistingOrderLoadError(true);
+      });
+    return () => { alive = false; };
+  }, [mode, effectiveOrderId, existingOrderReloadKey]);
+
+  useEffect(() => {
+    if (!existingOrder) return;
+    setOrderItems(
+      existingOrderItems.map((item, index) => ({
+        localId: `existing-${Date.now()}-${index}`,
+        medicineId: item.medicineId,
+        medicationName: item.medicationName,
+        totalSupplyDays: Number(item.totalSupplyDays || 1),
+        quantity: Number(item.quantity || 1),
+        unit: item.unit || '',
+        frequency: item.frequency || '',
+        timing: item.timing || '',
+        route: item.route || (isPrescriptionSourcedItem(item) ? '' : 'Oral'),
+        totalPrice: Number(item.totalPrice || 0),
+        notes: item.notes || '',
+        sourcePrescriptionHeaderId: item.sourcePrescriptionHeaderId,
+        sourcePrescriptionItemId: item.sourcePrescriptionItemId,
+      })),
+    );
+    setDeliveryEnabled(normalizeDelivery(existingOrder.deliveryType));
+    setDeliveryFee(existingOrder.deliveryFee != null ? String(existingOrder.deliveryFee) : '');
+    if (existingOrder.estimatedDeliveryMinutes != null) {
+      const str = String(existingOrder.estimatedDeliveryMinutes).padStart(3, '0');
+      setDeliveryMinuteDigits(str.split('').map(Number));
+    }
+  }, [existingOrder, existingOrderItems]);
+
+  useEffect(() => {
+    if (mode !== 'updateQuote' || !existingOrder) return;
+    if (hasPrescriptionSource) {
+      toast.error('Cannot update quote for prescription-based orders.');
+      onClose();
+    }
+  }, [mode, existingOrder, hasPrescriptionSource, onClose]);
+
+  useEffect(() => {
+    if (mode === 'updateQuote' && existingOrder) return;
     const preferredDelivery = normalizeDelivery(request?.preferredDeliveryType);
     setDeliveryEnabled(preferredDelivery);
-    setDeliveryFee(preferredDelivery ? String(profile?.deliveryFee ?? 0) : '');
-  }, [profile?.deliveryFee, request?.preferredDeliveryType, request?.requestId]);
+    setDeliveryFee(preferredDelivery ? String(profile?.deliveryFee ?? 0) : '0');
+  }, [profile?.deliveryFee, request?.preferredDeliveryType, request?.requestId, mode, existingOrder]);
 
   useEffect(() => {
     if (!request?.requestId) return;
@@ -227,9 +290,23 @@ export default function CreateOrderModal({
 
   useEffect(() => {
     let alive = true;
-    medicineApi.searchMedicines('')
+    pharmacyApi.getInventory({ availableOnly: true, size: 1000 })
       .then((data) => {
-        if (alive) setMedicineCatalog(Array.isArray(data) ? data : []);
+        if (!alive) return;
+        const items = data?.content || [];
+        const normalized = items.map((inv) => ({
+          medicineId: inv.medicineId,
+          name: inv.medicineName,
+          brandName: inv.medicineName,
+          genericName: inv.genericName,
+          dosageForm: inv.dosageForm,
+          strength: inv.strength,
+          unit: inv.unit,
+          price: inv.price,
+          manufacturer: inv.pharmacyName,
+          availableQuantity: inv.availableQuantity,
+        }));
+        setMedicineCatalog(normalized);
       })
       .catch(() => {
         if (alive) setMedicineCatalog([]);
@@ -271,7 +348,7 @@ export default function CreateOrderModal({
   };
 
   const addMedicine = (medicine) => {
-    if (isOrderRequest) return;
+    if (!canEditMedicineIdentity) return;
     const medicineId = medicine?.medicineId || medicine?.id;
     if (!medicineId) {
       toast.error('Selected medicine is missing an ID.');
@@ -289,10 +366,10 @@ export default function CreateOrderModal({
           medicationName: getMedicineDisplayName(medicine),
           totalSupplyDays: 1,
           quantity: 1,
-          unit: medicine.unit || 'unit',
+          unit: medicine.unit || '',
           frequency: 'As directed',
           timing: '',
-          route: '',
+          route: 'Oral',
           totalPrice: Number(medicine.price || 0),
           notes: '',
         },
@@ -301,27 +378,39 @@ export default function CreateOrderModal({
     toast.success('Medicine added to order.');
   };
 
-  const updateItem = (localId, field, value) => {
+  const replaceItem = (updatedItem) => {
     setOrderItems((current) => current.map((item) => {
-      if (item.localId !== localId) return item;
-      const updated = { ...item, [field]: value };
-      if (field === 'quantity') {
-        const price = (item.totalPrice || 0) / (item.quantity || 1);
-        updated.totalPrice = price * Number(value);
-      }
-      return updated;
+      if (item.localId !== updatedItem.localId) return item;
+      if (item.quantity === updatedItem.quantity) return updatedItem;
+      const price = (item.totalPrice || 0) / (item.quantity || 1);
+      return { ...updatedItem, totalPrice: price * Number(updatedItem.quantity) };
     }));
   };
 
   const removeItem = (localId) => {
     setOrderItems((current) => current.filter((item) => item.localId !== localId));
-    setExpandedItemId((prev) => prev === localId ? null : prev);
   };
 
   const handleCreateOrder = async (event) => {
     event.preventDefault();
+
+    if (mode === 'updateQuote' && !effectiveOrderId) {
+      toast.error('Cannot update quote because the order id is missing.');
+      return;
+    }
+
     if (!orderItems.length) {
       toast.error('Add at least one medication.');
+      return;
+    }
+
+    if (isQuoteRevision && (isExistingOrderLoading || existingOrderLoadError || !existingOrder)) {
+      toast.error('Load the current quote before updating it.');
+      return;
+    }
+    const missingUnitItem = orderItems.find((item) => !String(item.unit || '').trim());
+    if (missingUnitItem) {
+      toast.error(`Unit is missing for medicine: ${missingUnitItem.medicationName || 'selected medicine'}`);
       return;
     }
     if (isOrderRequest && !orderItems.every((item) => item.sourcePrescriptionItemId)) {
@@ -354,13 +443,18 @@ export default function CreateOrderModal({
       payload.deliveryLongitude = request.deliveryLongitude;
       payload.deliveryPhoneNumber = request.deliveryPhoneNumber;
       payload.deliveryAddressSource = request.deliveryAddressSource;
-      await pharmacyApi.createOrderFromRequest(request.requestId, payload);
-      toast.success('Order created from request.');
+      if (mode === 'updateQuote') {
+        await pharmacyApi.updateOrderQuote(effectiveOrderId, payload);
+        toast.success('Quote updated successfully.');
+      } else {
+        await pharmacyApi.createOrderFromRequest(request.requestId, payload);
+        toast.success(deliveryEnabled ? 'Quote sent to patient for confirmation.' : 'Order created from request.');
+      }
       setOrderItems([]);
       await onCreated();
       onClose();
     } catch (error) {
-      toast.error(error.response?.data?.message || 'Unable to create order.');
+      toast.error(error.response?.data?.message || (mode === 'updateQuote' ? 'Unable to update quote.' : 'Unable to create order.'));
     } finally {
       setCreatingOrder(false);
     }
@@ -383,34 +477,12 @@ export default function CreateOrderModal({
                 <i className="bi bi-bag-plus me-2"></i>
                 Consult &amp; Order
               </h2>
-              <div className="pharmacy-create-order-header__actions">
-                {request?.availableActions?.includes('VIDEO_CALL') && (
-                  <button
-                    className="btn btn-outline-primary btn-sm"
-                    onClick={() => onVideoCallRequest?.(request)}
-                    type="button"
-                  >
-                    <i className="bi bi-camera-video me-1"></i>
-                    Video Call
-                  </button>
-                )}
-                {request?.availableActions?.includes('CHAT') && (
-                  <button
-                    className="btn btn-outline-secondary btn-sm"
-                    onClick={() => onChatRequest?.(request)}
-                    type="button"
-                  >
-                    <i className="bi bi-chat-dots me-1"></i>
-                    Chat
-                  </button>
-                )}
-              </div>
             </>
           ) : (
             <>
               <h2>
                 <i className="bi bi-bag-plus me-2"></i>
-                Create Order
+                {mode === 'updateQuote' ? 'Update Quote' : 'Create Quote'}
               </h2>
               <span className="text-muted small">{request?.displayId || `Request #${request?.requestId}`}</span>
               <button className="btn btn-light btn-sm ms-auto" onClick={onClose} type="button" aria-label="Close">
@@ -423,7 +495,7 @@ export default function CreateOrderModal({
         <div className="pharmacy-create-order-layout">
           <div className="pharmacy-create-order-left">
             <div className="pharmacy-create-order-tabs">
-              {isConsultMode && (
+              {showSummaryTab && (
                 <button
                   className={`pharmacy-tab-btn ${leftTab === 'summary' ? 'is-active' : ''}`}
                   onClick={() => setLeftTab('summary')}
@@ -441,7 +513,7 @@ export default function CreateOrderModal({
                 <i className="bi bi-prescription me-1"></i>
                 Prescriptions
               </button>
-              {!isOrderRequest && (
+              {canEditMedicineIdentity && (
                 <button
                   className={`pharmacy-tab-btn ${leftTab === 'medicine' ? 'is-active' : ''}`}
                   onClick={() => setLeftTab('medicine')}
@@ -459,7 +531,7 @@ export default function CreateOrderModal({
                 isSummaryTab ? 'is-summary' : '',
                 isMedicinesTab ? 'is-medicines' : '',
               ].filter(Boolean).join(' ')}>
-              {leftTab === 'summary' && isConsultMode ? (
+              {leftTab === 'summary' && showSummaryTab ? (
                 <RequestSummaryPanel request={request} />
               ) : (leftTab === 'prescriptions' || isOrderRequest) ? (
                 loadingPrescriptions ? (
@@ -495,12 +567,12 @@ export default function CreateOrderModal({
                                 </div>
                                 <button
                                   className={`btn btn-sm ${fullyImported ? 'btn-outline-secondary' : 'btn-outline-primary'}`}
-                                  disabled={fullyImported || !items.length}
+                                  disabled={isQuoteRevision || fullyImported || !items.length}
                                   onClick={() => importOrderItems(mapPrescriptionToOrderItems(prescription, medicinePriceLookup))}
                                   type="button"
                                 >
                                   <i className={`bi ${fullyImported ? 'bi-check2' : 'bi-box-arrow-in-down'} me-1`}></i>
-                                  {isOrderRequest ? 'Prescription locked' : fullyImported ? 'Imported' : 'Import'}
+                                  {isQuoteRevision || isOrderRequest ? 'Prescription locked' : fullyImported ? 'Imported' : 'Import'}
                                 </button>
                               </div>
                               {items.slice(0, 2).map((pItem, idx) => (
@@ -518,6 +590,7 @@ export default function CreateOrderModal({
                 )
               ) : (
                 <MedicineLibraryPanel
+                  inventoryItems={medicineCatalog}
                   selectedMedicineIds={selectedMedicineIds}
                   onAddMedicine={addMedicine}
                 />
@@ -535,25 +608,33 @@ export default function CreateOrderModal({
             </div>
 
             <div className="pharmacy-create-order-items">
-              {orderItems.length === 0 ? (
+              {isExistingOrderLoading ? (
+                <div className="pharmacy-bootstrap-loading">
+                  <div className="spinner-border text-primary" role="status"><span className="visually-hidden">Loading...</span></div>
+                  <span>Loading current quote...</span>
+                </div>
+              ) : existingOrderLoadError ? (
+                <div className="pharmacy-empty compact is-error">
+                  <span className="material-symbols-outlined">error</span>
+                  <h3>Unable to load the current quote</h3>
+                  <button className="btn btn-outline-primary btn-sm" onClick={() => setExistingOrderReloadKey((key) => key + 1)} type="button">
+                    Retry
+                  </button>
+                </div>
+              ) : orderItems.length === 0 ? (
                 <div className="pharmacy-empty compact">
                   <span className="material-symbols-outlined">medication</span>
                   <h3>No medications</h3>
                   <p>Import from prescriptions or search the medicine library on the left.</p>
                 </div>
               ) : (
-                orderItems.map((orderItem, index) => (
-                  <OrderItemCard
+                orderItems.map((orderItem) => (
+                  <OrderItemEditor
                     item={orderItem}
                     key={orderItem.localId}
-                    index={index + 1}
-                    expanded={expandedItemId === orderItem.localId}
-                    lockedMedication={isOrderRequest}
-                    onToggle={() => setExpandedItemId(
-                      (prev) => prev === orderItem.localId ? null : orderItem.localId,
-                    )}
+                    readOnlyClinicalFields={isPrescriptionSourcedItem(orderItem)}
                     onRemove={removeItem}
-                    onUpdate={updateItem}
+                    onChange={replaceItem}
                   />
                 ))
               )}
@@ -584,25 +665,27 @@ export default function CreateOrderModal({
 
               <div className="pharmacy-invoice-divider"></div>
 
-              <div className="form-check form-switch mb-2">
-                <input
-                  checked={deliveryEnabled}
-                  className="form-check-input"
-                  id="pharmacy-modal-delivery"
-                  onChange={(e) => {
-                    setDeliveryEnabled(e.target.checked);
-                    if (e.target.checked) {
-                      setDeliveryFee((current) => current || String(profile?.deliveryFee ?? 0));
-                    } else {
-                      setDeliveryFee('');
-                    }
-                  }}
-                  type="checkbox"
-                />
-                <label className="form-check-label small" htmlFor="pharmacy-modal-delivery">
-                  Home delivery
-                </label>
-              </div>
+              {!isConsultMode && (
+                <div className="form-check form-switch mb-2">
+                  <input
+                    checked={deliveryEnabled}
+                    className="form-check-input"
+                    id="pharmacy-modal-delivery"
+                    onChange={(e) => {
+                      setDeliveryEnabled(e.target.checked);
+                      if (e.target.checked) {
+                        setDeliveryFee((current) => current || String(profile?.deliveryFee ?? 0));
+                      } else {
+                        setDeliveryFee('');
+                      }
+                    }}
+                    type="checkbox"
+                  />
+                  <label className="form-check-label small" htmlFor="pharmacy-modal-delivery">
+                    Home delivery
+                  </label>
+                </div>
+              )}
 
               {deliveryEnabled && (
                 <div className="pharmacy-invoice-delivery-fields">
@@ -614,6 +697,7 @@ export default function CreateOrderModal({
                         className="form-control"
                         min="0"
                         onChange={(e) => setDeliveryFee(e.target.value)}
+                        required={isConsultMode && deliveryEnabled}
                         step="0.01"
                         type="number"
                         value={deliveryFee}
@@ -646,19 +730,19 @@ export default function CreateOrderModal({
 
               <button
                 className="btn btn-primary w-100 mt-3"
-                disabled={creatingOrder || !orderItems.length}
+                disabled={creatingOrder || !orderItems.length || isExistingOrderLoading || existingOrderLoadError}
                 onClick={handleCreateOrder}
                 type="button"
               >
                 {creatingOrder ? (
                   <>
                     <span className="spinner-border spinner-border-sm me-2" aria-hidden="true" />
-                    Creating...
+                    {mode === 'updateQuote' ? 'Updating Quote...' : 'Creating...'}
                   </>
                 ) : (
                   <>
                     <i className="bi bi-bag-check me-2"></i>
-                    Create Order - {money(orderTotal)}
+                    {mode === 'updateQuote' ? 'Update Quote' : 'Create Quote'} - {money(orderTotal)}
                   </>
                 )}
               </button>

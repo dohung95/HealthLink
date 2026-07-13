@@ -7,6 +7,7 @@ import WalletTransactionFilters from '../wallet/WalletTransactionFilters';
 import WalletTransactionList from '../wallet/WalletTransactionList';
 import WalletPagination from '../wallet/WalletPagination';
 import WithdrawalModal from '../wallet/WithdrawalModal';
+import DoctorWithdrawalSecurityCard from './DoctorWithdrawalSecurityCard';
 import '../wallet/wallet-shared.css';
 
 export default function DoctorWalletTab({ profile, onRefreshProfile, filters, filterControls }) {
@@ -103,13 +104,13 @@ export default function DoctorWalletTab({ profile, onRefreshProfile, filters, fi
   const totalItems = displayData.length;
   const pagedData = displayData.slice((page - 1) * pageSize, page * pageSize);
 
-  const handleWithdraw = async ({ amount, paypalEmail }) => {
+  const handleWithdraw = async ({ amount, paypalEmail, pin }) => {
     if (withdrawing) return;
     setWithdrawing(true);
     try {
       await paymentApi.requestPartnerSettlement(
         doctorId,
-        { amount, paypalEmail, notes: 'Doctor wallet withdrawal request' },
+        { amount, paypalEmail, pin, notes: 'Doctor wallet withdrawal request' },
         'DOCTOR'
       );
       toast.success('Withdrawal request submitted.');
@@ -133,6 +134,8 @@ export default function DoctorWalletTab({ profile, onRefreshProfile, filters, fi
         disabled={!doctorId}
         theme={doctorTheme}
       />
+
+      <DoctorWithdrawalSecurityCard compact />
 
       <section className="wallet-tx-section wallet-card-shadow">
         {filterControls && (
@@ -173,6 +176,8 @@ export default function DoctorWalletTab({ profile, onRefreshProfile, filters, fi
         maxAmount={maxAmount}
         theme={doctorTheme}
         withdrawing={withdrawing}
+        registeredPaypalEmail={profile?.paypalEmail || ''}
+        paypalReadOnly={Boolean(profile?.paypalEmail)}
       />
     </div>
   );

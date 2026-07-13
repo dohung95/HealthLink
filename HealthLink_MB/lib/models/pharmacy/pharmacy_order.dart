@@ -36,6 +36,8 @@ class PharmacyOrder {
   final DateTime? revisionRequestedAt;
   final String? revisionRequestNotes;
   final DateTime? revisionResolvedAt;
+  final bool? requiresPatientConfirmation;
+  final DateTime? paidAt;
   final DateTime createdAt;
   final double? platformFee;
   final double? pharmacyEarning;
@@ -76,6 +78,8 @@ class PharmacyOrder {
     this.revisionRequestedAt,
     this.revisionRequestNotes,
     this.revisionResolvedAt,
+    this.requiresPatientConfirmation,
+    this.paidAt,
     required this.createdAt,
     this.platformFee,
     this.pharmacyEarning,
@@ -121,6 +125,9 @@ class PharmacyOrder {
       revisionRequestedAt: _parseDateTime(json['revisionRequestedAt']),
       revisionRequestNotes: json['revisionRequestNotes'] as String?,
       revisionResolvedAt: _parseDateTime(json['revisionResolvedAt']),
+      requiresPatientConfirmation:
+          json['requiresPatientConfirmation'] as bool?,
+      paidAt: _parseDateTime(json['paidAt']),
       createdAt: _parseDateTime(json['createdAt']) ?? DateTime.now(),
       platformFee: (json['platformFee'] as num?)?.toDouble(),
       pharmacyEarning: (json['pharmacyEarning'] as num?)?.toDouble(),
