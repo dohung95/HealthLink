@@ -18,6 +18,7 @@ import 'doctor_schedule_screen.dart' hide DS;
 import 'doctor_profile_screen.dart';
 import 'doctor_notification_center_sheet.dart';
 import 'doctor_chat_screen.dart';
+import '../../widgets/doctor/doctor_qr_code_screen.dart';
 import '../../services/doctor/doctor_schedule_service.dart';
 import '../../models/doctor/doctor_schedule.dart';
 
@@ -161,6 +162,18 @@ class _DoctorMainLayoutState extends State<DoctorMainLayout> {
     );
   }
 
+  void _openQrCode() {
+    final profile = context.read<AuthProvider>().doctorProfile;
+    DoctorQrCodeScreen.show(
+      context,
+      fullName: profile?['fullName']?.toString(),
+      specialty: profile?['specialty']?.toString(),
+      yearsOfExperience: (profile?['yearsOfExperience'] as num?)?.toInt(),
+      phoneNumber: profile?['phoneNumber']?.toString(),
+      email: profile?['email']?.toString(),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final auth = context.watch<AuthProvider>();
@@ -178,6 +191,7 @@ class _DoctorMainLayoutState extends State<DoctorMainLayout> {
             onAvatarTap: _openProfile,
             onNotifTap: _openNotifications,
             onSettingsTap: _openProfile,
+            onQrTap: _openQrCode,
             onGoToSchedule: () => setState(() => _currentIndex = 4),
           ),
           Expanded(
@@ -217,6 +231,7 @@ class _DoctorAppBar extends StatelessWidget {
   final VoidCallback onAvatarTap;
   final VoidCallback onNotifTap;
   final VoidCallback onSettingsTap;
+  final VoidCallback onQrTap;
   final VoidCallback onGoToSchedule;
 
   const _DoctorAppBar({
@@ -228,6 +243,7 @@ class _DoctorAppBar extends StatelessWidget {
     required this.onAvatarTap,
     required this.onNotifTap,
     required this.onSettingsTap,
+    required this.onQrTap,
     required this.onGoToSchedule,
   });
 
@@ -318,6 +334,12 @@ class _DoctorAppBar extends StatelessWidget {
                 ),
               ),
               const Spacer(),
+              _WhiteIconButton(
+                icon: Icons.qr_code_2_rounded,
+                badge: 0,
+                onTap: onQrTap,
+              ),
+              const SizedBox(width: 9),
               _WhiteIconButton(
                 icon: Icons.settings_outlined,
                 badge: 0,

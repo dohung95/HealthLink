@@ -67,6 +67,8 @@ dependencies:
   latlong2: ^0.9.1
   flutter_dotenv: ^6.0.1
   share_plus: ^10.1.4
+  syncfusion_flutter_pdfviewer: ^33.2.13
+  qr_flutter: ^4.1.0
 
 dev_dependencies:
   flutter_test:

@@ -3,7 +3,9 @@ CV Parser Service
 Uses OCR + Ollama to extract structured data from CVs/resumes
 """
 
+import hashlib
 import sys
+import time
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -15,13 +17,37 @@ from services.ollama_service import generate_json
 # Load prompts
 PROMPTS_DIR = Path(__file__).parent.parent / "prompts"
 
+# Prompt templates rarely change at runtime — read each one from disk once.
+_prompt_cache: dict = {}
+
+# Short-lived cache of full parse results, keyed by file content hash, so
+# re-submitting the same file (retry after a network hiccup, re-testing)
+# skips OCR + the Ollama call entirely instead of rerunning the whole pipeline.
+_result_cache: dict = {}
+_RESULT_CACHE_TTL_SECONDS = 15 * 60
+
 
 def load_prompt(doc_type: str) -> str:
-    """Load prompt template for document type"""
-    prompt_file = PROMPTS_DIR / f"{doc_type}_cv.txt"
-    if prompt_file.exists():
-        return prompt_file.read_text(encoding='utf-8')
-    return ""
+    """Load prompt template for document type (cached after first read)"""
+    if doc_type not in _prompt_cache:
+        prompt_file = PROMPTS_DIR / f"{doc_type}_cv.txt"
+        _prompt_cache[doc_type] = prompt_file.read_text(encoding='utf-8') if prompt_file.exists() else ""
+    return _prompt_cache[doc_type]
+
+
+def _cache_key(content: bytes, doc_type: str) -> str:
+    return f"{doc_type}:{hashlib.sha256(content).hexdigest()}"
+
+
+def _get_cached_result(key: str) -> "CVParseResult | None":
+    entry = _result_cache.get(key)
+    if entry is None:
+        return None
+    result, cached_at = entry
+    if time.time() - cached_at > _RESULT_CACHE_TTL_SECONDS:
+        _result_cache.pop(key, None)
+        return None
+    return result
 
 
 def calculate_confidence(data: dict, doc_type: str) -> dict:
@@ -85,6 +111,11 @@ def parse(content: bytes, filename: str, doc_type: str = "doctor") -> CVParseRes
     Returns:
         CVParseResult with extracted data
     """
+    cache_key = _cache_key(content, doc_type)
+    cached = _get_cached_result(cache_key)
+    if cached is not None:
+        return cached
+
     try:
         # Step 1: Extract text using OCR service
         ocr_result = extract_text(content, filename)
@@ -158,12 +189,14 @@ DOCUMENT TEXT:
         cleaned_data = clean_parsed_data(data)
         confidence = calculate_confidence(cleaned_data, doc_type)
 
-        return CVParseResult(
+        result = CVParseResult(
             success=True,
             data=cleaned_data,
             confidence=confidence,
             rawText=raw_text[:500]
         )
+        _result_cache[cache_key] = (result, time.time())
+        return result
 
     except Exception as e:
         return CVParseResult(

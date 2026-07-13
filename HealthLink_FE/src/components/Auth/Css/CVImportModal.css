@@ -181,6 +181,13 @@
     font-size: 16px;
 }
 
+.cv-parse-progress-message {
+    margin-top: 10px;
+    font-size: 12px;
+    color: #6b7280;
+    text-align: center;
+}
+
 /* Warning & Error Messages */
 .cv-warning-message {
     background: #fffbeb;
@@ -216,28 +223,31 @@
     font-size: 16px;
 }
 
-/* Overall Confidence */
+/* Overall Confidence — the results view (confidence bar + field grid +
+   notice) is sized down (paddings/margins/gaps, not just font) so the whole
+   modal is noticeably smaller than the pre-scan view and fits on screen at
+   100% browser zoom without overflowing the viewport. */
 .overall-confidence {
     display: flex;
     align-items: center;
-    gap: 12px;
-    padding: 12px 14px;
+    gap: 10px;
+    padding: 8px 12px;
     background: #f9fafb;
     border-radius: 4px;
-    margin-bottom: 16px;
+    margin-bottom: 10px;
     border: 1px solid #e5e7eb;
 }
 
 .overall-confidence span {
     font-weight: 500;
     color: #374151;
-    font-size: 13px;
+    font-size: 12px;
     white-space: nowrap;
 }
 
 .overall-confidence .progress {
     flex: 1;
-    height: 8px;
+    height: 7px;
     border-radius: 4px;
     background: #e5e7eb;
 }
@@ -251,36 +261,36 @@
     background: #fff;
     border: 1px solid #e5e7eb;
     border-radius: 6px;
-    padding: 16px;
+    padding: 10px;
 }
 
 .parsed-data-preview h5 {
     color: #111827;
     font-weight: 600;
-    margin-bottom: 16px;
+    margin-bottom: 10px;
     display: flex;
     align-items: center;
     gap: 8px;
-    font-size: 14px;
-    padding-bottom: 12px;
+    font-size: 13px;
+    padding-bottom: 8px;
     border-bottom: 1px solid #e5e7eb;
 }
 
 .parsed-data-preview h5 i {
-    font-size: 16px;
+    font-size: 14px;
     color: #00b09a;
 }
 
 .preview-grid {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
-    gap: 12px;
+    gap: 8px;
 }
 
 .preview-field {
     background: #f9fafb;
     border-radius: 4px;
-    padding: 10px 12px;
+    padding: 7px 10px;
     border: 1px solid #f3f4f6;
 }
 
@@ -288,11 +298,11 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 4px;
+    margin-bottom: 3px;
 }
 
 .preview-field-label {
-    font-size: 11px;
+    font-size: 10px;
     color: #6b7280;
     font-weight: 500;
     text-transform: uppercase;
@@ -300,8 +310,8 @@
 }
 
 .confidence-badge {
-    font-size: 10px;
-    padding: 2px 6px;
+    font-size: 9px;
+    padding: 1px 5px;
     border-radius: 3px;
     font-weight: 500;
 }
@@ -323,7 +333,7 @@
 
 .preview-field-value {
     color: #111827;
-    font-size: 13px;
+    font-size: 12px;
     font-weight: 500;
     word-break: break-word;
 }
@@ -335,8 +345,8 @@
 }
 
 .preview-bio {
-    margin-top: 12px;
-    padding: 12px;
+    margin-top: 8px;
+    padding: 9px;
     background: #f9fafb;
     border-radius: 4px;
     border: 1px solid #f3f4f6;
@@ -344,31 +354,31 @@
 
 .preview-bio .preview-field-label {
     display: block;
-    margin-bottom: 6px;
+    margin-bottom: 5px;
 }
 
 .preview-bio p {
     color: #374151;
-    font-size: 13px;
-    line-height: 1.5;
+    font-size: 12px;
+    line-height: 1.4;
     margin: 0;
 }
 
 .preview-notice {
-    margin-top: 16px;
-    padding: 10px 12px;
+    margin-top: 10px;
+    padding: 7px 10px;
     background: #f0fdf9;
     border: 1px solid #99f6e4;
     border-radius: 6px;
     color: #007a6a;
-    font-size: 12px;
+    font-size: 11px;
     display: flex;
     align-items: center;
     gap: 8px;
 }
 
 .preview-notice i {
-    font-size: 14px;
+    font-size: 13px;
 }
 
 /* Modal Footer */

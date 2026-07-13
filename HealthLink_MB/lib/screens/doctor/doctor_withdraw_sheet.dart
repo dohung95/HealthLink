@@ -32,16 +32,17 @@ class _DoctorWithdrawSheetState extends State<DoctorWithdrawSheet> {
   Future<void> _submitWithdrawal() async {
     final amount = double.tryParse(_amountController.text) ?? 0;
 
-    if (amount < 10) { _showError('Minimum withdrawal amount is \$10.00'); return; }
-    if (amount > widget.maxAmount) { _showError('Amount exceeds available balance'); return; }
+    if (amount <= 0) { _showError('Please enter a valid positive amount'); return; }
+    if (amount > widget.maxAmount) { _showError('Amount exceeds eligible balance of ${_formatCurrency(widget.maxAmount)}'); return; }
 
     final paypal = _paypalEmailController.text.trim();
-    if (paypal.isNotEmpty && !paypal.contains('@')) { _showError('Enter a valid PayPal email'); return; }
+    if (paypal.isEmpty) { _showError('PayPal email is required'); return; }
+    if (!RegExp(r'^\S+@\S+\.\S+$').hasMatch(paypal)) { _showError('Enter a valid PayPal email'); return; }
 
     setState(() => _isLoading = true);
 
     try {
-      await widget.walletService.requestWithdrawal(amount: amount, paypalEmail: paypal.isNotEmpty ? paypal : null);
+      await widget.walletService.requestWithdrawal(amount: amount, paypalEmail: paypal);
 
       if (mounted) {
         Navigator.pop(context);
@@ -88,7 +89,7 @@ class _DoctorWithdrawSheetState extends State<DoctorWithdrawSheet> {
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20),
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                const Text('Amount (min \$10.00)', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: DS.foreground)),
+                const Text('Amount', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: DS.foreground)),
                 const SizedBox(height: 8),
                 TextField(
                   controller: _amountController,
@@ -97,13 +98,15 @@ class _DoctorWithdrawSheetState extends State<DoctorWithdrawSheet> {
                   decoration: DS.inputDecoration(hintText: '0.00'),
                 ),
                 const SizedBox(height: 16),
-                const Text('PayPal Email', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: DS.foreground)),
+                const Text('PayPal Email *', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: DS.foreground)),
                 const SizedBox(height: 8),
                 TextField(
                   controller: _paypalEmailController,
                   keyboardType: TextInputType.emailAddress,
-                  decoration: DS.inputDecoration(hintText: 'your@email.com'),
+                  decoration: DS.inputDecoration(hintText: 'your@paypal.email'),
                 ),
+                const SizedBox(height: 4),
+                const Text('Must match the PayPal email in your profile settings.', style: TextStyle(fontSize: 12, color: DS.mutedForeground)),
               ]),
             ),
 

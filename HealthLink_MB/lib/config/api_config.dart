@@ -15,7 +15,7 @@ class ApiConfig {
 
   // true = Android Emulator (dùng 10.0.2.2)
   // false = máy thật USB (dùng 127.0.0.1 + adb reverse)
-  static const bool isEmulator = false;
+  static const bool isEmulator = true;
 
   static const String baseUrl = isTeamConfig
       ? 'http://192.168.120.6:8096/api'
@@ -54,6 +54,8 @@ class ApiConfig {
   static const String scheduleChangeRequests = '$baseUrl/doctors/schedule/change-requests';
   static const String complianceStatus = '$baseUrl/doctors/compliance/status';
   static const String scheduleDayOff = '$baseUrl/doctors/schedule/day-off';
+  static const String confirmMonthlySchedule = '$baseUrl/doctors/schedule/confirm-monthly';
+  static String deleteScheduleException(int id) => '$baseUrl/doctors/schedule/exceptions/$id';
 
   // ── Doctor Profile Endpoints ───────────────────────────────────────────────
   /// GET /api/account/doctors/profile – Lấy profile của bác sĩ đang đăng nhập.

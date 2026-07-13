@@ -88,21 +88,31 @@ def extract_text(content: bytes, filename: str) -> OCRResult:
             else:
                 # Scanned PDF - convert to images and OCR
                 import fitz
+                from concurrent.futures import ThreadPoolExecutor
+
                 doc = fitz.open(stream=content, filetype="pdf")
-                all_text = []
-                total_conf = 0.0
                 page_count = len(doc)
 
+                # Render each page to PNG bytes up front (fitz doc must stay
+                # open on the main thread), then OCR pages concurrently —
+                # EasyOCR/OpenCV release the GIL during the heavy native
+                # compute, so a thread pool cuts wall-clock time on
+                # multi-page documents instead of OCR-ing page by page.
+                page_images = []
                 for page_num in range(page_count):
                     page = doc[page_num]
                     pix = page.get_pixmap(matrix=fitz.Matrix(2, 2))
-                    img_bytes = pix.tobytes("png")
-
-                    page_text, page_conf = ocr_image(img_bytes)
-                    all_text.append(page_text)
-                    total_conf += page_conf
-
+                    page_images.append(pix.tobytes("png"))
                 doc.close()
+
+                if len(page_images) <= 1:
+                    page_results = [ocr_image(img) for img in page_images]
+                else:
+                    with ThreadPoolExecutor(max_workers=min(4, len(page_images))) as executor:
+                        page_results = list(executor.map(ocr_image, page_images))
+
+                all_text = [text for text, _ in page_results]
+                total_conf = sum(conf for _, conf in page_results)
 
                 avg_conf = total_conf / max(page_count, 1)
                 return OCRResult(
