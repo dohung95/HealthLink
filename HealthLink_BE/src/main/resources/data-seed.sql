@@ -1,4 +1,4 @@
--- =====================================================
+﻿-- =====================================================
 -- HEALTHLINK DATABASE SEED DATA
 -- Sample records per table (following FK dependencies order)
 -- =====================================================
@@ -847,7 +847,85 @@ INSERT INTO CommissionTransactions (TransactionId, transactionNumber, sourceType
 (13, 'CTX-202405-00013', 'PHARMACY_ORDER', NULL, 14, 'PHARMACY', 'user-ph04', 'CVS Pharmacy - SF', 'PHARMACY_ORDER', 82.99, 0.0800, 6.64, 76.35, 'REFUNDED', NULL, '2024-05-22 12:30:00'),
 (14, 'CTX-202405-00014', 'PHARMACY_ORDER', NULL, 15, 'PHARMACY', 'user-ph06', 'Hospital Pharmacy - NYC', 'PHARMACY_ORDER', 40.00, 0.0800, 3.20, 36.80, 'PENDING', NULL, '2024-05-23 09:10:00'),
 (15, 'CTX-202405-00015', 'APPOINTMENT', 14, NULL, 'DOCTOR', 'user-d01', 'Dr. John Smith', 'CONSULTATION_HOME_VISIT', 103.00, 0.1000, 8.80, 94.20, 'PENDING', NULL, '2024-05-27 20:45:00');
-SET IDENTITY_INSERT CommissionTransactions OFF;
+-- â”€â”€ Pharmacy revenue history demo rows (IDs 16-51) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+-- Ledger-only dashboard fixtures. Order/Appointment/Settlement FK are all NULL.
+-- Statuses rotate across PENDING, VESTED, and SETTLED (never REFUNDED).
+
+-- 16-22: Seven daily transactions ending today (D0..D6)
+INSERT INTO CommissionTransactions (TransactionId, transactionNumber, sourceType, appointmentId, pharmacyOrderId, recipientType, recipientId, recipientName, serviceType, grossAmount, commissionRate, commissionAmount, netAmount, status, SettlementId, CreatedAt) VALUES
+(16, 'CTX-DEMO-PH01-D0', 'PHARMACY_ORDER', NULL, NULL, 'PHARMACY', 'user-ph01', 'HealthLink Pharmacy - Ben Thanh', 'PHARMACY_ORDER', 32.61, 0.0800, 2.61, 30.00, 'SETTLED', NULL, DATEADD(DAY, -6, GETDATE())),
+(17, 'CTX-DEMO-PH01-D1', 'PHARMACY_ORDER', NULL, NULL, 'PHARMACY', 'user-ph01', 'HealthLink Pharmacy - Ben Thanh', 'PHARMACY_ORDER', 54.35, 0.0800, 4.35, 50.00, 'VESTED', NULL, DATEADD(DAY, -5, GETDATE())),
+(18, 'CTX-DEMO-PH01-D2', 'PHARMACY_ORDER', NULL, NULL, 'PHARMACY', 'user-ph01', 'HealthLink Pharmacy - Ben Thanh', 'PHARMACY_ORDER', 21.74, 0.0800, 1.74, 20.00, 'SETTLED', NULL, DATEADD(DAY, -4, GETDATE())),
+(19, 'CTX-DEMO-PH01-D3', 'PHARMACY_ORDER', NULL, NULL, 'PHARMACY', 'user-ph01', 'HealthLink Pharmacy - Ben Thanh', 'PHARMACY_ORDER', 43.48, 0.0800, 3.48, 40.00, 'PENDING', NULL, DATEADD(DAY, -3, GETDATE())),
+(20, 'CTX-DEMO-PH01-D4', 'PHARMACY_ORDER', NULL, NULL, 'PHARMACY', 'user-ph01', 'HealthLink Pharmacy - Ben Thanh', 'PHARMACY_ORDER', 65.22, 0.0800, 5.22, 60.00, 'VESTED', NULL, DATEADD(DAY, -2, GETDATE())),
+(21, 'CTX-DEMO-PH01-D5', 'PHARMACY_ORDER', NULL, NULL, 'PHARMACY', 'user-ph01', 'HealthLink Pharmacy - Ben Thanh', 'PHARMACY_ORDER', 32.61, 0.0800, 2.61, 30.00, 'SETTLED', NULL, DATEADD(DAY, -1, GETDATE())),
+(22, 'CTX-DEMO-PH01-D6', 'PHARMACY_ORDER', NULL, NULL, 'PHARMACY', 'user-ph01', 'HealthLink Pharmacy - Ben Thanh', 'PHARMACY_ORDER', 16.30, 0.0800, 1.30, 15.00, 'PENDING', NULL, GETDATE());
+
+-- 23-34: One transaction on day 15 for each current-year month (CM01..CM12)
+INSERT INTO CommissionTransactions (TransactionId, transactionNumber, sourceType, appointmentId, pharmacyOrderId, recipientType, recipientId, recipientName, serviceType, grossAmount, commissionRate, commissionAmount, netAmount, status, SettlementId, CreatedAt)
+SELECT 23, 'CTX-DEMO-PH01-CM01', 'PHARMACY_ORDER', NULL, NULL, 'PHARMACY', 'user-ph01', 'HealthLink Pharmacy - Ben Thanh', 'PHARMACY_ORDER', 54.35, 0.0800, 4.35, 50.00, 'SETTLED', NULL, DATEFROMPARTS(YEAR(GETDATE()), 1, 15) WHERE 1 <= MONTH(GETDATE());
+INSERT INTO CommissionTransactions (TransactionId, transactionNumber, sourceType, appointmentId, pharmacyOrderId, recipientType, recipientId, recipientName, serviceType, grossAmount, commissionRate, commissionAmount, netAmount, status, SettlementId, CreatedAt)
+SELECT 24, 'CTX-DEMO-PH01-CM02', 'PHARMACY_ORDER', NULL, NULL, 'PHARMACY', 'user-ph01', 'HealthLink Pharmacy - Ben Thanh', 'PHARMACY_ORDER', 43.48, 0.0800, 3.48, 40.00, 'VESTED', NULL, DATEFROMPARTS(YEAR(GETDATE()), 2, 15) WHERE 2 <= MONTH(GETDATE());
+INSERT INTO CommissionTransactions (TransactionId, transactionNumber, sourceType, appointmentId, pharmacyOrderId, recipientType, recipientId, recipientName, serviceType, grossAmount, commissionRate, commissionAmount, netAmount, status, SettlementId, CreatedAt)
+SELECT 25, 'CTX-DEMO-PH01-CM03', 'PHARMACY_ORDER', NULL, NULL, 'PHARMACY', 'user-ph01', 'HealthLink Pharmacy - Ben Thanh', 'PHARMACY_ORDER', 65.22, 0.0800, 5.22, 60.00, 'SETTLED', NULL, DATEFROMPARTS(YEAR(GETDATE()), 3, 15) WHERE 3 <= MONTH(GETDATE());
+INSERT INTO CommissionTransactions (TransactionId, transactionNumber, sourceType, appointmentId, pharmacyOrderId, recipientType, recipientId, recipientName, serviceType, grossAmount, commissionRate, commissionAmount, netAmount, status, SettlementId, CreatedAt)
+SELECT 26, 'CTX-DEMO-PH01-CM04', 'PHARMACY_ORDER', NULL, NULL, 'PHARMACY', 'user-ph01', 'HealthLink Pharmacy - Ben Thanh', 'PHARMACY_ORDER', 32.61, 0.0800, 2.61, 30.00, 'PENDING', NULL, DATEFROMPARTS(YEAR(GETDATE()), 4, 15) WHERE 4 <= MONTH(GETDATE());
+INSERT INTO CommissionTransactions (TransactionId, transactionNumber, sourceType, appointmentId, pharmacyOrderId, recipientType, recipientId, recipientName, serviceType, grossAmount, commissionRate, commissionAmount, netAmount, status, SettlementId, CreatedAt)
+SELECT 27, 'CTX-DEMO-PH01-CM05', 'PHARMACY_ORDER', NULL, NULL, 'PHARMACY', 'user-ph01', 'HealthLink Pharmacy - Ben Thanh', 'PHARMACY_ORDER', 76.09, 0.0800, 6.09, 70.00, 'VESTED', NULL, DATEFROMPARTS(YEAR(GETDATE()), 5, 15) WHERE 5 <= MONTH(GETDATE());
+INSERT INTO CommissionTransactions (TransactionId, transactionNumber, sourceType, appointmentId, pharmacyOrderId, recipientType, recipientId, recipientName, serviceType, grossAmount, commissionRate, commissionAmount, netAmount, status, SettlementId, CreatedAt)
+SELECT 28, 'CTX-DEMO-PH01-CM06', 'PHARMACY_ORDER', NULL, NULL, 'PHARMACY', 'user-ph01', 'HealthLink Pharmacy - Ben Thanh', 'PHARMACY_ORDER', 54.35, 0.0800, 4.35, 50.00, 'SETTLED', NULL, DATEFROMPARTS(YEAR(GETDATE()), 6, 15) WHERE 6 <= MONTH(GETDATE());
+INSERT INTO CommissionTransactions (TransactionId, transactionNumber, sourceType, appointmentId, pharmacyOrderId, recipientType, recipientId, recipientName, serviceType, grossAmount, commissionRate, commissionAmount, netAmount, status, SettlementId, CreatedAt)
+SELECT 29, 'CTX-DEMO-PH01-CM07', 'PHARMACY_ORDER', NULL, NULL, 'PHARMACY', 'user-ph01', 'HealthLink Pharmacy - Ben Thanh', 'PHARMACY_ORDER', 43.48, 0.0800, 3.48, 40.00, 'VESTED', NULL, DATEFROMPARTS(YEAR(GETDATE()), 7, 15) WHERE 7 <= MONTH(GETDATE());
+INSERT INTO CommissionTransactions (TransactionId, transactionNumber, sourceType, appointmentId, pharmacyOrderId, recipientType, recipientId, recipientName, serviceType, grossAmount, commissionRate, commissionAmount, netAmount, status, SettlementId, CreatedAt)
+SELECT 30, 'CTX-DEMO-PH01-CM08', 'PHARMACY_ORDER', NULL, NULL, 'PHARMACY', 'user-ph01', 'HealthLink Pharmacy - Ben Thanh', 'PHARMACY_ORDER', 32.61, 0.0800, 2.61, 30.00, 'PENDING', NULL, DATEFROMPARTS(YEAR(GETDATE()), 8, 15) WHERE 8 <= MONTH(GETDATE());
+INSERT INTO CommissionTransactions (TransactionId, transactionNumber, sourceType, appointmentId, pharmacyOrderId, recipientType, recipientId, recipientName, serviceType, grossAmount, commissionRate, commissionAmount, netAmount, status, SettlementId, CreatedAt)
+SELECT 31, 'CTX-DEMO-PH01-CM09', 'PHARMACY_ORDER', NULL, NULL, 'PHARMACY', 'user-ph01', 'HealthLink Pharmacy - Ben Thanh', 'PHARMACY_ORDER', 54.35, 0.0800, 4.35, 50.00, 'SETTLED', NULL, DATEFROMPARTS(YEAR(GETDATE()), 9, 15) WHERE 9 <= MONTH(GETDATE());
+INSERT INTO CommissionTransactions (TransactionId, transactionNumber, sourceType, appointmentId, pharmacyOrderId, recipientType, recipientId, recipientName, serviceType, grossAmount, commissionRate, commissionAmount, netAmount, status, SettlementId, CreatedAt)
+SELECT 32, 'CTX-DEMO-PH01-CM10', 'PHARMACY_ORDER', NULL, NULL, 'PHARMACY', 'user-ph01', 'HealthLink Pharmacy - Ben Thanh', 'PHARMACY_ORDER', 65.22, 0.0800, 5.22, 60.00, 'VESTED', NULL, DATEFROMPARTS(YEAR(GETDATE()), 10, 15) WHERE 10 <= MONTH(GETDATE());
+INSERT INTO CommissionTransactions (TransactionId, transactionNumber, sourceType, appointmentId, pharmacyOrderId, recipientType, recipientId, recipientName, serviceType, grossAmount, commissionRate, commissionAmount, netAmount, status, SettlementId, CreatedAt)
+SELECT 33, 'CTX-DEMO-PH01-CM11', 'PHARMACY_ORDER', NULL, NULL, 'PHARMACY', 'user-ph01', 'HealthLink Pharmacy - Ben Thanh', 'PHARMACY_ORDER', 43.48, 0.0800, 3.48, 40.00, 'SETTLED', NULL, DATEFROMPARTS(YEAR(GETDATE()), 11, 15) WHERE 11 <= MONTH(GETDATE());
+INSERT INTO CommissionTransactions (TransactionId, transactionNumber, sourceType, appointmentId, pharmacyOrderId, recipientType, recipientId, recipientName, serviceType, grossAmount, commissionRate, commissionAmount, netAmount, status, SettlementId, CreatedAt)
+SELECT 34, 'CTX-DEMO-PH01-CM12', 'PHARMACY_ORDER', NULL, NULL, 'PHARMACY', 'user-ph01', 'HealthLink Pharmacy - Ben Thanh', 'PHARMACY_ORDER', 32.61, 0.0800, 2.61, 30.00, 'PENDING', NULL, DATEFROMPARTS(YEAR(GETDATE()), 12, 15) WHERE 12 <= MONTH(GETDATE());
+
+-- 35-46: One transaction on day 15 for all twelve previous-year months (PY01..PY12)
+INSERT INTO CommissionTransactions (TransactionId, transactionNumber, sourceType, appointmentId, pharmacyOrderId, recipientType, recipientId, recipientName, serviceType, grossAmount, commissionRate, commissionAmount, netAmount, status, SettlementId, CreatedAt) VALUES
+(35, 'CTX-DEMO-PH01-PY01', 'PHARMACY_ORDER', NULL, NULL, 'PHARMACY', 'user-ph01', 'HealthLink Pharmacy - Ben Thanh', 'PHARMACY_ORDER', 43.48, 0.0800, 3.48, 40.00, 'SETTLED', NULL, DATEFROMPARTS(YEAR(GETDATE())-1, 1, 15)),
+(36, 'CTX-DEMO-PH01-PY02', 'PHARMACY_ORDER', NULL, NULL, 'PHARMACY', 'user-ph01', 'HealthLink Pharmacy - Ben Thanh', 'PHARMACY_ORDER', 32.61, 0.0800, 2.61, 30.00, 'VESTED', NULL, DATEFROMPARTS(YEAR(GETDATE())-1, 2, 15)),
+(37, 'CTX-DEMO-PH01-PY03', 'PHARMACY_ORDER', NULL, NULL, 'PHARMACY', 'user-ph01', 'HealthLink Pharmacy - Ben Thanh', 'PHARMACY_ORDER', 54.35, 0.0800, 4.35, 50.00, 'SETTLED', NULL, DATEFROMPARTS(YEAR(GETDATE())-1, 3, 15)),
+(38, 'CTX-DEMO-PH01-PY04', 'PHARMACY_ORDER', NULL, NULL, 'PHARMACY', 'user-ph01', 'HealthLink Pharmacy - Ben Thanh', 'PHARMACY_ORDER', 65.22, 0.0800, 5.22, 60.00, 'PENDING', NULL, DATEFROMPARTS(YEAR(GETDATE())-1, 4, 15)),
+(39, 'CTX-DEMO-PH01-PY05', 'PHARMACY_ORDER', NULL, NULL, 'PHARMACY', 'user-ph01', 'HealthLink Pharmacy - Ben Thanh', 'PHARMACY_ORDER', 43.48, 0.0800, 3.48, 40.00, 'VESTED', NULL, DATEFROMPARTS(YEAR(GETDATE())-1, 5, 15)),
+(40, 'CTX-DEMO-PH01-PY06', 'PHARMACY_ORDER', NULL, NULL, 'PHARMACY', 'user-ph01', 'HealthLink Pharmacy - Ben Thanh', 'PHARMACY_ORDER', 32.61, 0.0800, 2.61, 30.00, 'SETTLED', NULL, DATEFROMPARTS(YEAR(GETDATE())-1, 6, 15)),
+(41, 'CTX-DEMO-PH01-PY07', 'PHARMACY_ORDER', NULL, NULL, 'PHARMACY', 'user-ph01', 'HealthLink Pharmacy - Ben Thanh', 'PHARMACY_ORDER', 76.09, 0.0800, 6.09, 70.00, 'SETTLED', NULL, DATEFROMPARTS(YEAR(GETDATE())-1, 7, 15)),
+(42, 'CTX-DEMO-PH01-PY08', 'PHARMACY_ORDER', NULL, NULL, 'PHARMACY', 'user-ph01', 'HealthLink Pharmacy - Ben Thanh', 'PHARMACY_ORDER', 54.35, 0.0800, 4.35, 50.00, 'PENDING', NULL, DATEFROMPARTS(YEAR(GETDATE())-1, 8, 15)),
+(43, 'CTX-DEMO-PH01-PY09', 'PHARMACY_ORDER', NULL, NULL, 'PHARMACY', 'user-ph01', 'HealthLink Pharmacy - Ben Thanh', 'PHARMACY_ORDER', 43.48, 0.0800, 3.48, 40.00, 'VESTED', NULL, DATEFROMPARTS(YEAR(GETDATE())-1, 9, 15)),
+(44, 'CTX-DEMO-PH01-PY10', 'PHARMACY_ORDER', NULL, NULL, 'PHARMACY', 'user-ph01', 'HealthLink Pharmacy - Ben Thanh', 'PHARMACY_ORDER', 32.61, 0.0800, 2.61, 30.00, 'SETTLED', NULL, DATEFROMPARTS(YEAR(GETDATE())-1, 10, 15)),
+(45, 'CTX-DEMO-PH01-PY11', 'PHARMACY_ORDER', NULL, NULL, 'PHARMACY', 'user-ph01', 'HealthLink Pharmacy - Ben Thanh', 'PHARMACY_ORDER', 65.22, 0.0800, 5.22, 60.00, 'SETTLED', NULL, DATEFROMPARTS(YEAR(GETDATE())-1, 11, 15)),
+(46, 'CTX-DEMO-PH01-PY12', 'PHARMACY_ORDER', NULL, NULL, 'PHARMACY', 'user-ph01', 'HealthLink Pharmacy - Ben Thanh', 'PHARMACY_ORDER', 54.35, 0.0800, 4.35, 50.00, 'PENDING', NULL, DATEFROMPARTS(YEAR(GETDATE())-1, 12, 15));
+
+-- 47-50: Current-month week-boundary dates (W1..W4)
+INSERT INTO CommissionTransactions (TransactionId, transactionNumber, sourceType, appointmentId, pharmacyOrderId, recipientType, recipientId, recipientName, serviceType, grossAmount, commissionRate, commissionAmount, netAmount, status, SettlementId, CreatedAt)
+SELECT 47, 'CTX-DEMO-PH01-W1', 'PHARMACY_ORDER', NULL, NULL, 'PHARMACY', 'user-ph01', 'HealthLink Pharmacy - Ben Thanh', 'PHARMACY_ORDER', 43.48, 0.0800, 3.48, 40.00, 'SETTLED', NULL, DATEFROMPARTS(YEAR(GETDATE()), MONTH(GETDATE()), 3) WHERE 3 <= DAY(GETDATE());
+INSERT INTO CommissionTransactions (TransactionId, transactionNumber, sourceType, appointmentId, pharmacyOrderId, recipientType, recipientId, recipientName, serviceType, grossAmount, commissionRate, commissionAmount, netAmount, status, SettlementId, CreatedAt)
+SELECT 48, 'CTX-DEMO-PH01-W2', 'PHARMACY_ORDER', NULL, NULL, 'PHARMACY', 'user-ph01', 'HealthLink Pharmacy - Ben Thanh', 'PHARMACY_ORDER', 65.22, 0.0800, 5.22, 60.00, 'VESTED', NULL, DATEFROMPARTS(YEAR(GETDATE()), MONTH(GETDATE()), 10) WHERE 10 <= DAY(GETDATE());
+INSERT INTO CommissionTransactions (TransactionId, transactionNumber, sourceType, appointmentId, pharmacyOrderId, recipientType, recipientId, recipientName, serviceType, grossAmount, commissionRate, commissionAmount, netAmount, status, SettlementId, CreatedAt)
+SELECT 49, 'CTX-DEMO-PH01-W3', 'PHARMACY_ORDER', NULL, NULL, 'PHARMACY', 'user-ph01', 'HealthLink Pharmacy - Ben Thanh', 'PHARMACY_ORDER', 32.61, 0.0800, 2.61, 30.00, 'PENDING', NULL, DATEFROMPARTS(YEAR(GETDATE()), MONTH(GETDATE()), 17) WHERE 17 <= DAY(GETDATE());
+INSERT INTO CommissionTransactions (TransactionId, transactionNumber, sourceType, appointmentId, pharmacyOrderId, recipientType, recipientId, recipientName, serviceType, grossAmount, commissionRate, commissionAmount, netAmount, status, SettlementId, CreatedAt)
+SELECT 50, 'CTX-DEMO-PH01-W4', 'PHARMACY_ORDER', NULL, NULL, 'PHARMACY', 'user-ph01', 'HealthLink Pharmacy - Ben Thanh', 'PHARMACY_ORDER', 54.35, 0.0800, 4.35, 50.00, 'SETTLED', NULL, DATEFROMPARTS(YEAR(GETDATE()), MONTH(GETDATE()), 24) WHERE 24 <= DAY(GETDATE());
+
+-- Reconcile user-ph01 wallet totals
+UPDATE p
+SET TotalEarnings = totals.TotalEarnings,
+    PendingSettlement = totals.PendingSettlement
+FROM Pharmacies p
+CROSS APPLY (
+    SELECT
+        COALESCE(SUM(CASE WHEN ct.status <> 'REFUNDED' THEN ct.netAmount ELSE 0 END), 0) AS TotalEarnings,
+        COALESCE(SUM(CASE WHEN ct.status = 'VESTED' THEN ct.netAmount ELSE 0 END), 0) AS PendingSettlement
+    FROM CommissionTransactions ct
+    WHERE ct.recipientId = p.PharmacyId
+) totals
+WHERE p.PharmacyId = 'user-ph01';
+nSET IDENTITY_INSERT CommissionTransactions OFF;
 
 -- 44. DOCTOR_SCHEDULE_CHANGE_REQUESTS (5 requests)
 SET IDENTITY_INSERT DoctorScheduleChangeRequest ON;
@@ -2025,11 +2103,11 @@ INSERT INTO ChatMessages (MessageID, ChatRoomId, SenderId, ReceiverId, content, 
 ('1df65e7e-7407-458e-bc09-93ddf9d2f3b2', N'chat-1255', N'user-p06', N'user-d01', N'Great, thank you! I will be there.', N'http://localhost:8096/uploads/avatars/patients/benhnhan_06.png', NULL, NULL, NULL, 1, '2026-07-12 11:10:00');
 GO
 
--- Enum type-safety đã được đảm bảo ở tầng Java (@Enumerated(EnumType.STRING)).
--- CHECK constraint dưới DB chỉ gây lỗi mỗi khi enum Java có giá trị mới (Hibernate
--- ddl-auto=update không tự nới constraint) nên xoá hẳn toàn bộ, không tạo lại.
--- Đồng bộ với db/migration-v12-drop-stale-enum-check-constraints.sql — sửa 1 trong 2
--- chỗ thì nhớ sửa luôn chỗ còn lại.
+-- Enum type-safety Ä‘Ă£ Ä‘Æ°á»£c Ä‘áº£m báº£o á»Ÿ táº§ng Java (@Enumerated(EnumType.STRING)).
+-- CHECK constraint dÆ°á»›i DB chá»‰ gĂ¢y lá»—i má»—i khi enum Java cĂ³ giĂ¡ trá»‹ má»›i (Hibernate
+-- ddl-auto=update khĂ´ng tá»± ná»›i constraint) nĂªn xoĂ¡ háº³n toĂ n bá»™, khĂ´ng táº¡o láº¡i.
+-- Äá»“ng bá»™ vá»›i db/migration-v12-drop-stale-enum-check-constraints.sql â€” sá»­a 1 trong 2
+-- chá»— thĂ¬ nhá»› sá»­a luĂ´n chá»— cĂ²n láº¡i.
 DECLARE @cc_table NVARCHAR(128);
 DECLARE @cc_column NVARCHAR(128);
 DECLARE @cc_constraintName NVARCHAR(128);
