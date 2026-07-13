@@ -1,4 +1,4 @@
-export default function PinCodeInput({ id, label, value, onChange, disabled = false, error = '' }) {
+export default function PinCodeInput({ id, label, value, onChange, disabled = false, error = '', autoComplete = 'one-time-code' }) {
   const update = (event) => onChange(event.target.value.replace(/\D/g, '').slice(0, 6));
   return (
     <label className="partner-pin-field" htmlFor={id}>
@@ -6,7 +6,7 @@ export default function PinCodeInput({ id, label, value, onChange, disabled = fa
       <input
         aria-describedby={error ? `${id}-error` : undefined}
         aria-invalid={Boolean(error)}
-        autoComplete="one-time-code"
+        autoComplete={autoComplete}
         disabled={disabled}
         id={id}
         inputMode="numeric"

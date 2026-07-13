@@ -2128,14 +2128,22 @@
         "tags" : [ "partner-security-controller" ],
         "operationId" : "setPartnerPin",
         "requestBody" : { "required" : true, "content" : { "application/json" : { "schema" : { "$ref" : "#/components/schemas/PartnerPinUpdateRequest" } } } },
-        "responses" : { "204" : { "description" : "PIN configured" }, "422" : { "description" : "Invalid OTP or PIN" } }
+        "responses" : { "204" : { "description" : "PIN configured" }, "422" : { "description" : "Invalid OTP or PIN", "content" : { "application/json" : { "schema" : { "$ref" : "#/components/schemas/PartnerPinErrorResponse" } } } } }
       }
     },
     "/api/payment/partner/security/pin/request-otp" : {
       "post" : {
         "tags" : [ "partner-security-controller" ],
         "operationId" : "requestPartnerPinOtp",
-        "responses" : { "200" : { "description" : "OTP request accepted" } }
+        "responses" : { "200" : { "description" : "OTP request accepted" }, "429" : { "description" : "OTP request cooldown active", "content" : { "application/json" : { "schema" : { "$ref" : "#/components/schemas/PartnerPinErrorResponse" } } } } }
+      }
+    },
+    "/api/payment/partner/security/pin/verify-otp" : {
+      "post" : {
+        "tags" : [ "partner-security-controller" ],
+        "operationId" : "verifyPartnerPinOtp",
+        "requestBody" : { "required" : true, "content" : { "application/json" : { "schema" : { "$ref" : "#/components/schemas/PartnerPinOtpVerificationRequest" } } } },
+        "responses" : { "204" : { "description" : "OTP verified" }, "422" : { "description" : "Invalid, expired, or exhausted OTP", "content" : { "application/json" : { "schema" : { "$ref" : "#/components/schemas/PartnerPinErrorResponse" } } } } }
       }
     },
     "/api/payment/home-visit/paypal/create" : {
@@ -11946,6 +11954,27 @@
           "otp" : { "type" : "string", "pattern" : "\\d{6}" },
           "pin" : { "type" : "string", "pattern" : "\\d{6}" },
           "confirmPin" : { "type" : "string" }
+        }
+      },
+      "PartnerPinOtpVerificationRequest" : {
+        "required" : [ "otp" ],
+        "type" : "object",
+        "properties" : {
+          "otp" : { "type" : "string", "pattern" : "\\d{6}" }
+        }
+      },
+      "PartnerPinErrorResponse" : {
+        "required" : [ "timestamp", "status", "error", "message" ],
+        "type" : "object",
+        "properties" : {
+          "timestamp" : { "type" : "string", "format" : "date-time" },
+          "status" : { "type" : "integer", "format" : "int32" },
+          "error" : { "type" : "string" },
+          "message" : { "type" : "string" },
+          "attemptsRemaining" : { "type" : "integer", "format" : "int32" },
+          "lockedUntil" : { "type" : "string", "format" : "date-time", "nullable" : true },
+          "code" : { "type" : "string" },
+          "retryAfterSeconds" : { "type" : "integer", "format" : "int32", "minimum" : 1 }
         }
       },
       "UpdatePatientProfileRequest" : {

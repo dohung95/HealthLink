@@ -11,15 +11,8 @@ import lombok.ToString;
 @NoArgsConstructor
 @AllArgsConstructor
 @ToString(onlyExplicitlyIncluded = true)
-public class PartnerPinUpdateRequest {
+public class PartnerPinOtpVerificationRequest {
     @NotBlank(message = "OTP is required")
     @Pattern(regexp = "\\d{6}", message = "OTP must contain exactly 6 digits")
     private String otp;
-
-    @NotBlank(message = "PIN is required")
-    @Pattern(regexp = "\\d{6}", message = "PIN must contain exactly 6 digits")
-    private String pin;
-
-    @NotBlank(message = "PIN confirmation is required")
-    private String confirmPin;
 }

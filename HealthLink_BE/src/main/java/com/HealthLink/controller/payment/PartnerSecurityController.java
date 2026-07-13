@@ -1,6 +1,7 @@
 package com.HealthLink.controller.payment;
 
 import com.HealthLink.dto.payment.PartnerPinStatusResponse;
+import com.HealthLink.dto.payment.PartnerPinOtpVerificationRequest;
 import com.HealthLink.dto.payment.PartnerPinUpdateRequest;
 import com.HealthLink.entity.User;
 import com.HealthLink.exception.ResourceNotFoundException;
@@ -32,6 +33,13 @@ public class PartnerSecurityController {
     @PostMapping("/request-otp")
     public ResponseEntity<Map<String, String>> requestOtp(@AuthenticationPrincipal UserDetails principal) {
         return ResponseEntity.ok(Map.of("message", securityService.requestOtp(resolveUser(principal))));
+    }
+
+    @PostMapping("/verify-otp")
+    public ResponseEntity<Void> verifyOtp(@Valid @RequestBody PartnerPinOtpVerificationRequest request,
+                                          @AuthenticationPrincipal UserDetails principal) {
+        securityService.verifyOtp(resolveUser(principal), request.getOtp());
+        return ResponseEntity.noContent().build();
     }
 
     @PutMapping

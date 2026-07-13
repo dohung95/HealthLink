@@ -54,8 +54,10 @@ class PartnerWithdrawalSqlServerIntegrationTest {
 
                 executeMigration(statement, "migration-v17-add-partner-withdrawal-credentials.sql");
                 executeMigration(statement, "migration-v18-add-withdrawal-pin-token-type.sql");
+                executeMigration(statement, "migration-v19-add-email-verification-token-failed-attempts.sql");
                 executeMigration(statement, "migration-v17-add-partner-withdrawal-credentials.sql");
                 executeMigration(statement, "migration-v18-add-withdrawal-pin-token-type.sql");
+                executeMigration(statement, "migration-v19-add-email-verification-token-failed-attempts.sql");
 
                 statement.execute("""
                         INSERT INTO dbo.EmailVerificationTokens
@@ -72,6 +74,28 @@ class PartnerWithdrawalSqlServerIntegrationTest {
                         SELECT COUNT(*)
                         FROM dbo.EmailVerificationTokens
                         WHERE Type IN ('EMAIL_VERIFICATION', 'PASSWORD_RESET', 'WITHDRAWAL_PIN')
+                        """)) {
+                    assertThat(result.next()).isTrue();
+                    assertThat(result.getInt(1)).isEqualTo(3);
+                }
+
+                try (ResultSet result = statement.executeQuery("""
+                        SELECT c.is_nullable, dc.definition
+                        FROM sys.columns c
+                        LEFT JOIN sys.default_constraints dc
+                          ON dc.parent_object_id = c.object_id AND dc.parent_column_id = c.column_id
+                        WHERE c.object_id = OBJECT_ID('dbo.EmailVerificationTokens')
+                          AND c.name = 'FailedAttempts'
+                        """)) {
+                    assertThat(result.next()).isTrue();
+                    assertThat(result.getBoolean(1)).isFalse();
+                    assertThat(result.getString(2)).contains("0");
+                }
+
+                try (ResultSet result = statement.executeQuery("""
+                        SELECT COUNT(*)
+                        FROM dbo.EmailVerificationTokens
+                        WHERE FailedAttempts = 0
                         """)) {
                     assertThat(result.next()).isTrue();
                     assertThat(result.getInt(1)).isEqualTo(3);

@@ -39,6 +39,10 @@ public class EmailVerificationToken {
     @Column(name = "Used", nullable = false)
     private boolean used = false;
 
+    @Builder.Default
+    @Column(name = "FailedAttempts", nullable = false)
+    private int failedAttempts = 0;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "Type", nullable = false, length = 50)
     @Builder.Default

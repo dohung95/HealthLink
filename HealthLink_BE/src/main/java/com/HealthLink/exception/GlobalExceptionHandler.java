@@ -174,6 +174,8 @@ public class GlobalExceptionHandler {
         body.put("message", ex.getMessage());
         if (ex.getAttemptsRemaining() != null) body.put("attemptsRemaining", ex.getAttemptsRemaining());
         if (ex.getLockedUntil() != null) body.put("lockedUntil", ex.getLockedUntil());
+        if (ex.getCode() != null) body.put("code", ex.getCode());
+        if (ex.getRetryAfterSeconds() != null) body.put("retryAfterSeconds", ex.getRetryAfterSeconds());
         return ResponseEntity.status(ex.getStatus()).body(body);
     }
 

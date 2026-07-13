@@ -9,6 +9,7 @@ public interface PartnerWithdrawalSecurityService {
 
     PartnerPinStatusResponse getStatus(User user);
     String requestOtp(User user);
+    void verifyOtp(User user, String otp);
     void setPin(User user, PartnerPinUpdateRequest request);
     void verifyForWithdrawal(User user, String pin, PinPolicy policy);
 }

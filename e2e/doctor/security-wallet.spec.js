@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 import { DOCTOR_TOKEN } from '../fixtures/auth.js';
 import { jsonRoute, routeNotifications } from '../fixtures/routes.js';
 
-test('doctor can manage a withdrawal PIN from Profile', async ({ page }) => {
+test('doctor uses the shared three-step withdrawal PIN wizard from Profile', async ({ page }) => {
   await page.addInitScript((token) => {
     localStorage.setItem('token', token); localStorage.setItem('userId', 'doctor-1'); localStorage.setItem('refreshToken', 'fake-refresh');
   }, DOCTOR_TOKEN);
@@ -17,12 +17,16 @@ test('doctor can manage a withdrawal PIN from Profile', async ({ page }) => {
     return jsonRoute(route, { configured, locked: false, lockedUntil: null });
   });
   await page.route('**/api/payment/partner/security/pin/request-otp', (route) => jsonRoute(route, { message: 'OTP sent' }));
+  await page.route('**/api/payment/partner/security/pin/verify-otp', (route) => route.fulfill({ status: 204 }));
 
   await page.goto('/doctor/profile');
   await page.getByRole('button', { name: 'Create PIN' }).click();
+  await expect(page.getByText('Step 1/3')).toBeVisible();
   await page.getByLabel('OTP code').fill('123456');
+  await page.getByRole('button', { name: 'Continue' }).click();
   await page.getByLabel('Withdrawal PIN', { exact: true }).fill('654321');
-  await page.getByLabel('Confirm withdrawal PIN').fill('654321');
+  await page.getByRole('button', { name: 'Continue' }).click();
+  await page.getByRole('textbox', { name: 'Confirm withdrawal PIN' }).fill('654321');
   await page.getByRole('button', { name: 'Save PIN' }).click();
   await expect(page.getByText('Withdrawal PIN is configured')).toBeVisible();
 });

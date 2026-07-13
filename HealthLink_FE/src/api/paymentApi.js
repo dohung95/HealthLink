@@ -167,6 +167,11 @@ export const paymentApi = {
     return response.data;
   },
 
+  verifyPartnerPinOtp: async (payload) => {
+    const response = await axiosInstance.post('/api/payment/partner/security/pin/verify-otp', payload);
+    return response.data;
+  },
+
   setPartnerPin: async (payload) => {
     const response = await axiosInstance.put('/api/payment/partner/security/pin', payload);
     return response.data;
