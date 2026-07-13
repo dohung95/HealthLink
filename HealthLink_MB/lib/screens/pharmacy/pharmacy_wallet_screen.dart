@@ -158,15 +158,17 @@ class _PharmacyWalletScreenState extends State<PharmacyWalletScreen> {
   }
 
   void _promptWithdrawalPin(double amount) {
-    final pinCtrl = TextEditingController();
     final auth = context.read<AuthProvider>();
     if (auth.accessToken == null) return;
+    final paypalEmail =
+        auth.pharmacyProfile?['paypalEmail']?.toString() ?? '';
 
     showDialog(
       context: context,
       barrierDismissible: false,
       builder: (ctx) => _WithdrawalPinDialog(
         amount: amount,
+        paypalEmail: paypalEmail,
         walletService: _walletService,
         token: auth.accessToken!,
         onSuccess: () {
@@ -352,12 +354,14 @@ class _PharmacyWalletScreenState extends State<PharmacyWalletScreen> {
 /// Stateful dialog for entering a withdrawal PIN with six-slot input.
 class _WithdrawalPinDialog extends StatefulWidget {
   final double amount;
+  final String paypalEmail;
   final PartnerWalletService walletService;
   final String token;
   final VoidCallback onSuccess;
 
   const _WithdrawalPinDialog({
     required this.amount,
+    required this.paypalEmail,
     required this.walletService,
     required this.token,
     required this.onSuccess,
@@ -369,6 +373,7 @@ class _WithdrawalPinDialog extends StatefulWidget {
 
 class _WithdrawalPinDialogState extends State<_WithdrawalPinDialog> {
   final _pinCtrl = TextEditingController();
+  final _focusNode = FocusNode();
   bool _sending = false;
   String? _error;
   int? _lockedMinutes;
@@ -376,6 +381,7 @@ class _WithdrawalPinDialogState extends State<_WithdrawalPinDialog> {
   @override
   void dispose() {
     _pinCtrl.dispose();
+    _focusNode.dispose();
     super.dispose();
   }
 
@@ -383,18 +389,24 @@ class _WithdrawalPinDialogState extends State<_WithdrawalPinDialog> {
     final pin = _pinCtrl.text;
     if (pin.length != 6) return;
 
+    // Guard: empty PayPal email
+    if (widget.paypalEmail.isEmpty) {
+      setState(() {
+        _error = 'No PayPal email configured. Update your profile first.';
+      });
+      return;
+    }
+
     setState(() {
       _sending = true;
       _error = null;
     });
 
     try {
-      final paypalEmail =
-          context.read<AuthProvider>().pharmacyProfile?['paypalEmail']?.toString() ?? '';
       final settlement = await widget.walletService.requestWithdrawal(
         widget.token,
         amount: widget.amount,
-        paypalEmail: paypalEmail,
+        paypalEmail: widget.paypalEmail,
         pin: pin,
       );
 
@@ -420,12 +432,15 @@ class _WithdrawalPinDialogState extends State<_WithdrawalPinDialog> {
       if (e.isPinInvalid) {
         setState(() {
           _sending = false;
-          _error = 'Invalid PIN';
-          if (e.attemptsRemaining != null) {
+          if (e.attemptsRemaining != null && e.attemptsRemaining! > 0) {
             _error = 'Invalid PIN (${e.attemptsRemaining} attempt${e.attemptsRemaining == 1 ? '' : 's'} remaining)';
+          } else {
+            _error = 'Invalid PIN';
           }
           _pinCtrl.clear();
         });
+        // Refocus the hidden text field so the user can immediately retype
+        WidgetsBinding.instance.addPostFrameCallback((_) => _focusNode.requestFocus());
       } else if (e.isPinLocked) {
         setState(() {
           _sending = false;
@@ -470,15 +485,38 @@ class _WithdrawalPinDialogState extends State<_WithdrawalPinDialog> {
       ),
       content: Column(
         mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Withdrawal amount
           Text(
             'Withdraw \$${widget.amount.toStringAsFixed(2)}',
-            style: theme.textTheme.bodyMedium
-                ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+            style: theme.textTheme.titleMedium
+                ?.copyWith(fontWeight: FontWeight.w600),
           ),
+          // PayPal email destination
+          if (widget.paypalEmail.isNotEmpty) ...[        
+            const SizedBox(height: 4),
+            Row(
+              children: [
+                Icon(Icons.email_outlined,
+                    size: 14, color: theme.colorScheme.onSurfaceVariant),
+                const SizedBox(width: 4),
+                Flexible(
+                  child: Text(
+                    'To: ${widget.paypalEmail}',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+          ],
           const SizedBox(height: 16),
           PartnerPinCodeField(
             controller: _pinCtrl,
+            focusNode: _focusNode,
             enabled: !_sending && _lockedMinutes == null,
             autofocus: true,
             errorText: _error,

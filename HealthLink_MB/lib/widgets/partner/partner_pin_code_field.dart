@@ -11,6 +11,7 @@ class PartnerPinCodeField extends StatefulWidget {
   const PartnerPinCodeField({
     super.key,
     required this.controller,
+    this.focusNode,
     this.enabled = true,
     this.errorText,
     this.autofocus = false,
@@ -19,6 +20,11 @@ class PartnerPinCodeField extends StatefulWidget {
 
   /// Text editing controller for the underlying input.
   final TextEditingController controller;
+
+  /// Optional external [FocusNode]. If provided, the widget uses this
+  /// instead of creating its own internal node, allowing the parent to
+  /// programmatically request focus (e.g. after an invalid-PIN retry).
+  final FocusNode? focusNode;
 
   /// Whether the field is enabled.
   final bool enabled;
@@ -38,11 +44,12 @@ class PartnerPinCodeField extends StatefulWidget {
 
 class _PartnerPinCodeFieldState extends State<PartnerPinCodeField> {
   bool _obscured = true;
-  final _focusNode = FocusNode();
+  late final FocusNode _focusNode;
 
   @override
   void initState() {
     super.initState();
+    _focusNode = widget.focusNode ?? FocusNode();
     widget.controller.addListener(_onValueChanged);
     if (widget.autofocus) {
       WidgetsBinding.instance.addPostFrameCallback((_) => _focusNode.requestFocus());
@@ -56,12 +63,21 @@ class _PartnerPinCodeFieldState extends State<PartnerPinCodeField> {
       oldWidget.controller.removeListener(_onValueChanged);
       widget.controller.addListener(_onValueChanged);
     }
+    // If focusNode changes externally, update the local reference
+    if (widget.focusNode != oldWidget.focusNode) {
+      final newFocus = widget.focusNode ?? FocusNode();
+      _focusNode.dispose();
+      _focusNode = newFocus;
+    }
   }
 
   @override
   void dispose() {
     widget.controller.removeListener(_onValueChanged);
-    _focusNode.dispose();
+    // Only dispose if we created it (not externally provided)
+    if (widget.focusNode == null) {
+      _focusNode.dispose();
+    }
     super.dispose();
   }
 
