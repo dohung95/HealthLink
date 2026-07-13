@@ -1,7 +1,18 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { Modal, Button, ProgressBar } from 'react-bootstrap';
 import { parseCV, isGeminiAvailable, getFileAcceptString } from '../../services/cvParserService';
 import './Css/CVImportModal.css';
+
+// Rotating status messages shown while waiting on OCR + the local LLM — the
+// backend call itself has no progress events, so this just gives the user a
+// sense that something is happening at each rough stage instead of a frozen
+// spinner (see localAIService.js PARSE_TIMEOUT_MS for the hard cap).
+const ANALYZING_STAGES = [
+    { afterSeconds: 0, message: 'Uploading file...' },
+    { afterSeconds: 3, message: 'Reading text (OCR)...' },
+    { afterSeconds: 10, message: 'Analyzing with AI...' },
+    { afterSeconds: 25, message: 'Still working, large/multi-page files take longer...' }
+];
 
 const CVImportModal = ({ show, onHide, onImport, type = 'doctor' }) => {
     const [file, setFile] = useState(null);
@@ -11,10 +22,35 @@ const CVImportModal = ({ show, onHide, onImport, type = 'doctor' }) => {
     const [confidence, setConfidence] = useState(null);
     const [dragActive, setDragActive] = useState(false);
     const [geminiAvailable, setGeminiAvailable] = useState(false);
+    const [elapsedSeconds, setElapsedSeconds] = useState(0);
+    const elapsedTimerRef = useRef(null);
 
     useEffect(() => {
         setGeminiAvailable(isGeminiAvailable());
     }, [show]);
+
+    useEffect(() => {
+        if (parsing) {
+            setElapsedSeconds(0);
+            elapsedTimerRef.current = setInterval(() => {
+                setElapsedSeconds((prev) => prev + 1);
+            }, 1000);
+        } else if (elapsedTimerRef.current) {
+            clearInterval(elapsedTimerRef.current);
+            elapsedTimerRef.current = null;
+        }
+
+        return () => {
+            if (elapsedTimerRef.current) {
+                clearInterval(elapsedTimerRef.current);
+                elapsedTimerRef.current = null;
+            }
+        };
+    }, [parsing]);
+
+    const analyzingMessage = ANALYZING_STAGES
+        .filter((stage) => elapsedSeconds >= stage.afterSeconds)
+        .pop()?.message || ANALYZING_STAGES[0].message;
 
     const handleDrag = useCallback((e) => {
         e.preventDefault();
@@ -263,7 +299,7 @@ const CVImportModal = ({ show, onHide, onImport, type = 'doctor' }) => {
                                 {parsing ? (
                                     <>
                                         <span className="spinner-border spinner-border-sm"></span>
-                                        Analyzing...
+                                        Analyzing... ({elapsedSeconds}s)
                                     </>
                                 ) : (
                                     <>
@@ -272,6 +308,11 @@ const CVImportModal = ({ show, onHide, onImport, type = 'doctor' }) => {
                                     </>
                                 )}
                             </Button>
+                            {parsing && (
+                                <div className="cv-parse-progress-message">
+                                    {analyzingMessage}
+                                </div>
+                            )}
                         </div>
                     </>
                 )}

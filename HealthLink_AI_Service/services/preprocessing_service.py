@@ -3,19 +3,25 @@ Image preprocessing service using OpenCV
 Improves OCR accuracy from ~90% to 93-95%
 """
 
+import sys
+from pathlib import Path
+
 import cv2
 import numpy as np
-from typing import Tuple
+
+sys.path.insert(0, str(Path(__file__).parent.parent))
+from config import Config
 
 
 def preprocess_for_ocr(image_bytes: bytes) -> np.ndarray:
     """
     Preprocess image for better OCR accuracy.
     Pipeline:
-    1. Grayscale conversion
-    2. Noise reduction
-    3. Adaptive thresholding
-    4. Deskew (straighten rotated images)
+    1. Downscale (cap resolution for speed)
+    2. Grayscale conversion
+    3. Noise reduction
+    4. Adaptive thresholding
+    5. Deskew (straighten rotated images)
     """
     # Convert bytes to numpy array
     nparr = np.frombuffer(image_bytes, np.uint8)
@@ -24,20 +30,25 @@ def preprocess_for_ocr(image_bytes: bytes) -> np.ndarray:
     if img is None:
         raise ValueError("Could not decode image")
 
-    # Step 1: Grayscale
+    # Step 1: Downscale large images (e.g. full-res phone camera photos) before
+    # the expensive denoise/OCR steps below — text stays legible well below
+    # native resolution, but processing time scales with pixel count.
+    img = resize_for_ocr(img, Config.OCR_MAX_DIMENSION)
+
+    # Step 2: Grayscale
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
-    # Step 2: Noise reduction
+    # Step 3: Noise reduction
     denoised = cv2.fastNlMeansDenoising(gray, None, 10, 7, 21)
 
-    # Step 3: Adaptive thresholding for better contrast
+    # Step 4: Adaptive thresholding for better contrast
     thresh = cv2.adaptiveThreshold(
         denoised, 255,
         cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
         cv2.THRESH_BINARY, 11, 2
     )
 
-    # Step 4: Deskew if needed
+    # Step 5: Deskew if needed
     deskewed = deskew(thresh)
 
     return deskewed
