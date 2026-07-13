@@ -33,7 +33,9 @@ class _PharmacyMainLayoutState extends State<PharmacyMainLayout> {
   void initState() {
     super.initState();
     _screens = [
-      const PharmacyDashboardScreen(),
+      PharmacyDashboardScreen(
+        onNavigate: (i) => setState(() => _currentIndex = i),
+      ),
       const PharmacyRequestsScreen(),
       const PharmacyOrdersScreen(),
       const PharmacyInventoryScreen(),
