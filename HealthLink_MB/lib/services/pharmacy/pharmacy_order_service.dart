@@ -132,4 +132,54 @@ class PharmacyOrderService {
     }
     throw Exception('Failed to update quote');
   }
+
+  Future<Map<String, dynamic>> submitDeliveryQuote(
+    String token,
+    String orderId, {
+    double? fee,
+    String? estimatedDeliveryTime,
+    String? notes,
+  }) async {
+    final body = <String, dynamic>{
+      if (fee != null) 'deliveryFee': fee,
+      if (estimatedDeliveryTime != null) 'estimatedDeliveryTime': estimatedDeliveryTime,
+      if (notes != null) 'notes': notes,
+    };
+    final res = await _client
+        .patch(
+          Uri.parse(ApiConfig.pharmacyOrderDeliveryQuote(orderId)),
+          headers: _authHeaders(token),
+          body: jsonEncode(body),
+        )
+        .timeout(ApiConfig.connectTimeout);
+
+    if (res.statusCode == 200) {
+      return jsonDecode(res.body) as Map<String, dynamic>;
+    }
+    throw Exception('Failed to submit delivery quote');
+  }
+
+  Future<Map<String, dynamic>> reviewDeliveryContact(
+    String token,
+    String orderId, {
+    required bool approved,
+    String? notes,
+  }) async {
+    final body = <String, dynamic>{
+      'approved': approved,
+      if (notes != null) 'notes': notes,
+    };
+    final res = await _client
+        .patch(
+          Uri.parse(ApiConfig.pharmacyOrderDeliveryContactReview(orderId)),
+          headers: _authHeaders(token),
+          body: jsonEncode(body),
+        )
+        .timeout(ApiConfig.connectTimeout);
+
+    if (res.statusCode == 200) {
+      return jsonDecode(res.body) as Map<String, dynamic>;
+    }
+    throw Exception('Failed to review delivery contact');
+  }
 }

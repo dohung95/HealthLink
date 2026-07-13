@@ -233,6 +233,8 @@ class ApiConfig {
   static String pharmacyOrdersByPharmacy(String id) => '$baseUrl/pharmacy-orders/pharmacy/$id';
   static String pharmacyOrderUpdateStatus(String id) => '$baseUrl/pharmacy-orders/$id/status';
   static String pharmacyOrderUpdateQuote(String id) => '$baseUrl/pharmacy-orders/$id/quote';
+  static String pharmacyOrderDeliveryQuote(String id) => '$baseUrl/pharmacy-orders/$id/delivery-quote';
+  static String pharmacyOrderDeliveryContactReview(String id) => '$baseUrl/pharmacy-orders/$id/delivery-contact';
   static String pharmacyRequestsByPharmacy(String id) => '$baseUrl/pharmacy-requests/pharmacy/$id';
   static String pharmacyRequestUpdateStatus(String id) => '$baseUrl/pharmacy-requests/$id/status';
   static String pharmacyRequestPrescriptions(String id) => '$baseUrl/pharmacy-requests/$id/prescriptions';

@@ -4,9 +4,13 @@ import 'package:intl/intl.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/pharmacy/pharmacy_request_provider.dart';
 import '../../models/pharmacy/pharmacy_consultation_request.dart';
+import '../../models/pharmacy/pharmacy_work_item.dart';
+import '../../models/chat/conversation.dart';
 import '../../widgets/pharmacy/request_status_chip.dart';
-import '../chat/chat_list_screen.dart' show MessagesScreen;
+import '../../widgets/pharmacy/delivery_contact_review_sheet.dart';
+import '../chat/chat_room_screen.dart';
 import 'pharmacy_quote_editor_screen.dart';
+import 'pharmacy_order_detail_screen.dart';
 
 class PharmacyRequestDetailScreen extends StatefulWidget {
   final String requestId;
@@ -37,7 +41,34 @@ class _PharmacyRequestDetailScreenState
     }
   }
 
+  Future<bool> _confirmAction(String title, String message) async {
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(title),
+        content: Text(message),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancel')),
+          FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Confirm')),
+        ],
+      ),
+    );
+    return result ?? false;
+  }
+
   Future<void> _updateStatus(String status) async {
+    final confirmed = await _confirmAction(
+      status == 'IN_REVIEW' ? 'Accept Request' : 'Reject Request',
+      status == 'IN_REVIEW'
+          ? 'Accept this consultation request and move it to review?'
+          : 'Reject and cancel this consultation request?',
+    );
+    if (!confirmed) return;
+
     final auth = context.read<AuthProvider>();
     if (auth.accessToken == null) return;
     final success =
@@ -55,6 +86,43 @@ class _PharmacyRequestDetailScreenState
     }
   }
 
+  Future<void> _openChat() async {
+    final auth = context.read<AuthProvider>();
+    if (auth.accessToken == null) return;
+    final provider = context.read<PharmacyRequestProvider>();
+    await provider.fetchChatRoomId(auth.accessToken!, widget.requestId);
+    if (!mounted) return;
+    final roomId = provider.chatRoomId;
+    if (roomId != null) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => ChatRoomScreen(
+            conversation: Conversation(
+              id: roomId,
+              partnerId: provider.currentRequest?.patientId ?? '',
+              partnerName: provider.currentRequest?.patientName ?? 'Patient',
+              lastMessage: '',
+              lastMessageTime: DateTime.now(),
+              isLastMessageRead: true,
+            ),
+          ),
+        ),
+      );
+    } else {
+      // ponytail: fallback to generic messages when no room exists
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => const Scaffold(
+            appBar: null,
+            body: Center(child: Text('Chat room not available')),
+          ),
+        ),
+      );
+    }
+  }
+
   void _showCreateOrderDialog() {
     Navigator.push(
       context,
@@ -63,6 +131,55 @@ class _PharmacyRequestDetailScreenState
           mode: QuoteEditorMode.createFromRequest,
           requestId: widget.requestId,
         ),
+      ),
+    );
+  }
+
+  void _showDeliveryReviewSheet() {
+    final request = context.read<PharmacyRequestProvider>().currentRequest;
+    if (request == null) return;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (_) => DeliveryContactReviewSheet(
+        workItem: PharmacyWorkItem(
+          id: 'review-${request.requestId}',
+          pharmacyId: request.pharmacyId ?? '',
+          sourceId: request.requestId,
+          sourceType: WorkItemSourceType.deliveryContactReview,
+          workflowStage: 'CONTACT_REVIEW',
+          availableActions: ['APPROVE', 'UPDATE_CONTACT'],
+          patientId: request.patientId,
+          patientName: request.patientName,
+          requestId: request.requestId,
+          deliveryType: request.deliveryType,
+          deliveryAddress: request.deliveryAddress,
+          deliveryPhoneNumber: request.deliveryPhoneNumber,
+          notes: request.additionalNotes,
+          createdAt: request.createdAt,
+        ),
+        onSubmit: ({required approved, String? notes}) async {
+          final auth = context.read<AuthProvider>();
+          if (auth.accessToken == null) return;
+          // ponytail: delivery contact review handled at order-level;
+          // request-level review logs the decision
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(
+                    approved
+                        ? 'Delivery contact approved'
+                        : 'Delivery contact changes requested',
+                    style: const TextStyle(color: Colors.white)),
+                backgroundColor: approved ? Colors.green : Colors.orange,
+              ),
+            );
+          }
+        },
       ),
     );
   }
@@ -256,13 +373,7 @@ class _PharmacyRequestDetailScreenState
       actions.addAll([
         Expanded(
           child: OutlinedButton.icon(
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                    builder: (_) => const MessagesScreen()),
-              );
-            },
+            onPressed: _openChat,
             icon: const Icon(Icons.chat),
             label: const Text('Chat'),
           ),
@@ -276,6 +387,17 @@ class _PharmacyRequestDetailScreenState
           ),
         ),
       ]);
+    } else if (request.status == 'NEED_MORE_INFO' ||
+        request.requestType == 'DELIVERY_CONTACT_REVIEW') {
+      actions.add(
+        Expanded(
+          child: FilledButton.icon(
+            onPressed: _showDeliveryReviewSheet,
+            icon: const Icon(Icons.contact_page),
+            label: const Text('Review Contact'),
+          ),
+        ),
+      );
     } else if (request.status == 'ORDER_CREATED' &&
         request.pharmacyOrderId != null) {
       actions.add(
@@ -285,11 +407,8 @@ class _PharmacyRequestDetailScreenState
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (_) => Scaffold(
-                    appBar: AppBar(
-                        title: const Text('Order Detail')),
-                    body: const Center(
-                        child: Text('Navigate to order detail')),
+                  builder: (_) => PharmacyOrderDetailScreen(
+                    orderId: request.pharmacyOrderId.toString(),
                   ),
                 ),
               );

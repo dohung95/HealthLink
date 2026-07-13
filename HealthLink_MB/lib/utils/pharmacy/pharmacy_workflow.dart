@@ -15,6 +15,12 @@ class PharmacyWorkflow {
     'COMPLETED': 'Completed',
     'CANCELLED': 'Cancelled',
     'REVISION_REQUESTED': 'Revision Requested',
+    // Workflow stage labels
+    'REVIEW': 'Review',
+    'REVISE': 'Revise',
+    'QUOTE': 'Quote',
+    'CONTACT_REVIEW': 'Contact Review',
+    'FULFILLMENT': 'Fulfillment',
   };
 
   static const Map<String, String> _paymentLabels = {

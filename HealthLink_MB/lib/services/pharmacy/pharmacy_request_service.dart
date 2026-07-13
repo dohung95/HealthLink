@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../../config/api_config.dart';
 import '../../models/pharmacy/pharmacy_consultation_request.dart';
+import '../../models/pharmacy/pharmacy_work_item.dart';
 
 class PharmacyRequestService {
   final http.Client _client;
@@ -153,6 +154,29 @@ class PharmacyRequestService {
       return jsonDecode(res.body) as Map<String, dynamic>;
     }
     throw Exception('Failed to create order from request (${res.statusCode}): ${res.body}');
+  }
+
+  Future<List<PharmacyWorkItem>> getWorkItems(
+      String token, String pharmacyId) async {
+    final res = await _client
+        .get(
+          Uri.parse(ApiConfig.pharmacyWorkItems(pharmacyId)),
+          headers: _authHeaders(token),
+        )
+        .timeout(ApiConfig.connectTimeout);
+
+    if (res.statusCode == 200) {
+      final data = jsonDecode(res.body);
+      if (data is List) {
+        return data
+            .map((e) =>
+                PharmacyWorkItem.fromJson(e as Map<String, dynamic>))
+            .toList();
+      }
+      return [];
+    }
+    throw Exception(
+        'Failed to load work items (${res.statusCode}): ${res.body}');
   }
 
   Future<String?> getChatRoomId(
