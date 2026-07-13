@@ -109,16 +109,9 @@ class _PharmacyRequestDetailScreenState
           ),
         ),
       );
-    } else {
-      // ponytail: fallback to generic messages when no room exists
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (_) => const Scaffold(
-            appBar: null,
-            body: Center(child: Text('Chat room not available')),
-          ),
-        ),
+    } else if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Chat room is not available')),
       );
     }
   }

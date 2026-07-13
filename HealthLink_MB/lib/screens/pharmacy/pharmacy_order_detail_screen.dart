@@ -5,6 +5,7 @@ import '../../providers/auth_provider.dart';
 import '../../providers/pharmacy/pharmacy_order_provider.dart';
 import '../../providers/pharmacy/pharmacy_workflow_provider.dart';
 import '../../providers/pharmacy/pharmacy_inventory_provider.dart';
+import '../../providers/pharmacy/pharmacy_request_provider.dart';
 import '../../models/pharmacy/pharmacy_order.dart';
 import '../../models/pharmacy/pharmacy_work_item.dart';
 import '../../models/chat/conversation.dart';
@@ -309,32 +310,7 @@ class _PharmacyOrderDetailScreenState
                   ),
                 )
               : _buildContent(order!, theme),
-      floatingActionButton: order != null &&
-              order.pharmacyRequestId != null &&
-              order.status != 'CANCELLED' &&
-              order.status != 'COMPLETED'
-          ? FloatingActionButton(
-              heroTag: 'chat_fab',
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => ChatRoomScreen(
-                      conversation: Conversation(
-                        id: 'request-${order.pharmacyRequestId!}',
-                        partnerId: order.patientId,
-                        partnerName: order.patientName,
-                        lastMessage: '',
-                        lastMessageTime: DateTime.now(),
-                        isLastMessageRead: true,
-                      ),
-                    ),
-                  ),
-                );
-              },
-              child: const Icon(Icons.chat),
-            )
-          : null,
+      floatingActionButton: null,
     );
   }
 
@@ -509,9 +485,9 @@ class _PharmacyOrderDetailScreenState
             ],
           ],
 
-          if (order.status == 'CANCELLED' || order.status == 'COMPLETED') ...[
+          if (order.pharmacyRequestId != null) ...[
             const Divider(height: 24),
-            _buildChatButton(theme, order),
+            _buildChatHistoryButton(theme, order),
           ],
 
           const SizedBox(height: 100),
@@ -520,31 +496,56 @@ class _PharmacyOrderDetailScreenState
     );
   }
 
-  Widget _buildChatButton(ThemeData theme, PharmacyOrder order) {
+  Widget _buildChatHistoryButton(ThemeData theme, PharmacyOrder order) {
     return SizedBox(
       width: double.infinity,
       child: OutlinedButton.icon(
-        onPressed: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (_) => ChatRoomScreen(
-                conversation: Conversation(
-                  id: 'request-${order.pharmacyRequestId ?? order.orderId}',
-                  partnerId: order.patientId,
-                  partnerName: order.patientName,
-                  lastMessage: '',
-                  lastMessageTime: DateTime.now(),
-                  isLastMessageRead: true,
-                ),
-              ),
-            ),
-          );
-        },
-        icon: const Icon(Icons.chat),
-        label: const Text('Chat with Patient'),
+        onPressed: () => _openChatHistory(order),
+        icon: const Icon(Icons.history),
+        label: const Text('Chat history'),
       ),
     );
+  }
+
+  Future<void> _openChatHistory(PharmacyOrder order) async {
+    if (order.pharmacyRequestId == null) return;
+    final auth = context.read<AuthProvider>();
+    if (auth.accessToken == null) return;
+
+    // Resolve the real chat room ID via the request endpoint
+    final requestProvider = context.read<PharmacyRequestProvider>();
+    await requestProvider.fetchChatRoomId(
+      auth.accessToken!,
+      order.pharmacyRequestId.toString(),
+    );
+    if (!mounted) return;
+
+    final roomId = requestProvider.chatRoomId;
+    if (roomId != null) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => ChatRoomScreen(
+            conversation: Conversation(
+              id: roomId,
+              partnerId: order.patientId,
+              partnerName: order.patientName,
+              lastMessage: '',
+              lastMessageTime: DateTime.now(),
+              isLastMessageRead: true,
+            ),
+            readOnly: true,
+            title: 'Chat history',
+            readOnlyMessage:
+                'This request has ended. Messages are view-only.',
+          ),
+        ),
+      );
+    } else if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Chat room is not available')),
+      );
+    }
   }
 
   Widget _infoRow(String label, String value) {
