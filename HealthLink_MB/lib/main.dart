@@ -8,6 +8,7 @@ import 'providers/video_call_provider.dart';
 import 'providers/theme_provider.dart';
 import 'providers/pharmacy/pharmacy_order_provider.dart';
 import 'providers/pharmacy/pharmacy_request_provider.dart';
+import 'providers/pharmacy/pharmacy_inventory_provider.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'l10n/app_localizations.dart';
 import 'providers/locale_provider.dart';
@@ -55,6 +56,9 @@ Future<void> main() async {
         ),
         ChangeNotifierProvider<PharmacyRequestProvider>(
           create: (_) => PharmacyRequestProvider(),
+        ),
+        ChangeNotifierProvider<PharmacyInventoryProvider>(
+          create: (_) => PharmacyInventoryProvider(),
         ),
       ],
       child: const HealthLinkApp(),

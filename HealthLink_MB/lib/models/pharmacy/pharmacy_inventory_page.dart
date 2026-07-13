@@ -5,6 +5,7 @@ class PharmacyInventoryPage {
   final int totalElements;
   final int totalPages;
   final int currentPage;
+  final int size;
   final bool hasMore;
 
   const PharmacyInventoryPage({
@@ -12,6 +13,7 @@ class PharmacyInventoryPage {
     required this.totalElements,
     required this.totalPages,
     required this.currentPage,
+    required this.size,
     required this.hasMore,
   });
 
@@ -33,7 +35,10 @@ class PharmacyInventoryPage {
       items: dataList,
       totalElements: json['totalElements'] as int? ?? dataList.length,
       totalPages: json['totalPages'] as int? ?? 1,
-      currentPage: json['currentPage'] as int? ?? 0,
+      currentPage: json['number'] as int? ??
+          json['currentPage'] as int? ??
+          0,
+      size: json['size'] as int? ?? 20,
       hasMore: json['hasMore'] as bool? ??
           (json['last'] as bool?) != true,
     );

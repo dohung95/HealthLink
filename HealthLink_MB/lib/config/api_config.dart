@@ -242,6 +242,9 @@ class ApiConfig {
   static String pharmacyInventory(String pharmacyId) => '$baseUrl/pharmacy/inventory/$pharmacyId';
   static String pharmacyInventoryPage(String pharmacyId, {int page = 0, int size = 20}) =>
       '$baseUrl/pharmacy/inventory/$pharmacyId?page=$page&size=$size';
+  static const String pharmacyInventoryTemplate = '$baseUrl/pharmacy/inventory/template';
+  static const String pharmacyInventoryImport = '$baseUrl/pharmacy/inventory/import';
+  static String pharmacyInventoryItemUpdate(int inventoryId) => '$baseUrl/pharmacy/inventory/$inventoryId';
 
   static String markNotificationAsRead(int notificationId) =>
       '$baseUrl/notifications/$notificationId/read';
