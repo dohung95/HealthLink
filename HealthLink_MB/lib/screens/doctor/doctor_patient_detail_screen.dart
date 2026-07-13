@@ -218,7 +218,7 @@ class _DoctorPatientDetailScreenState extends State<DoctorPatientDetailScreen>
         Expanded(
           child: OutlinedButton.icon(
             onPressed: () {
-              ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Calling ${patient.fullName}...'), behavior: SnackBarBehavior.floating));
+              showDoctorNotice(context, 'Calling ${patient.fullName}...');
             },
             icon: const Icon(Icons.phone_outlined, size: 16),
             label: const Text('Call'),
@@ -567,12 +567,7 @@ class _DoctorPatientDetailScreenState extends State<DoctorPatientDetailScreen>
 
   void _showSnack(String message, {bool isError = false}) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: isError ? DS.destructive : null,
-      ),
-    );
+    showDoctorNotice(context, message, isError: isError);
   }
 }
 

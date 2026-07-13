@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import '../../services/doctor/doctor_wallet_service.dart';
 import '../../config/doctor_theme.dart';
+import '../../widgets/doctor/doctor_widgets.dart';
 
 class DoctorWithdrawSheet extends StatefulWidget {
   const DoctorWithdrawSheet({super.key, required this.walletService, required this.maxAmount, required this.onSuccess});
@@ -47,7 +48,7 @@ class _DoctorWithdrawSheetState extends State<DoctorWithdrawSheet> {
       if (mounted) {
         Navigator.pop(context);
         widget.onSuccess();
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Withdrawal of ${_formatCurrency(amount)} requested'), behavior: SnackBarBehavior.floating));
+        showDoctorNotice(context, 'Withdrawal of ${_formatCurrency(amount)} requested');
       }
     } catch (e) {
       if (mounted) {
@@ -58,7 +59,7 @@ class _DoctorWithdrawSheetState extends State<DoctorWithdrawSheet> {
   }
 
   void _showError(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message), behavior: SnackBarBehavior.floating, backgroundColor: DS.destructive));
+    showDoctorNotice(context, message, isError: true);
   }
 
   @override
