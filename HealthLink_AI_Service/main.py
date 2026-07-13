@@ -13,6 +13,7 @@ sys.path.insert(0, str(Path(__file__).parent))
 
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.concurrency import run_in_threadpool
 
 from config import Config
 from models.schemas import (
@@ -22,18 +23,21 @@ from models.schemas import (
 )
 
 # Lazy imports for services
-easyocr_reader = None
 nudenet_detector = None
 ollama_client = None
 
 
 def init_easyocr():
-    """Initialize EasyOCR reader"""
-    global easyocr_reader
-    if easyocr_reader is None:
-        import easyocr
-        easyocr_reader = easyocr.Reader(Config.OCR_LANGUAGES, gpu=Config.OCR_GPU)
-    return easyocr_reader
+    """Warm the shared EasyOCR singleton (services.ocr_service) at startup.
+
+    Previously this built its own separate `easyocr.Reader`, distinct from the
+    singleton actually used by /parse-cv, /ocr, etc. (services/ocr_service.py) —
+    meaning the "pre-load" never avoided the first-request cold start it was
+    meant to avoid, and doubled the model-load cost paid at boot. Delegating to
+    the real singleton here fixes both.
+    """
+    from services.ocr_service import get_ocr_reader
+    return get_ocr_reader()
 
 
 def init_nudenet():
@@ -50,7 +54,7 @@ def init_ollama():
     global ollama_client
     if ollama_client is None:
         import ollama
-        ollama_client = ollama.Client(host=Config.OLLAMA_HOST)
+        ollama_client = ollama.Client(host=Config.OLLAMA_HOST, timeout=Config.OLLAMA_TIMEOUT)
     return ollama_client
 
 
@@ -121,12 +125,14 @@ app.add_middleware(
 async def health_check():
     """Health check with truthful dependency status."""
     from services.ollama_service import check_ollama_connection
+    from services.ocr_service import get_ocr_reader
 
     dependencies = {}
 
     try:
-        import easyocr
-        reader = easyocr.Reader(['en'], gpu=False)
+        # Reuse the shared singleton reader (warmed at startup) instead of
+        # constructing a fresh EasyOCR reader on every health check.
+        get_ocr_reader()
         dependencies["easyocr"] = {"available": True, "error": None}
     except Exception as exc:
         dependencies["easyocr"] = {"available": False, "error": str(exc)}
@@ -170,7 +176,9 @@ async def perform_ocr(file: UploadFile = File(...)):
 
     content = await file.read()
     filename = file.filename.lower() if file.filename else "image.jpg"
-    return extract_text(content, filename)
+    # Offload the blocking OCR work to a thread so it doesn't stall the
+    # single event loop for other concurrent requests (e.g. /health).
+    return await run_in_threadpool(extract_text, content, filename)
 
 
 @app.post("/parse-cv", response_model=CVParseResult)
@@ -183,22 +191,13 @@ async def parse_cv(
 
     content = await file.read()
     filename = file.filename.lower() if file.filename else "document.pdf"
-    return parse(content, filename, doc_type)
+    return await run_in_threadpool(parse, content, filename, doc_type)
 
 
-@app.post("/verify-document", response_model=DocumentVerifyResult)
-async def verify_document(
-    file: UploadFile = File(...),
-    expected_type: str = Form(...)
-):
-    """Verify document type using OCR + keyword matching"""
+def _verify_document_sync(content: bytes, filename: str, expected_type: str) -> "DocumentVerifyResult":
     from services.doc_verification_service import doc_verification_service
     from services.ocr_service import extract_text
 
-    content = await file.read()
-    filename = file.filename.lower() if file.filename else "document.jpg"
-
-    # Extract text first
     ocr_result = extract_text(content, filename)
     if not ocr_result.success:
         return DocumentVerifyResult(
@@ -208,7 +207,6 @@ async def verify_document(
             issues=["Could not extract text from document"]
         )
 
-    # Verify using keywords
     result = doc_verification_service.verify(ocr_result.text, expected_type)
     return DocumentVerifyResult(
         documentType=expected_type,
@@ -216,13 +214,20 @@ async def verify_document(
     )
 
 
-@app.post("/verify-profile", response_model=ProfileVerifyResult)
-async def verify_profile(file: UploadFile = File(...)):
-    """Verify profile photo (face detection + NSFW check)"""
+@app.post("/verify-document", response_model=DocumentVerifyResult)
+async def verify_document(
+    file: UploadFile = File(...),
+    expected_type: str = Form(...)
+):
+    """Verify document type using OCR + keyword matching"""
+    content = await file.read()
+    filename = file.filename.lower() if file.filename else "document.jpg"
+    return await run_in_threadpool(_verify_document_sync, content, filename, expected_type)
+
+
+def _verify_profile_sync(content: bytes) -> "ProfileVerifyResult":
     from services.face_detection_service import face_detection_service
     from services.moderation_service import moderate
-
-    content = await file.read()
 
     # Check NSFW first
     mod_result = moderate(content)
@@ -260,23 +265,20 @@ async def verify_profile(file: UploadFile = File(...)):
     )
 
 
-@app.post("/screen-document", response_model=DocumentScreeningResult)
-async def screen_document(
-    file: UploadFile = File(...),
-    expected_type: str = Form(...)
-):
-    """
-    Full document screening (replaces Gemini verifyDocument).
-    Combines NSFW check + face detection (for photos) + document verification.
-    """
+@app.post("/verify-profile", response_model=ProfileVerifyResult)
+async def verify_profile(file: UploadFile = File(...)):
+    """Verify profile photo (face detection + NSFW check)"""
+    content = await file.read()
+    return await run_in_threadpool(_verify_profile_sync, content)
+
+
+def _screen_document_sync(content: bytes, filename: str, expected_type: str) -> "DocumentScreeningResult":
     from services.moderation_service import moderate
     from services.ocr_service import extract_text
     from services.doc_verification_service import doc_verification_service
     from services.face_detection_service import face_detection_service
     from services.document_service import get_file_type
 
-    content = await file.read()
-    filename = file.filename.lower() if file.filename else "document.jpg"
     is_profile_photo = expected_type.lower() in ["profile photo", "profile_photo", "profilephoto", "profile"]
     is_image = get_file_type(filename) == "image"
 
@@ -361,6 +363,20 @@ async def screen_document(
     )
 
 
+@app.post("/screen-document", response_model=DocumentScreeningResult)
+async def screen_document(
+    file: UploadFile = File(...),
+    expected_type: str = Form(...)
+):
+    """
+    Full document screening (replaces Gemini verifyDocument).
+    Combines NSFW check + face detection (for photos) + document verification.
+    """
+    content = await file.read()
+    filename = file.filename.lower() if file.filename else "document.jpg"
+    return await run_in_threadpool(_screen_document_sync, content, filename, expected_type)
+
+
 @app.post("/parse-home-visit", response_model=HomeVisitScanResult)
 async def parse_home_visit(file: UploadFile = File(...)):
     """Extract home visit receiver info from a document/image for form auto-fill."""
@@ -368,7 +384,7 @@ async def parse_home_visit(file: UploadFile = File(...)):
 
     content = await file.read()
     filename = file.filename.lower() if file.filename else "document.jpg"
-    return parse(content, filename)
+    return await run_in_threadpool(parse, content, filename)
 
 
 # ============================================================================

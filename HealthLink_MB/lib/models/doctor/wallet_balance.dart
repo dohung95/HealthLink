@@ -4,35 +4,32 @@ class WalletBalance {
     required this.pendingBalance,
     required this.eligibleForWithdrawal,
     this.totalEarnings,
-    this.totalWithdrawn,
+    this.withdrawalStatus,
   });
 
   factory WalletBalance.fromJson(Map<String, dynamic> json) {
     return WalletBalance(
       pendingBalance: _toDouble(json['pendingBalance']),
-      eligibleForWithdrawal: _toDouble(json['eligibleForWithdrawal']),
+      eligibleForWithdrawal: json['eligibleForWithdrawal'] == true,
       totalEarnings: _toDoubleNullable(json['totalEarnings']),
-      totalWithdrawn: _toDoubleNullable(json['totalWithdrawn']),
+      withdrawalStatus: json['withdrawalStatus'] as String?,
     );
   }
 
-  /// Số tiền đang chờ xử lý (chưa đủ điều kiện rút)
+  /// Số dư hiện tại có thể rút (khi đủ điều kiện)
   final double pendingBalance;
 
-  /// Số tiền đủ điều kiện rút
-  final double eligibleForWithdrawal;
+  /// true nếu pendingBalance >= $10.00 (đủ điều kiện rút tiền) — khớp PartnerBalanceResponse.eligibleForWithdrawal (BE)
+  final bool eligibleForWithdrawal;
 
-  /// Tổng thu nhập (optional)
+  /// Tổng thu nhập tích lũy từ trước đến nay (optional)
   final double? totalEarnings;
 
-  /// Tổng đã rút (optional)
-  final double? totalWithdrawn;
-
-  /// Tổng số dư = pending + eligible
-  double get totalBalance => pendingBalance + eligibleForWithdrawal;
+  /// Thông báo mô tả trạng thái đủ điều kiện rút tiền (từ BE)
+  final String? withdrawalStatus;
 
   /// Có thể rút tiền không
-  bool get canWithdraw => eligibleForWithdrawal > 0;
+  bool get canWithdraw => eligibleForWithdrawal;
 }
 
 double _toDouble(dynamic value) {

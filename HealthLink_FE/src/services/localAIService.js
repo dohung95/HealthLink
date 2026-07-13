@@ -8,6 +8,59 @@
 // Local AI Service URL
 const LOCAL_AI_URL = 'http://localhost:8097';
 
+// AI_Service does CPU-only OCR + a local LLM call, which can legitimately take
+// tens of seconds on a large/multi-page document — long enough that a bare
+// `fetch` (previously no timeout at all) could hang indefinitely if the
+// service or the Ollama daemon got stuck. Bound it so the UI can fail with a
+// clear message instead of spinning forever.
+const PARSE_TIMEOUT_MS = 60000;
+
+/**
+ * Downscale an image file client-side before upload if it exceeds maxDimension.
+ * Large phone-camera photos (often 3000-4000px) cost time both over the wire
+ * and server-side (denoise + OCR scale with pixel count), so capping the
+ * longest side here shrinks both without a noticeable legibility loss.
+ * Non-image files (PDF/DOCX) are returned unchanged.
+ * @param {File} file
+ * @param {number} maxDimension
+ * @param {number} quality
+ * @returns {Promise<File>}
+ */
+async function resizeImageIfNeeded(file, maxDimension = 1800, quality = 0.85) {
+    if (!file || !file.type || !file.type.startsWith('image/')) {
+        return file;
+    }
+
+    try {
+        const bitmap = await createImageBitmap(file);
+        const largestSide = Math.max(bitmap.width, bitmap.height);
+
+        if (largestSide <= maxDimension) {
+            bitmap.close?.();
+            return file;
+        }
+
+        const scale = maxDimension / largestSide;
+        const targetWidth = Math.round(bitmap.width * scale);
+        const targetHeight = Math.round(bitmap.height * scale);
+
+        const canvas = document.createElement('canvas');
+        canvas.width = targetWidth;
+        canvas.height = targetHeight;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(bitmap, 0, 0, targetWidth, targetHeight);
+        bitmap.close?.();
+
+        const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', quality));
+        if (!blob) return file;
+
+        return new File([blob], file.name, { type: 'image/jpeg', lastModified: Date.now() });
+    } catch (error) {
+        console.warn('Client-side image resize failed, uploading original file:', error.message);
+        return file;
+    }
+}
+
 /**
  * Check if Local AI Service is available
  * @returns {Promise<boolean>}
@@ -59,13 +112,16 @@ export async function parseCV(file, type = 'doctor') {
     }
 
     try {
+        const uploadFile = await resizeImageIfNeeded(file);
+
         const formData = new FormData();
-        formData.append('file', file);
+        formData.append('file', uploadFile);
         formData.append('doc_type', type);
 
         const response = await fetch(`${LOCAL_AI_URL}/parse-cv`, {
             method: 'POST',
-            body: formData
+            body: formData,
+            signal: AbortSignal.timeout(PARSE_TIMEOUT_MS)
         });
 
         if (!response.ok) {
@@ -103,6 +159,13 @@ export async function parseCV(file, type = 'doctor') {
             };
         }
 
+        if (error.name === 'TimeoutError' || error.name === 'AbortError') {
+            return {
+                success: false,
+                error: 'Processing took too long and was cancelled. Please try again with a clearer/smaller file.'
+            };
+        }
+
         return {
             success: false,
             error: error.message || 'Failed to parse CV. Please try again.'
@@ -118,13 +181,16 @@ export async function parseCV(file, type = 'doctor') {
  */
 export async function verifyDocument(file, expectedType) {
     try {
+        const uploadFile = await resizeImageIfNeeded(file);
+
         const formData = new FormData();
-        formData.append('file', file);
+        formData.append('file', uploadFile);
         formData.append('expected_type', expectedType);
 
         const response = await fetch(`${LOCAL_AI_URL}/screen-document`, {
             method: 'POST',
-            body: formData
+            body: formData,
+            signal: AbortSignal.timeout(PARSE_TIMEOUT_MS)
         });
 
         if (!response.ok) {
@@ -151,12 +217,15 @@ export async function verifyDocument(file, expectedType) {
  */
 export async function verifyProfilePhoto(file) {
     try {
+        const uploadFile = await resizeImageIfNeeded(file);
+
         const formData = new FormData();
-        formData.append('file', file);
+        formData.append('file', uploadFile);
 
         const response = await fetch(`${LOCAL_AI_URL}/verify-profile`, {
             method: 'POST',
-            body: formData
+            body: formData,
+            signal: AbortSignal.timeout(PARSE_TIMEOUT_MS)
         });
 
         if (!response.ok) {
@@ -185,12 +254,15 @@ export async function verifyProfilePhoto(file) {
  */
 export async function performOCR(file) {
     try {
+        const uploadFile = await resizeImageIfNeeded(file);
+
         const formData = new FormData();
-        formData.append('file', file);
+        formData.append('file', uploadFile);
 
         const response = await fetch(`${LOCAL_AI_URL}/ocr`, {
             method: 'POST',
-            body: formData
+            body: formData,
+            signal: AbortSignal.timeout(PARSE_TIMEOUT_MS)
         });
 
         if (!response.ok) {

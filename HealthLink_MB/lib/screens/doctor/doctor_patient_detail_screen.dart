@@ -10,6 +10,7 @@ import '../../models/patient/patient_profile.dart';
 import '../../config/api_config.dart';
 import '../../config/doctor_theme.dart';
 import '../../widgets/doctor/doctor_widgets.dart';
+import '../../widgets/doctor/document_viewer_screen.dart';
 import '../../widgets/doctor/patient_prescription_detail_view.dart';
 
 class DoctorPatientDetailScreen extends StatefulWidget {
@@ -491,39 +492,195 @@ class _DoctorPatientDetailScreenState extends State<DoctorPatientDetailScreen>
   }
 
   // ── Documents ───────────────────────────────────────────────────────────
+  // Lưu ý: BE chỉ trả về document mà patient đã chủ động chia sẻ với bác sĩ
+  // này qua tính năng Share Health Record (HealthRecordShare còn hiệu lực).
+  // Không hiển thị toàn bộ hồ sơ của patient.
 
   Widget _buildDocumentsTab() {
-    final docs = (_history?['documentsByCategory'] as List<dynamic>? ?? [])
+    final categories = (_history?['documentsByCategory'] as List<dynamic>? ?? [])
         .map((e) => Map<String, dynamic>.from(e as Map))
         .toList();
 
-    if (docs.isEmpty) {
-      return const Center(child: Text('No documents found.', style: TextStyle(color: DS.mutedForeground)));
+    if (categories.isEmpty) {
+      return const Center(
+        child: Padding(
+          padding: EdgeInsets.symmetric(horizontal: 32),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.folder_off_outlined, size: 48, color: DS.mutedForeground),
+              SizedBox(height: 12),
+              Text(
+                'No shared documents',
+                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: DS.foreground),
+                textAlign: TextAlign.center,
+              ),
+              SizedBox(height: 6),
+              Text(
+                'This patient has not shared any health record documents with you yet.',
+                style: TextStyle(fontSize: 12, color: DS.mutedForeground),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
+        ),
+      );
     }
 
     return ListView.separated(
       padding: const EdgeInsets.all(20),
-      itemCount: docs.length,
+      itemCount: categories.length,
       separatorBuilder: (_, _) => const SizedBox(height: 10),
       itemBuilder: (context, index) {
-        final doc = docs[index];
-        final count = doc['documentCount'] ?? 0;
-        return Container(
-          padding: const EdgeInsets.all(14),
-          decoration: DS.cardDecoration,
-          child: Row(children: [
-            Container(
-              width: 38,
-              height: 38,
-              decoration: BoxDecoration(color: DS.primary.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(10)),
-              child: const Icon(Icons.folder_outlined, color: DS.primary, size: 18),
-            ),
-            const SizedBox(width: 12),
-            Expanded(child: Text(doc['category']?.toString() ?? 'Documents', style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: DS.foreground))),
-            Text('$count document${count == 1 ? '' : 's'}', style: const TextStyle(fontSize: 12, color: DS.mutedForeground)),
-          ]),
+        final category = categories[index];
+        final documents = (category['documents'] as List<dynamic>? ?? [])
+            .map((e) => Map<String, dynamic>.from(e as Map))
+            .toList();
+        return _DocumentCategoryCard(
+          category: category['category']?.toString() ?? 'Documents',
+          documents: documents,
+          onViewDocument: _viewDocument,
         );
       },
+    );
+  }
+
+  void _viewDocument(Map<String, dynamic> document) {
+    final rawLocation = document['fileLocation']?.toString();
+    final url = ApiConfig.normalizeUrl(rawLocation);
+
+    if (url == null || url.isEmpty) {
+      _showSnack('Document file is not available.', isError: true);
+      return;
+    }
+
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => DocumentViewerScreen(
+          url: url,
+          title: document['documentName']?.toString() ?? 'Document',
+          mimeType: document['mimeType']?.toString(),
+        ),
+      ),
+    );
+  }
+
+  void _showSnack(String message, {bool isError = false}) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: isError ? DS.destructive : null,
+      ),
+    );
+  }
+}
+
+class _DocumentCategoryCard extends StatefulWidget {
+  final String category;
+  final List<Map<String, dynamic>> documents;
+  final ValueChanged<Map<String, dynamic>> onViewDocument;
+
+  const _DocumentCategoryCard({
+    required this.category,
+    required this.documents,
+    required this.onViewDocument,
+  });
+
+  @override
+  State<_DocumentCategoryCard> createState() => _DocumentCategoryCardState();
+}
+
+class _DocumentCategoryCardState extends State<_DocumentCategoryCard> {
+  bool _expanded = false;
+
+  IconData _iconForDocument(Map<String, dynamic> doc) {
+    final mime = (doc['mimeType']?.toString() ?? '').toLowerCase();
+    final name = (doc['documentName']?.toString() ?? '').toLowerCase();
+    if (mime.contains('pdf') || name.endsWith('.pdf')) return Icons.picture_as_pdf_outlined;
+    if (mime.contains('image') || name.endsWith('.png') || name.endsWith('.jpg') || name.endsWith('.jpeg')) {
+      return Icons.image_outlined;
+    }
+    if (mime.contains('word') || name.endsWith('.doc') || name.endsWith('.docx')) return Icons.description_outlined;
+    return Icons.insert_drive_file_outlined;
+  }
+
+  String? _formatDate(dynamic raw) {
+    if (raw == null) return null;
+    final dt = DateTime.tryParse(raw.toString());
+    if (dt == null) return null;
+    return DateFormat('dd MMM yyyy').format(dt);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final count = widget.documents.length;
+    return Container(
+      decoration: DS.cardDecoration,
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          InkWell(
+            onTap: () => setState(() => _expanded = !_expanded),
+            child: Padding(
+              padding: const EdgeInsets.all(14),
+              child: Row(children: [
+                Container(
+                  width: 38,
+                  height: 38,
+                  decoration: BoxDecoration(color: DS.primary.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(10)),
+                  child: const Icon(Icons.folder_outlined, color: DS.primary, size: 18),
+                ),
+                const SizedBox(width: 12),
+                Expanded(child: Text(widget.category, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: DS.foreground))),
+                Text('$count document${count == 1 ? '' : 's'}', style: const TextStyle(fontSize: 12, color: DS.mutedForeground)),
+                const SizedBox(width: 6),
+                Icon(_expanded ? Icons.expand_less : Icons.expand_more, size: 20, color: DS.mutedForeground),
+              ]),
+            ),
+          ),
+          if (_expanded)
+            Column(
+              children: widget.documents.map((doc) {
+                final dateStr = _formatDate(doc['documentDate']) ?? _formatDate(doc['uploadedAt']);
+                return InkWell(
+                  onTap: () => widget.onViewDocument(doc),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                    decoration: const BoxDecoration(
+                      border: Border(top: BorderSide(color: DS.cardBorder, width: 1)),
+                    ),
+                    child: Row(children: [
+                      Icon(_iconForDocument(doc), size: 18, color: DS.mutedForeground),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              doc['documentName']?.toString() ?? 'Document',
+                              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: DS.foreground),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            if (dateStr != null)
+                              Padding(
+                                padding: const EdgeInsets.only(top: 2),
+                                child: Text(dateStr, style: const TextStyle(fontSize: 11, color: DS.mutedForeground)),
+                              ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      const Icon(Icons.chevron_right, size: 18, color: DS.mutedForeground),
+                    ]),
+                  ),
+                );
+              }).toList(),
+            ),
+        ],
+      ),
     );
   }
 }

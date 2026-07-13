@@ -21,6 +21,7 @@ import com.HealthLink.entity.Consultation;
 import com.HealthLink.entity.Doctor;
 import com.HealthLink.entity.DoctorSchedule;
 import com.HealthLink.entity.HealthRecord;
+import com.HealthLink.entity.HealthRecordShare;
 import com.HealthLink.entity.MedicalDocument;
 import com.HealthLink.entity.Patient;
 import com.HealthLink.entity.PrescriptionHeader;
@@ -34,6 +35,7 @@ import com.HealthLink.repository.healthrecord.MedicalDocumentRepository;
 import com.HealthLink.repository.auth.EmailVerificationTokenRepository;
 import com.HealthLink.repository.doctor.DoctorRepository;
 import com.HealthLink.repository.doctor.DoctorScheduleRepository;
+import com.HealthLink.repository.healthrecord.HealthRecordShareRepository;
 import com.HealthLink.repository.patient.PatientRepository;
 import com.HealthLink.repository.prescription.PrescriptionHeaderRepository;
 import com.HealthLink.service.doctor.DoctorService;
@@ -95,6 +97,7 @@ public class DoctorServiceImpl implements DoctorService {
     private final PasswordEncoder passwordEncoder;
     private final DoctorServiceRepository doctorServiceRepository;
     private final MedicalDocumentRepository medicalDocumentRepository;
+    private final HealthRecordShareRepository healthRecordShareRepository;
 
     private static final String[] DAY_NAMES
             = {"Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"};
@@ -255,7 +258,7 @@ public class DoctorServiceImpl implements DoctorService {
                 .heightCm(patient.getHeightCm())
                 .weightKg(patient.getWeightKg())
                 .appointments(appointments)
-                .documentsByCategory(getDocumentsByCategory(patient))
+                .documentsByCategory(getDocumentsByCategory(patient, doctorId))
                 .prescriptions(prescriptions)
                 .clinicalResults(getClinicalResultsForDoctor(patient, doctorId))
                 .build();
@@ -569,15 +572,39 @@ public class DoctorServiceImpl implements DoctorService {
                 .build();
     }
 
-    private List<AdminDocumentCategoryDto> getDocumentsByCategory(Patient patient) {
+    /**
+     * Chỉ trả về document mà patient đã chủ động chia sẻ với đúng bác sĩ này
+     * (HealthRecordShare còn hiệu lực: chưa revoke, chưa hết hạn). Không lấy
+     * thẳng toàn bộ MedicalDocuments của patient như trước đây.
+     */
+    private List<AdminDocumentCategoryDto> getDocumentsByCategory(Patient patient, String doctorId) {
+        List<HealthRecordShare> activeShares = healthRecordShareRepository
+                .findBySharedWithDoctor_DoctorIdAndRevokedFalseOrderByConsentGivenAtDesc(doctorId)
+                .stream()
+                .filter(share -> share.getExpiryDate() == null || share.getExpiryDate().isAfter(LocalDateTime.now()))
+                .filter(share -> share.getSharedByPatient() != null
+                        && patient.getPatientId().equals(share.getSharedByPatient().getPatientId()))
+                .toList();
+
+        Map<Integer, HealthRecordShare> shareByHealthRecordId = new HashMap<>();
+        for (HealthRecordShare share : activeShares) {
+            if (share.getHealthRecord() != null) {
+                shareByHealthRecordId.put(share.getHealthRecord().getHealthRecordId(), share);
+            }
+        }
+
         Map<String, List<AdminMedicalDocumentDto>> categoryMap = new LinkedHashMap<>();
 
         if (patient.getHealthRecords() != null) {
             for (HealthRecord healthRecord : patient.getHealthRecords()) {
-                if (healthRecord.getMedicalDocuments() == null) {
+                HealthRecordShare share = shareByHealthRecordId.get(healthRecord.getHealthRecordId());
+                if (share == null || healthRecord.getMedicalDocuments() == null) {
                     continue;
                 }
                 for (MedicalDocument document : healthRecord.getMedicalDocuments()) {
+                    if (!isDocumentCoveredByShare(document, share)) {
+                        continue;
+                    }
                     String category = StringUtils.hasText(document.getCategory())
                             ? document.getCategory()
                             : "Uncategorized";
@@ -610,6 +637,19 @@ public class DoctorServiceImpl implements DoctorService {
                 .collect(Collectors.toList());
     }
 
+    private boolean isDocumentCoveredByShare(MedicalDocument document, HealthRecordShare share) {
+        String sharedIds = share.getSharedDocumentIds();
+        if (!StringUtils.hasText(sharedIds)) {
+            return true;
+        }
+        for (String id : sharedIds.split(",")) {
+            if (id.trim().equals(document.getDocumentId().toString())) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     private List<AdminMedicalDocumentDto> getClinicalResultsForDoctor(Patient patient, String doctorId) {
         return medicalDocumentRepository
                 .findByHealthRecord_Patient_PatientIdAndSourceTypeOrderByUploadedAtDesc(
@@ -638,6 +678,7 @@ public class DoctorServiceImpl implements DoctorService {
                 .documentID(document.getDocumentId())
                 .documentName(document.getDocumentName())
                 .documentType(document.getDocumentType())
+                .fileLocation(document.getFileLocation())
                 .category(document.getCategory())
                 .description(document.getDescription())
                 .testResults(document.getTestResults())

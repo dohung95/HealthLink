@@ -38,7 +38,29 @@ class DoctorScheduleService {
         .delete(Uri.parse(ApiConfig.deleteSchedule(scheduleId)), headers: _headers(token))
         .timeout(ApiConfig.connectTimeout);
     if (res.statusCode != 200 && res.statusCode != 204) {
-      throw Exception('Failed to delete schedule: ${res.statusCode}');
+      final msg = _errorMsg(res.body);
+      throw Exception(msg);
+    }
+  }
+
+  /// Confirm a carried-over schedule for the new month (clears the reconfirmation prompt).
+  static Future<DoctorScheduleData> confirmMonthlySchedule(String token) async {
+    final res = await http
+        .post(Uri.parse(ApiConfig.confirmMonthlySchedule), headers: _headers(token))
+        .timeout(ApiConfig.connectTimeout);
+    if (res.statusCode == 200) {
+      return DoctorScheduleData.fromJson(jsonDecode(res.body) as Map<String, dynamic>);
+    }
+    throw Exception(_errorMsg(res.body));
+  }
+
+  /// Delete a self-registered exception. Cannot delete admin-created ones.
+  static Future<void> deleteException(String token, int exceptionId) async {
+    final res = await http
+        .delete(Uri.parse(ApiConfig.deleteScheduleException(exceptionId)), headers: _headers(token))
+        .timeout(ApiConfig.connectTimeout);
+    if (res.statusCode != 200 && res.statusCode != 204) {
+      throw Exception(_errorMsg(res.body));
     }
   }
 

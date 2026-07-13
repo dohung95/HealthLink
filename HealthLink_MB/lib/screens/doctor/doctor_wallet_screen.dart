@@ -33,6 +33,11 @@ class _DoctorWalletScreenState extends State<DoctorWalletScreen> with SingleTick
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
+    // Không dùng TabBarView (PageView) cho nội dung nên phải tự lắng nghe đổi tab để rebuild.
+    // Đổi ngay khi bấm (không đợi hết animation trượt của indicator) để nội dung phản hồi tức thì.
+    _tabController.addListener(() {
+      if (mounted) setState(() {});
+    });
     _initService();
   }
 
@@ -79,11 +84,12 @@ class _DoctorWalletScreenState extends State<DoctorWalletScreen> with SingleTick
 
   void _showWithdrawSheet() {
     if (_walletService == null || _balance == null) return;
+    final maxAmount = (_balance!.pendingBalance - 10).clamp(0, double.infinity).toDouble();
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) => DoctorWithdrawSheet(walletService: _walletService!, maxAmount: _balance!.eligibleForWithdrawal, onSuccess: _loadData),
+      builder: (context) => DoctorWithdrawSheet(walletService: _walletService!, maxAmount: maxAmount, onSuccess: _loadData),
     );
   }
 
@@ -150,19 +156,19 @@ class _DoctorWalletScreenState extends State<DoctorWalletScreen> with SingleTick
           Row(children: [
             Icon(Icons.account_balance_wallet_outlined, size: 16, color: DS.primaryForeground.withOpacity(0.8)),
             const SizedBox(width: 8),
-            Text('Total Earnings', style: TextStyle(fontSize: 14, color: DS.primaryForeground.withOpacity(0.8))),
+            Text('Available Balance', style: TextStyle(fontSize: 14, color: DS.primaryForeground.withOpacity(0.8))),
           ]),
           const SizedBox(height: 4),
-          Text(_formatCurrency(_balance?.totalBalance ?? 0), style: const TextStyle(fontSize: 30, fontWeight: FontWeight.bold, color: DS.primaryForeground)),
+          Text(_formatCurrency(_balance?.pendingBalance ?? 0), style: const TextStyle(fontSize: 30, fontWeight: FontWeight.bold, color: DS.primaryForeground)),
           const SizedBox(height: 20),
           Row(children: [
             Expanded(child: Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(color: Colors.white.withOpacity(0.15), borderRadius: BorderRadius.circular(12)),
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text('Available', style: TextStyle(fontSize: 12, color: DS.primaryForeground.withOpacity(0.8))),
+                Text('Total Earnings', style: TextStyle(fontSize: 12, color: DS.primaryForeground.withOpacity(0.8))),
                 const SizedBox(height: 2),
-                Text(_formatCurrency(_balance?.eligibleForWithdrawal ?? 0), style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: DS.primaryForeground)),
+                Text(_formatCurrency(_balance?.totalEarnings ?? 0), style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: DS.primaryForeground)),
               ]),
             )),
             const SizedBox(width: 12),
@@ -170,9 +176,12 @@ class _DoctorWalletScreenState extends State<DoctorWalletScreen> with SingleTick
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(color: Colors.white.withOpacity(0.15), borderRadius: BorderRadius.circular(12)),
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text('Pending', style: TextStyle(fontSize: 12, color: DS.primaryForeground.withOpacity(0.8))),
+                Text('Status', style: TextStyle(fontSize: 12, color: DS.primaryForeground.withOpacity(0.8))),
                 const SizedBox(height: 2),
-                Text(_formatCurrency(_balance?.pendingBalance ?? 0), style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: DS.primaryForeground)),
+                Text(
+                  (_balance?.canWithdraw ?? false) ? 'Withdrawals Ready' : 'On Hold',
+                  style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: DS.primaryForeground),
+                ),
               ]),
             )),
           ]),
@@ -199,28 +208,46 @@ class _DoctorWalletScreenState extends State<DoctorWalletScreen> with SingleTick
   }
 
   Widget _buildTabs() {
+    // Màu/style khai báo thẳng ở đây (không lấy qua DS.* trong doctor_theme.dart) để chỉnh trực tiếp tại chỗ.
+    const Color tabBarBackground = Color(0x44C6C6C6); // = DS.secondary
+    const Color tabIndicatorBackground = Color(0xB239E3D1); // = DS.card
+    const Color tabLabelColor = Color(0xFF111827); // = DS.foreground
+    const Color tabUnselectedLabelColor = Color(0xFF30343C); // = DS.mutedForeground
+    const Color tabIndicatorShadowColor = Color(0xFF705959); // Colors.black @ 5% opacity
+    const double tabBarContainerRadius = 8;
+    const double tabIndicatorRadius = 6;
+    const EdgeInsets tabIndicatorPadding = EdgeInsets.symmetric(horizontal: -18, vertical: 4);
+    const TextStyle tabLabelStyle = TextStyle(fontSize: 15, fontWeight: FontWeight.w800);
+
     return Column(children: [
       Container(
-        decoration: BoxDecoration(color: DS.secondary, borderRadius: BorderRadius.circular(8)),
+        decoration: BoxDecoration(color: tabBarBackground, borderRadius: BorderRadius.circular(tabBarContainerRadius)),
         child: TabBar(
           controller: _tabController,
-          indicator: BoxDecoration(color: DS.card, borderRadius: BorderRadius.circular(6), boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 4, offset: const Offset(0, 1))]),
-          indicatorPadding: const EdgeInsets.all(4),
-          labelColor: DS.foreground,
-          unselectedLabelColor: DS.mutedForeground,
-          labelStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+          indicator: BoxDecoration(
+            color: tabIndicatorBackground,
+            borderRadius: BorderRadius.circular(tabIndicatorRadius),
+            boxShadow: const [BoxShadow(color: tabIndicatorShadowColor, blurRadius: 4, offset: Offset(0, 1))],
+          ),
+          indicatorPadding: tabIndicatorPadding,
+          labelColor: tabLabelColor,
+          unselectedLabelColor: tabUnselectedLabelColor,
+          labelStyle: tabLabelStyle,
           dividerColor: Colors.transparent,
           tabs: const [Tab(text: 'Transactions'), Tab(text: 'Withdrawals')],
         ),
       ),
       const SizedBox(height: 16),
-      SizedBox(height: 500, child: TabBarView(controller: _tabController, children: [_buildTransactionsList(), _buildSettlementsList()])),
+      // Không dùng TabBarView/PageView (luôn ép chiều cao cố định, gây khoảng trống thừa
+      // khi list ngắn hơn khung). Hiện trực tiếp đúng list của tab đang chọn để tự co theo nội dung thật.
+      _tabController.index == 0 ? _buildTransactionsList() : _buildSettlementsList(),
     ]);
   }
 
   Widget _buildTransactionsList() {
     if (_transactions.isEmpty) return const DoctorEmptyState(icon: Icons.receipt_long_outlined, title: 'No transactions yet', subtitle: 'Your consultation earnings will appear here.');
     return ListView.separated(
+      padding: EdgeInsets.zero, // list lồng trong SingleChildScrollView — không để tự cộng thêm MediaQuery.padding.top (đã do DoctorBackHeader xử lý)
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
       itemCount: _transactions.length,
@@ -232,6 +259,7 @@ class _DoctorWalletScreenState extends State<DoctorWalletScreen> with SingleTick
   Widget _buildSettlementsList() {
     if (_settlements.isEmpty) return const DoctorEmptyState(icon: Icons.download, title: 'No withdrawals', subtitle: 'Your withdrawal requests will appear here.');
     return ListView.separated(
+      padding: EdgeInsets.zero, // list lồng trong SingleChildScrollView — không để tự cộng thêm MediaQuery.padding.top (đã do DoctorBackHeader xử lý)
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
       itemCount: _settlements.length,

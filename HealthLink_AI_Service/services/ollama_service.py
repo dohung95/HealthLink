@@ -19,7 +19,7 @@ def get_ollama_client():
     global _ollama_client
     if _ollama_client is None:
         import ollama
-        _ollama_client = ollama.Client(host=Config.OLLAMA_HOST)
+        _ollama_client = ollama.Client(host=Config.OLLAMA_HOST, timeout=Config.OLLAMA_TIMEOUT)
     return _ollama_client
 
 

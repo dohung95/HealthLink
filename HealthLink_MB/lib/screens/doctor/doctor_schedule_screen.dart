@@ -26,13 +26,41 @@ const _typeLabels = {
   'CHAT': 'Chat',
   'OFFLINE': 'In-person',
   'HOMEVISIT': 'Home Visit',
+  'ONLINE': 'Online',
 };
+
+const _shiftLabels = {
+  'MORNING': 'Morning',
+  'AFTERNOON': 'Afternoon',
+  'EVENING': 'Evening',
+};
+
+// Shift windows must match backend & web (DoctorScheduleServiceImpl / ScheduleFormModal.jsx)
+const _shiftWindows = {
+  'MORNING':   (label: 'Morning',   start: '07:00', end: '10:30'),
+  'AFTERNOON': (label: 'Afternoon', start: '13:00', end: '17:30'),
+  'EVENING':   (label: 'Evening',   start: '19:00', end: '21:00'),
+};
+const _shiftOrder = ['MORNING', 'AFTERNOON', 'EVENING'];
+
+bool _isHomeVisit(String? type) {
+  final t = (type ?? '').trim().toLowerCase();
+  return t == 'homevisit' || t == 'home visit' || t == 'home-visit' || t == 'home';
+}
 
 String _fmtTime(String? t) {
   if (t == null || t.isEmpty) return '';
   final p = t.split(':');
   return '${p[0].padLeft(2, '0')}:${(p.length > 1 ? p[1] : '00').padLeft(2, '0')}';
 }
+
+int _toMinutes(String hhmm) {
+  final p = hhmm.split(':').map(int.parse).toList();
+  return p[0] * 60 + p[1];
+}
+
+bool _rangesOverlap(String aStart, String aEnd, String bStart, String bEnd) =>
+    _toMinutes(aStart) < _toMinutes(bEnd) && _toMinutes(bStart) < _toMinutes(aEnd);
 
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -58,9 +86,6 @@ class _DoctorScheduleScreenState extends State<DoctorScheduleScreen>
   bool _loadingRequests = false;
   String? _error;
 
-  ComplianceStatus? _compliance;
-  bool _loadingCompliance = true;
-
   DateTime _calendarMonth = DateTime.now();
 
   @override
@@ -73,7 +98,6 @@ class _DoctorScheduleScreenState extends State<DoctorScheduleScreen>
       if (_tab.index == 2) _loadRequests();
     });
     _loadAll();
-    _loadCompliance();
   }
 
   @override
@@ -91,17 +115,6 @@ class _DoctorScheduleScreenState extends State<DoctorScheduleScreen>
       if (mounted) setState(() { _scheduleData = data; _loadingSchedule = false; });
     } catch (e) {
       if (mounted) setState(() { _error = e.toString(); _loadingSchedule = false; });
-    }
-  }
-
-  Future<void> _loadCompliance() async {
-    setState(() => _loadingCompliance = true);
-    try {
-      final c = await DoctorScheduleService.getComplianceStatus(_token);
-      if (mounted) setState(() { _compliance = c; _loadingCompliance = false; });
-    } catch (e) {
-      debugPrint('[Compliance] schedule screen load failed: $e');
-      if (mounted) setState(() { _loadingCompliance = false; });
     }
   }
 
@@ -144,32 +157,6 @@ class _DoctorScheduleScreenState extends State<DoctorScheduleScreen>
     }
   }
 
-  Future<void> _deleteSchedule(int id) async {
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: const Text('Delete Schedule'),
-        content: const Text('Remove this schedule slot?'),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
-          TextButton(
-              onPressed: () => Navigator.pop(context, true),
-              child: const Text('Delete', style: TextStyle(color: DS.destructive))),
-        ],
-      ),
-    );
-    if (ok != true) return;
-    try {
-      await DoctorScheduleService.deleteSchedule(_token, id);
-      _loadAll();
-      _loadCompliance();
-      widget.onScheduleSaved?.call();
-      if (mounted) _showSnack('Schedule deleted', success: true);
-    } catch (e) {
-      if (mounted) _showSnack(e.toString());
-    }
-  }
-
   void _showSnack(String msg, {bool success = false}) {
     if (success) {
       _showSuccessPopup(msg);
@@ -198,8 +185,6 @@ class _DoctorScheduleScreenState extends State<DoctorScheduleScreen>
       backgroundColor: DS.background,
       body: Column(
         children: [
-          if (_loadingCompliance || (_compliance != null && _compliance!.status != 'COMPLIANT' && _compliance!.status != 'EXEMPTED'))
-            _ComplianceWarning(compliance: _compliance, loading: _loadingCompliance),
           Padding(
             padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
             child: Container(
@@ -250,48 +235,46 @@ class _DoctorScheduleScreenState extends State<DoctorScheduleScreen>
           ),
           Expanded(
             child: TabBarView(
-        controller: _tab,
-        children: [
-          _WeeklyTab(
-            loading: _loadingSchedule,
-            error: _error,
-            data: _scheduleData,
-            onDelete: _deleteSchedule,
-            onRefresh: _loadAll,
-            onScheduleSaved: () {
-              _loadCompliance();
-              widget.onScheduleSaved?.call();
-            },
-            token: _token,
-            onSnack: _showSnack,
-          ),
-          _CalendarTab(
-            loading: _loadingCalendar,
-            days: _calendarDays,
-            month: _calendarMonth,
-            onMonthChanged: (m) {
-              setState(() => _calendarMonth = m);
-              _loadCalendar();
-            },
-            token: _token,
-            onSnack: _showSnack,
-            onDayOffCreated: () {
-              _loadCalendar();
-              _loadAll();
-              _loadCompliance();
-              widget.onScheduleSaved?.call();
-            },
-          ),
-          _RequestsTab(
-            loading: _loadingRequests,
-            requests: _changeRequests,
-            appointments: _upcomingAppointments,
-            token: _token,
-            onRefresh: _loadRequests,
-            onSnack: _showSnack,
-          ),
-        ],
-      ),
+              controller: _tab,
+              children: [
+                _WeeklyTab(
+                  loading: _loadingSchedule,
+                  error: _error,
+                  data: _scheduleData,
+                  onRefresh: () {
+                    _loadAll();
+                    widget.onScheduleSaved?.call();
+                  },
+                  token: _token,
+                  onSnack: _showSnack,
+                ),
+                _CalendarTab(
+                  loading: _loadingCalendar,
+                  days: _calendarDays,
+                  exceptions: _scheduleData?.exceptions ?? [],
+                  month: _calendarMonth,
+                  onMonthChanged: (m) {
+                    setState(() => _calendarMonth = m);
+                    _loadCalendar();
+                  },
+                  token: _token,
+                  onSnack: _showSnack,
+                  onDataChanged: () {
+                    _loadCalendar();
+                    _loadAll();
+                    widget.onScheduleSaved?.call();
+                  },
+                ),
+                _RequestsTab(
+                  loading: _loadingRequests,
+                  requests: _changeRequests,
+                  appointments: _upcomingAppointments,
+                  token: _token,
+                  onRefresh: _loadRequests,
+                  onSnack: _showSnack,
+                ),
+              ],
+            ),
           ),
         ],
       ),
@@ -303,13 +286,43 @@ class _DoctorScheduleScreenState extends State<DoctorScheduleScreen>
 // WEEKLY TAB
 // ─────────────────────────────────────────────────────────────────────────────
 
-class _WeeklyTab extends StatelessWidget {
+/// Unifies existing (server) schedules and locally staged pending adds/deletes
+/// for display, mirroring WeeklyScheduleBuilder.jsx's `displaySchedules`.
+class _DisplayRow {
+  final int? scheduleId;
+  final String? tempId;
+  final int dayOfWeek;
+  final String startTime;
+  final String endTime;
+  final String? consultationType;
+  final String? shiftType;
+  final int slotDuration;
+  final int maxPatients;
+  final String? location;
+  final bool isPending;
+  final bool isMarkedForDeletion;
+
+  const _DisplayRow({
+    this.scheduleId,
+    this.tempId,
+    required this.dayOfWeek,
+    required this.startTime,
+    required this.endTime,
+    this.consultationType,
+    this.shiftType,
+    required this.slotDuration,
+    required this.maxPatients,
+    this.location,
+    this.isPending = false,
+    this.isMarkedForDeletion = false,
+  });
+}
+
+class _WeeklyTab extends StatefulWidget {
   final bool loading;
   final String? error;
   final DoctorScheduleData? data;
-  final void Function(int) onDelete;
   final VoidCallback onRefresh;
-  final VoidCallback? onScheduleSaved;
   final String token;
   final void Function(String, {bool success}) onSnack;
 
@@ -317,64 +330,262 @@ class _WeeklyTab extends StatelessWidget {
     required this.loading,
     this.error,
     this.data,
-    required this.onDelete,
     required this.onRefresh,
-    this.onScheduleSaved,
     required this.token,
     required this.onSnack,
   });
 
   @override
+  State<_WeeklyTab> createState() => _WeeklyTabState();
+}
+
+class _WeeklyTabState extends State<_WeeklyTab> {
+  final List<Map<String, dynamic>> _pendingAdds = []; // raw payloads + _tempId
+  final Set<int> _pendingDeletes = {};
+  bool _saving = false;
+  bool _confirmingMonthly = false;
+  int _tempCounter = 0;
+
+  bool get _hasChanges => _pendingAdds.isNotEmpty || _pendingDeletes.isNotEmpty;
+
+  List<_DisplayRow> get _displayRows {
+    final schedules = widget.data?.schedules ?? [];
+    final existing = schedules.map((s) => _DisplayRow(
+          scheduleId: s.scheduleId,
+          dayOfWeek: s.dayOfWeek,
+          startTime: s.startTime,
+          endTime: s.endTime,
+          consultationType: s.consultationType,
+          shiftType: s.shiftType,
+          slotDuration: s.slotDuration,
+          maxPatients: s.maxPatients,
+          location: s.location,
+          isMarkedForDeletion: _pendingDeletes.contains(s.scheduleId),
+        ));
+    final pending = _pendingAdds.map((p) => _DisplayRow(
+          tempId: p['_tempId'] as String,
+          dayOfWeek: p['dayOfWeek'] as int,
+          startTime: p['startTime'] as String,
+          endTime: p['endTime'] as String,
+          consultationType: p['consultationType'] as String?,
+          shiftType: p['shiftType'] as String?,
+          slotDuration: p['slotDuration'] as int,
+          maxPatients: p['maxPatients'] as int,
+          isPending: true,
+        ));
+    return [...existing, ...pending];
+  }
+
+  List<_DisplayRow> _rowsForDay(int dayOfWeek) =>
+      _displayRows.where((r) => r.dayOfWeek == dayOfWeek).toList()
+        ..sort((a, b) => a.startTime.compareTo(b.startTime));
+
+  void _addPending(List<Map<String, dynamic>> payloads) {
+    setState(() {
+      for (final p in payloads) {
+        _pendingAdds.add({...p, '_tempId': 'temp_${++_tempCounter}'});
+      }
+    });
+    widget.onSnack('${payloads.length} schedule(s) staged. Tap "Save All" to confirm.', success: false);
+  }
+
+  void _removeRow(_DisplayRow row) {
+    if (row.isPending) {
+      setState(() => _pendingAdds.removeWhere((p) => p['_tempId'] == row.tempId));
+    } else {
+      setState(() => _pendingDeletes.add(row.scheduleId!));
+    }
+  }
+
+  void _undoDelete(int scheduleId) {
+    setState(() => _pendingDeletes.remove(scheduleId));
+  }
+
+  void _discardChanges() {
+    setState(() {
+      _pendingAdds.clear();
+      _pendingDeletes.clear();
+    });
+  }
+
+  Future<void> _confirmAndSave() async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Confirm Changes'),
+        content: Text(
+          'Are you sure you want to save these changes?\n\n'
+          '${_pendingAdds.isNotEmpty ? '• ${_pendingAdds.length} schedule(s) will be added\n' : ''}'
+          '${_pendingDeletes.isNotEmpty ? '• ${_pendingDeletes.length} schedule(s) will be deleted' : ''}',
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+          TextButton(onPressed: () => Navigator.pop(context, true), child: const Text('Yes, Save Changes')),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    await _save();
+  }
+
+  Future<void> _save() async {
+    setState(() => _saving = true);
+    try {
+      for (final scheduleId in _pendingDeletes.toList()) {
+        try {
+          await DoctorScheduleService.deleteSchedule(widget.token, scheduleId);
+        } catch (e) {
+          final msg = e.toString().replaceFirst('Exception: ', '');
+          if (mounted) {
+            if (msg.contains('future') || msg.contains('appointment') || msg.contains('booked')) {
+              _showBlockedModal(msg);
+            } else {
+              widget.onSnack(msg);
+            }
+          }
+          setState(() => _saving = false);
+          return;
+        }
+      }
+      for (final payload in _pendingAdds) {
+        try {
+          final data = Map<String, dynamic>.from(payload)..remove('_tempId');
+          await DoctorScheduleService.createSchedule(widget.token, data);
+        } catch (e) {
+          if (mounted) widget.onSnack(e.toString().replaceFirst('Exception: ', ''));
+          setState(() => _saving = false);
+          return;
+        }
+      }
+      setState(() {
+        _pendingAdds.clear();
+        _pendingDeletes.clear();
+        _saving = false;
+      });
+      widget.onSnack('All changes saved successfully!', success: true);
+      widget.onRefresh();
+    } catch (_) {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  void _showBlockedModal(String message) {
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Row(children: [
+          Icon(Icons.event_busy, color: DS.destructive),
+          SizedBox(width: 10),
+          Expanded(child: Text('Cannot Delete Schedule')),
+        ]),
+        content: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(message),
+          const SizedBox(height: 14),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(color: DS.secondary, borderRadius: BorderRadius.circular(10)),
+            child: const Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Icon(Icons.lightbulb_outline, size: 18, color: DS.primary),
+              SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'What to do: use "Request Change" in the Requests tab to ask admin to reschedule or transfer these appointments first.',
+                  style: TextStyle(fontSize: 13, color: DS.mutedForeground),
+                ),
+              ),
+            ]),
+          ),
+        ]),
+        actions: [
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: DS.primary, foregroundColor: Colors.white),
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Got It'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _confirmMonthlySchedule() async {
+    setState(() => _confirmingMonthly = true);
+    try {
+      await DoctorScheduleService.confirmMonthlySchedule(widget.token);
+      widget.onSnack('Schedule confirmed for this month.', success: true);
+      widget.onRefresh();
+    } catch (e) {
+      widget.onSnack(e.toString().replaceFirst('Exception: ', ''));
+    } finally {
+      if (mounted) setState(() => _confirmingMonthly = false);
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    if (loading) {
+    if (widget.loading) {
       return const Center(child: CircularProgressIndicator(color: DS.primary));
     }
-    if (error != null) {
+    if (widget.error != null) {
       return Center(
         child: Column(mainAxisSize: MainAxisSize.min, children: [
           const Icon(Icons.error_outline, color: DS.destructive, size: 40),
           const SizedBox(height: 8),
-          Text(error!, style: const TextStyle(color: DS.destructive)),
+          Text(widget.error!, style: const TextStyle(color: DS.destructive)),
           const SizedBox(height: 12),
           ElevatedButton.icon(
-              onPressed: onRefresh,
+              onPressed: widget.onRefresh,
               icon: const Icon(Icons.refresh),
               label: const Text('Try Again')),
         ]),
       );
     }
 
-    final schedules = data?.schedules ?? [];
-    // Group by dayOfWeek
-    final Map<int, List<DoctorScheduleEntry>> byDay = {};
-    for (final s in schedules) {
-      byDay.putIfAbsent(s.dayOfWeek, () => []).add(s);
-    }
+    final schedules = widget.data?.schedules ?? [];
 
     return Stack(
       children: [
-        schedules.isEmpty
-            ? Center(
-                child: Column(mainAxisSize: MainAxisSize.min, children: [
-                  Icon(Icons.calendar_today, size: 48, color: DS.mutedForeground.withValues(alpha:0.4)),
-                  const SizedBox(height: 12),
-                  const Text('No schedule set yet',
-                      style: TextStyle(color: DS.mutedForeground, fontSize: 15)),
-                  const SizedBox(height: 4),
-                  const Text('Tap + to add your first working slot',
-                      style: TextStyle(color: DS.mutedForeground, fontSize: 13)),
-                ]),
-              )
-            : ListView.builder(
-                padding: const EdgeInsets.fromLTRB(16, 16, 16, 80),
-                itemCount: _days.length,
-                itemBuilder: (_, i) {
-                  final day = _days[i];
-                  final slots = byDay[day.index] ?? [];
-                  if (slots.isEmpty) return const SizedBox.shrink();
-                  return _DayCard(day: day, slots: slots, onDelete: onDelete);
-                },
+        ListView(
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 80),
+          children: [
+            _ScheduleStatusBanner(
+              data: widget.data,
+              confirming: _confirmingMonthly,
+              onConfirm: _confirmMonthlySchedule,
+            ),
+            if (_hasChanges) ...[
+              const SizedBox(height: 12),
+              _PendingChangesBar(
+                addCount: _pendingAdds.length,
+                deleteCount: _pendingDeletes.length,
+                saving: _saving,
+                onDiscard: _discardChanges,
+                onSave: _confirmAndSave,
               ),
+            ],
+            const SizedBox(height: 12),
+            if (schedules.isEmpty && !_hasChanges)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 60),
+                child: Center(
+                  child: Column(mainAxisSize: MainAxisSize.min, children: [
+                    Icon(Icons.calendar_today, size: 48, color: DS.mutedForeground.withValues(alpha:0.4)),
+                    const SizedBox(height: 12),
+                    const Text('No schedule set yet',
+                        style: TextStyle(color: DS.mutedForeground, fontSize: 15)),
+                    const SizedBox(height: 4),
+                    const Text('Tap + to add your first working slot',
+                        style: TextStyle(color: DS.mutedForeground, fontSize: 13)),
+                  ]),
+                ),
+              )
+            else
+              ..._days.map((day) {
+                final rows = _rowsForDay(day.index);
+                if (rows.isEmpty) return const SizedBox.shrink();
+                return _DayCard(day: day, rows: rows, onDelete: _removeRow, onUndo: _undoDelete);
+              }),
+          ],
+        ),
         Positioned(
           right: 10,
           bottom: 10,
@@ -396,25 +607,190 @@ class _WeeklyTab extends StatelessWidget {
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (_) => _AddScheduleSheet(
-        token: token,
-        onSaved: () {
+        daySchedulesForDay: _rowsForDay,
+        onCreated: (payloads) {
           Navigator.pop(context);
-          onRefresh();
-          onScheduleSaved?.call();
-          onSnack('Schedule slot added', success: true);
+          _addPending(payloads);
         },
-        onError: (msg) => onSnack(msg),
       ),
+    );
+  }
+}
+
+class _ScheduleStatusBanner extends StatelessWidget {
+  final DoctorScheduleData? data;
+  final bool confirming;
+  final VoidCallback onConfirm;
+
+  const _ScheduleStatusBanner({required this.data, required this.confirming, required this.onConfirm});
+
+  @override
+  Widget build(BuildContext context) {
+    final status = data?.doctorScheduleStatus ?? 'PENDING';
+    final total = data?.totalMonthlyHours ?? 0;
+    final required = data?.requiredMonthlyHours ?? 80;
+    final needsReconfirm = data?.needsScheduleReconfirmation ?? false;
+
+    final Color accent;
+    final Color bg;
+    final Color border;
+    final IconData icon;
+    final String title;
+    switch (status) {
+      case 'APPROVED':
+        accent = const Color(0xFF16A34A);
+        bg = const Color(0xFFDCFCE7);
+        border = const Color(0xFF86EFAC);
+        icon = Icons.check_circle;
+        title = 'Schedule Approved';
+        break;
+      case 'REJECTED':
+        accent = const Color(0xFFDC2626);
+        bg = const Color(0xFFFEF2F2);
+        border = const Color(0xFFFCA5A5);
+        icon = Icons.cancel;
+        title = 'Schedule Not Approved';
+        break;
+      default:
+        accent = const Color(0xFFCA8A04);
+        bg = const Color(0xFFFEFCE8);
+        border = const Color(0xFFFDE047);
+        icon = Icons.schedule;
+        title = 'Schedule Pending';
+    }
+
+    final subtitle = needsReconfirm
+        ? 'Your schedule from last month carries over and still meets the ${required.toStringAsFixed(0)}h/month requirement — please reconfirm to stay visible to patients.'
+        : '${total.toStringAsFixed(1)}h / ${required.toStringAsFixed(0)}h per month'
+            '${status != 'APPROVED' ? ' (need ${(required - total).toStringAsFixed(1)}h more)' : ''}';
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(14), border: Border.all(color: border)),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Icon(icon, color: accent, size: 22),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(title, style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: accent)),
+              const SizedBox(height: 2),
+              Text(subtitle, style: TextStyle(fontSize: 12.5, color: accent.withValues(alpha: 0.9), height: 1.4)),
+            ]),
+          ),
+        ]),
+        const SizedBox(height: 10),
+        Row(children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            decoration: BoxDecoration(
+              color: accent.withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Row(mainAxisSize: MainAxisSize.min, children: [
+              Container(width: 6, height: 6, decoration: BoxDecoration(color: accent, shape: BoxShape.circle)),
+              const SizedBox(width: 6),
+              Text(status, style: TextStyle(color: accent, fontSize: 11, fontWeight: FontWeight.w700)),
+            ]),
+          ),
+          const Spacer(),
+          if (needsReconfirm)
+            ElevatedButton.icon(
+              onPressed: confirming ? null : onConfirm,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: DS.primary,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                minimumSize: Size.zero,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              ),
+              icon: confirming
+                  ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                  : const Icon(Icons.check_circle, size: 16),
+              label: Text(confirming ? 'Confirming...' : 'Update Schedule', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+            ),
+        ]),
+      ]),
+    );
+  }
+}
+
+class _PendingChangesBar extends StatelessWidget {
+  final int addCount;
+  final int deleteCount;
+  final bool saving;
+  final VoidCallback onDiscard;
+  final VoidCallback onSave;
+
+  const _PendingChangesBar({
+    required this.addCount,
+    required this.deleteCount,
+    required this.saving,
+    required this.onDiscard,
+    required this.onSave,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFEFF6FF),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFF93C5FD)),
+      ),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [
+          const Icon(Icons.info_outline, size: 18, color: Color(0xFF1E40AF)),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              'Unsaved changes: $addCount to add, $deleteCount to delete',
+              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF1E40AF)),
+            ),
+          ),
+        ]),
+        const SizedBox(height: 10),
+        Row(children: [
+          Expanded(
+            child: OutlinedButton(
+              onPressed: saving ? null : onDiscard,
+              style: OutlinedButton.styleFrom(
+                foregroundColor: DS.mutedForeground,
+                side: const BorderSide(color: DS.border),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              ),
+              child: const Text('Discard'),
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: ElevatedButton.icon(
+              onPressed: saving ? null : onSave,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: DS.primary,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              ),
+              icon: saving
+                  ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                  : const Icon(Icons.save, size: 18),
+              label: Text(saving ? 'Saving...' : 'Save All'),
+            ),
+          ),
+        ]),
+      ]),
     );
   }
 }
 
 class _DayCard extends StatelessWidget {
   final ({int index, String short, String label}) day;
-  final List<DoctorScheduleEntry> slots;
-  final void Function(int) onDelete;
+  final List<_DisplayRow> rows;
+  final void Function(_DisplayRow) onDelete;
+  final void Function(int) onUndo;
 
-  const _DayCard({required this.day, required this.slots, required this.onDelete});
+  const _DayCard({required this.day, required this.rows, required this.onDelete, required this.onUndo});
 
   @override
   Widget build(BuildContext context) {
@@ -446,63 +822,112 @@ class _DayCard extends StatelessWidget {
             Text(day.label,
                 style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14, color: DS.foreground)),
             const Spacer(),
-            Text('${slots.length} slot${slots.length != 1 ? 's' : ''}',
+            Text('${rows.length} slot${rows.length != 1 ? 's' : ''}',
                 style: const TextStyle(color: DS.mutedForeground, fontSize: 12)),
           ]),
         ),
-        ...slots.map((s) => _SlotRow(slot: s, onDelete: onDelete)),
+        ...rows.map((r) => _SlotRow(row: r, onDelete: onDelete, onUndo: onUndo)),
       ]),
     );
   }
 }
 
 class _SlotRow extends StatelessWidget {
-  final DoctorScheduleEntry slot;
-  final void Function(int) onDelete;
+  final _DisplayRow row;
+  final void Function(_DisplayRow) onDelete;
+  final void Function(int) onUndo;
 
-  const _SlotRow({required this.slot, required this.onDelete});
+  const _SlotRow({required this.row, required this.onDelete, required this.onUndo});
 
   IconData get _typeIcon {
-    switch ((slot.consultationType ?? '').toUpperCase()) {
+    if (_isHomeVisit(row.consultationType)) return Icons.home_outlined;
+    switch ((row.consultationType ?? '').toUpperCase()) {
       case 'VIDEO': return Icons.videocam_outlined;
       case 'AUDIO': return Icons.call_outlined;
       case 'CHAT': return Icons.chat_bubble_outline;
       case 'OFFLINE': return Icons.local_hospital_outlined;
-      case 'HOMEVISIT': return Icons.home_outlined;
       default: return Icons.medical_services_outlined;
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final shift = slot.shift;
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+    final shift = row.shiftType;
+    final homeVisit = _isHomeVisit(row.consultationType);
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(10),
+        color: row.isPending
+            ? const Color(0xFFF0FDF4)
+            : row.isMarkedForDeletion
+                ? const Color(0xFFFEF2F2)
+                : null,
+        border: row.isPending
+            ? Border.all(color: const Color(0xFF86EFAC), style: BorderStyle.solid)
+            : row.isMarkedForDeletion
+                ? Border.all(color: const Color(0xFFFCA5A5))
+                : null,
+      ),
       child: Row(children: [
         Icon(_typeIcon, size: 18, color: DS.primary),
         const SizedBox(width: 10),
         Expanded(
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(
-              '${_fmtTime(slot.startTime)} – ${_fmtTime(slot.endTime)}',
-              style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13, color: DS.foreground),
-            ),
+            Row(children: [
+              Expanded(
+                child: Text(
+                  '${shift != null && homeVisit ? '${_shiftLabels[shift.toUpperCase()] ?? shift} · ' : ''}'
+                  '${_fmtTime(row.startTime)} – ${_fmtTime(row.endTime)}',
+                  style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13, color: DS.foreground),
+                ),
+              ),
+              if (row.isPending) const _Badge(text: 'NEW', color: Color(0xFF16A34A)),
+              if (row.isMarkedForDeletion) const _Badge(text: 'DELETING', color: Color(0xFFDC2626)),
+            ]),
             const SizedBox(height: 2),
             Wrap(spacing: 6, children: [
-              if (slot.consultationType != null)
-                _Chip(_typeLabels[slot.consultationType!.toUpperCase()] ?? slot.consultationType!),
-              if (shift != null) _Chip(shift[0] + shift.substring(1).toLowerCase()),
-              _Chip('${slot.slotDuration}min · ${slot.maxPatientsPerSlot}p'),
+              if (row.consultationType != null)
+                _Chip(_typeLabels[row.consultationType!.toUpperCase()] ?? row.consultationType!),
+              if (homeVisit)
+                const _Chip('1 visit/shift')
+              else ...[
+                _Chip('${row.slotDuration}min'),
+                _Chip('${row.maxPatients} pat/slot'),
+              ],
+              if (row.location != null) _Chip(row.location!),
             ]),
           ]),
         ),
-        IconButton(
-          icon: const Icon(Icons.delete_outline, size: 20, color: DS.destructive),
-          onPressed: () => onDelete(slot.scheduleId),
-        ),
+        if (row.isMarkedForDeletion)
+          IconButton(
+            icon: const Icon(Icons.undo, size: 20, color: DS.primary),
+            tooltip: 'Undo deletion',
+            onPressed: () => onUndo(row.scheduleId!),
+          )
+        else
+          IconButton(
+            icon: const Icon(Icons.delete_outline, size: 20, color: DS.destructive),
+            onPressed: () => onDelete(row),
+          ),
       ]),
     );
   }
+}
+
+class _Badge extends StatelessWidget {
+  final String text;
+  final Color color;
+  const _Badge({required this.text, required this.color});
+
+  @override
+  Widget build(BuildContext context) => Container(
+        margin: const EdgeInsets.only(left: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+        decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(4)),
+        child: Text(text, style: const TextStyle(fontSize: 9, fontWeight: FontWeight.w700, color: Colors.white)),
+      );
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -510,24 +935,16 @@ class _SlotRow extends StatelessWidget {
 // ─────────────────────────────────────────────────────────────────────────────
 
 class _AddScheduleSheet extends StatefulWidget {
-  final String token;
-  final VoidCallback onSaved;
-  final void Function(String) onError;
+  final List<_DisplayRow> Function(int) daySchedulesForDay;
+  final void Function(List<Map<String, dynamic>>) onCreated;
 
-  const _AddScheduleSheet({required this.token, required this.onSaved, required this.onError});
+  const _AddScheduleSheet({required this.daySchedulesForDay, required this.onCreated});
 
   @override
   State<_AddScheduleSheet> createState() => _AddScheduleSheetState();
 }
 
 class _AddScheduleSheetState extends State<_AddScheduleSheet> {
-  // Shift windows khớp với backend & web
-  static const _shiftWindows = {
-    'MORNING':   (label: 'Morning',   start: '07:00', end: '10:30'),
-    'AFTERNOON': (label: 'Afternoon', start: '13:00', end: '17:30'),
-    'EVENING':   (label: 'Evening',   start: '19:00', end: '21:00'),
-  };
-  static const _shiftOrder = ['MORNING', 'AFTERNOON', 'EVENING'];
   static const _durations = [15, 20, 30, 45, 60];
 
   int _dayOfWeek = 1;
@@ -537,21 +954,16 @@ class _AddScheduleSheetState extends State<_AddScheduleSheet> {
   TimeOfDay _start = const TimeOfDay(hour: 9, minute: 0);
   TimeOfDay _end   = const TimeOfDay(hour: 10, minute: 0);
   int _slotDuration = 30;
-  int _maxPatients  = 1;
+  final int _onlineMaxPatients = 1;
 
   // HomeVisit fields
   final Set<String> _selectedShifts = {};
+  int _homeVisitMaxPatients = 1;
 
-  bool _saving = false;
   String? _error;
 
   String _fmt(TimeOfDay t) =>
       '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}';
-
-  int _toMinutes(String hhmm) {
-    final p = hhmm.split(':').map(int.parse).toList();
-    return p[0] * 60 + p[1];
-  }
 
   bool _fitsOneWindow(String start, String end) {
     final s = _toMinutes(start);
@@ -559,10 +971,19 @@ class _AddScheduleSheetState extends State<_AddScheduleSheet> {
     return _shiftWindows.values.any((w) => s >= _toMinutes(w.start) && e <= _toMinutes(w.end));
   }
 
-  int _minutesBetween(String start, String end) {
-    final sp = start.split(':').map(int.parse).toList();
-    final ep = end.split(':').map(int.parse).toList();
-    return (ep[0] * 60 + ep[1]) - (sp[0] * 60 + sp[1]);
+  int _minutesBetween(String start, String end) => _toMinutes(end) - _toMinutes(start);
+
+  Set<String> get _usedShifts => widget
+      .daySchedulesForDay(_dayOfWeek)
+      .where((r) => _isHomeVisit(r.consultationType) && r.shiftType != null)
+      .map((r) => r.shiftType!.toUpperCase())
+      .toSet();
+
+  _DisplayRow? _findOverlap(String start, String end) {
+    for (final r in widget.daySchedulesForDay(_dayOfWeek)) {
+      if (_rangesOverlap(start, end, r.startTime, r.endTime)) return r;
+    }
+    return null;
   }
 
   Future<void> _pickTime(bool isStart) async {
@@ -573,9 +994,9 @@ class _AddScheduleSheetState extends State<_AddScheduleSheet> {
     if (picked != null) setState(() => isStart ? _start = picked : _end = picked);
   }
 
-  void _setError(String msg) => setState(() { _error = msg; _saving = false; });
+  void _setError(String msg) => setState(() => _error = msg);
 
-  Future<void> _save() async {
+  void _save() {
     setState(() => _error = null);
 
     if (_kind == 'HomeVisit') {
@@ -583,31 +1004,36 @@ class _AddScheduleSheetState extends State<_AddScheduleSheet> {
         _setError('Please select at least one shift');
         return;
       }
-      setState(() => _saving = true);
-      try {
-        for (final key in _shiftOrder.where(_selectedShifts.contains)) {
-          final w = _shiftWindows[key]!;
-          await DoctorScheduleService.createSchedule(widget.token, {
-            'dayOfWeek': _dayOfWeek,
-            'consultationType': 'HomeVisit',
-            'shiftType': key,
-            'startTime': w.start,
-            'endTime': w.end,
-            'slotDuration': _minutesBetween(w.start, w.end),
-            'maxPatients': 1,
-          });
-        }
-        widget.onSaved();
-      } catch (e) {
-        _setError(e.toString().replaceAll('Exception: ', ''));
+      if (_homeVisitMaxPatients < 1 || _homeVisitMaxPatients > 2) {
+        _setError('Max patients per slot for home visit must be between 1 and 2');
+        return;
       }
+      final payloads = <Map<String, dynamic>>[];
+      for (final key in _shiftOrder.where(_selectedShifts.contains)) {
+        final w = _shiftWindows[key]!;
+        final clash = _findOverlap(w.start, w.end);
+        if (clash != null) {
+          _setError('The ${w.label} shift (${w.start}–${w.end}) overlaps an existing schedule (${_fmtTime(clash.startTime)}–${_fmtTime(clash.endTime)}) on this day.');
+          return;
+        }
+        payloads.add({
+          'dayOfWeek': _dayOfWeek,
+          'consultationType': 'HomeVisit',
+          'shiftType': key,
+          'startTime': w.start,
+          'endTime': w.end,
+          'slotDuration': _minutesBetween(w.start, w.end),
+          'maxPatients': _homeVisitMaxPatients,
+        });
+      }
+      widget.onCreated(payloads);
       return;
     }
 
     // Online
     final startStr = _fmt(_start);
     final endStr   = _fmt(_end);
-    if (_start.hour * 60 + _start.minute >= _end.hour * 60 + _end.minute) {
+    if (_toMinutes(startStr) >= _toMinutes(endStr)) {
       _setError('End time must be after start time');
       return;
     }
@@ -619,25 +1045,20 @@ class _AddScheduleSheetState extends State<_AddScheduleSheet> {
       _setError('Slot duration must be 10–120 minutes');
       return;
     }
-    if (_maxPatients < 1 || _maxPatients > 10) {
-      _setError('Max patients must be 1–10');
+    final clash = _findOverlap(startStr, endStr);
+    if (clash != null) {
+      _setError('This time range ($startStr–$endStr) overlaps an existing schedule (${_fmtTime(clash.startTime)}–${_fmtTime(clash.endTime)}) on this day.');
       return;
     }
-    setState(() => _saving = true);
-    try {
-      await DoctorScheduleService.createSchedule(widget.token, {
-        'dayOfWeek': _dayOfWeek,
-        'consultationType': 'Online',
-        'shiftType': null,
-        'startTime': startStr,
-        'endTime': endStr,
-        'slotDuration': _slotDuration,
-        'maxPatients': _maxPatients,
-      });
-      widget.onSaved();
-    } catch (e) {
-      _setError(e.toString().replaceAll('Exception: ', ''));
-    }
+    widget.onCreated([{
+      'dayOfWeek': _dayOfWeek,
+      'consultationType': 'Online',
+      'shiftType': null,
+      'startTime': startStr,
+      'endTime': endStr,
+      'slotDuration': _slotDuration,
+      'maxPatients': _onlineMaxPatients,
+    }]);
   }
 
   @override
@@ -674,7 +1095,7 @@ class _AddScheduleSheetState extends State<_AddScheduleSheet> {
               // Day of week
               _Label('Day of Week'),
               DropdownButtonFormField<int>(
-                value: _dayOfWeek,
+                initialValue: _dayOfWeek,
                 decoration: _inputDecor(),
                 items: _days.map((d) => DropdownMenuItem(value: d.index, child: Text(d.label))).toList(),
                 onChanged: (v) => setState(() => _dayOfWeek = v!),
@@ -684,9 +1105,9 @@ class _AddScheduleSheetState extends State<_AddScheduleSheet> {
               // Kind toggle: Online / HomeVisit
               _Label('Consultation Type'),
               Row(children: [
-                _KindChip(label: 'Online', selected: _kind == 'Online', onTap: () => setState(() => _kind = 'Online')),
+                _KindChip(label: 'Online', selected: _kind == 'Online', onTap: () => setState(() { _kind = 'Online'; _error = null; })),
                 const SizedBox(width: 10),
-                _KindChip(label: 'Home Visit', selected: _kind == 'HomeVisit', onTap: () => setState(() => _kind = 'HomeVisit')),
+                _KindChip(label: 'Home Visit', selected: _kind == 'HomeVisit', onTap: () => setState(() { _kind = 'HomeVisit'; _error = null; })),
               ]),
               const SizedBox(height: 14),
 
@@ -723,7 +1144,7 @@ class _AddScheduleSheetState extends State<_AddScheduleSheet> {
                   Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                     _Label('Slot Duration'),
                     DropdownButtonFormField<int>(
-                      value: _slotDuration,
+                      initialValue: _slotDuration,
                       decoration: _inputDecor(),
                       items: _durations.map((d) => DropdownMenuItem(value: d, child: Text('$d min'))).toList(),
                       onChanged: (v) => setState(() => _slotDuration = v!),
@@ -733,13 +1154,9 @@ class _AddScheduleSheetState extends State<_AddScheduleSheet> {
                   Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                     _Label('Max Patients / Slot'),
                     TextFormField(
-                      initialValue: '$_maxPatients',
-                      keyboardType: TextInputType.number,
-                      decoration: _inputDecor(hint: '1–10'),
-                      onChanged: (v) {
-                        final n = int.tryParse(v);
-                        if (n != null) setState(() => _maxPatients = n);
-                      },
+                      enabled: false,
+                      initialValue: '1',
+                      decoration: _inputDecor(hint: 'Online is limited to 1'),
                     ),
                   ])),
                 ]),
@@ -754,7 +1171,8 @@ class _AddScheduleSheetState extends State<_AddScheduleSheet> {
                     border: Border.all(color: const Color(0xFFFED7AA)),
                   ),
                   child: const Text(
-                    'Home visits use fixed shift windows. Select one or more shifts to add.',
+                    'Home visits take travel time. Plan shifts carefully so a morning home visit '
+                    'running late does not overlap an afternoon appointment.',
                     style: TextStyle(fontSize: 12, color: Color(0xFF92400E), height: 1.5),
                   ),
                 ),
@@ -763,29 +1181,46 @@ class _AddScheduleSheetState extends State<_AddScheduleSheet> {
                   children: _shiftOrder.map((key) {
                     final w = _shiftWindows[key]!;
                     final selected = _selectedShifts.contains(key);
+                    final disabled = _usedShifts.contains(key);
                     return GestureDetector(
-                      onTap: () => setState(() => selected ? _selectedShifts.remove(key) : _selectedShifts.add(key)),
+                      onTap: disabled
+                          ? null
+                          : () => setState(() => selected ? _selectedShifts.remove(key) : _selectedShifts.add(key)),
                       child: Container(
                         margin: const EdgeInsets.only(bottom: 8),
                         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                         decoration: BoxDecoration(
-                          color: selected ? DS.primary.withValues(alpha: 0.08) : Colors.white,
+                          color: disabled ? DS.secondary : (selected ? DS.primary.withValues(alpha: 0.08) : Colors.white),
                           borderRadius: BorderRadius.circular(10),
                           border: Border.all(color: selected ? DS.primary : DS.border, width: selected ? 1.5 : 1),
                         ),
                         child: Row(children: [
-                          Icon(selected ? Icons.check_circle : Icons.radio_button_unchecked,
-                              size: 18, color: selected ? DS.primary : DS.mutedForeground),
+                          Icon(
+                            disabled ? Icons.block : (selected ? Icons.check_circle : Icons.radio_button_unchecked),
+                            size: 18,
+                            color: disabled ? DS.mutedForeground : (selected ? DS.primary : DS.mutedForeground),
+                          ),
                           const SizedBox(width: 10),
                           Expanded(child: Text(w.label,
                               style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500,
-                                  color: selected ? DS.primary : DS.foreground))),
-                          Text('${w.start} – ${w.end}',
+                                  color: disabled ? DS.mutedForeground : (selected ? DS.primary : DS.foreground)))),
+                          Text(disabled ? 'Already added' : '${w.start} – ${w.end}',
                               style: const TextStyle(fontSize: 12, color: DS.mutedForeground)),
                         ]),
                       ),
                     );
                   }).toList(),
+                ),
+                const SizedBox(height: 14),
+                _Label('Max Patients / Slot (1–2)'),
+                TextFormField(
+                  initialValue: '$_homeVisitMaxPatients',
+                  keyboardType: TextInputType.number,
+                  decoration: _inputDecor(hint: '1 or 2'),
+                  onChanged: (v) {
+                    final n = int.tryParse(v);
+                    if (n != null) setState(() => _homeVisitMaxPatients = n);
+                  },
                 ),
               ],
 
@@ -815,11 +1250,8 @@ class _AddScheduleSheetState extends State<_AddScheduleSheet> {
                       backgroundColor: DS.primary,
                       foregroundColor: Colors.white,
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
-                  onPressed: _saving ? null : _save,
-                  child: _saving
-                      ? const SizedBox(width: 20, height: 20,
-                          child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                      : const Text("Save Slot", style: TextStyle(fontWeight: FontWeight.w600, fontSize: 15)),
+                  onPressed: _save,
+                  child: const Text("Add Schedule", style: TextStyle(fontWeight: FontWeight.w600, fontSize: 15)),
                 ),
               ),
               const SizedBox(height: 16),
@@ -842,70 +1274,6 @@ class _AddScheduleSheetState extends State<_AddScheduleSheet> {
         filled: true,
         fillColor: Colors.white,
       );
-}
-
-// ─── Compliance Banner ────────────────────────────────────────────────────────
-
-class _ComplianceWarning extends StatelessWidget {
-  final ComplianceStatus? compliance;
-  final bool loading;
-  const _ComplianceWarning({required this.compliance, required this.loading});
-
-  @override
-  Widget build(BuildContext context) {
-    if (loading) return const SizedBox.shrink();
-    if (compliance == null) return const SizedBox.shrink();
-
-    final c = compliance!;
-    final isError = c.status == 'NON_COMPLIANT';
-    final barColor = isError ? const Color(0xFFDC2626) : const Color(0xFFF59E0B);
-    final bgColor  = isError ? const Color(0xFFFEF2F2) : const Color(0xFFFFFBEB);
-    final bdColor  = isError ? const Color(0xFFFCA5A5) : const Color(0xFFFCD34D);
-    final txColor  = isError ? const Color(0xFF991B1B) : const Color(0xFF92400E);
-    final icon     = isError ? Icons.error_outline : Icons.warning_amber_rounded;
-    final pct = (c.compliancePercentage / 100).clamp(0.0, 1.0);
-
-    return Container(
-      margin: const EdgeInsets.fromLTRB(12, 12, 12, 0),
-      padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
-      decoration: BoxDecoration(
-        color: bgColor,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: bdColor),
-      ),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Row(children: [
-          Icon(icon, size: 15, color: barColor),
-          const SizedBox(width: 6),
-          Expanded(
-            child: Text(
-              c.statusMessage ?? 'You have not met the minimum schedule hours this month.',
-              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: txColor),
-            ),
-          ),
-        ]),
-        const SizedBox(height: 6),
-        Row(children: [
-          Expanded(
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(3),
-              child: LinearProgressIndicator(
-                value: pct,
-                backgroundColor: barColor.withValues(alpha: 0.15),
-                valueColor: AlwaysStoppedAnimation<Color>(barColor),
-                minHeight: 6,
-              ),
-            ),
-          ),
-          const SizedBox(width: 8),
-          Text(
-            '${c.scheduledHours.toStringAsFixed(1)}/${c.requiredHours}h  ${c.compliancePercentage.toStringAsFixed(0)}%',
-            style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: txColor),
-          ),
-        ]),
-      ]),
-    );
-  }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1041,28 +1409,37 @@ class _TimeButton extends StatelessWidget {
 // CALENDAR TAB
 // ─────────────────────────────────────────────────────────────────────────────
 
-class _CalendarTab extends StatelessWidget {
+class _CalendarTab extends StatefulWidget {
   final bool loading;
   final List<CalendarDay> days;
+  final List<DoctorScheduleException> exceptions;
   final DateTime month;
   final void Function(DateTime) onMonthChanged;
   final String token;
   final void Function(String, {bool success}) onSnack;
-  final VoidCallback onDayOffCreated;
+  final VoidCallback onDataChanged;
 
   const _CalendarTab({
     required this.loading,
     required this.days,
+    required this.exceptions,
     required this.month,
     required this.onMonthChanged,
     required this.token,
     required this.onSnack,
-    required this.onDayOffCreated,
+    required this.onDataChanged,
   });
+
+  @override
+  State<_CalendarTab> createState() => _CalendarTabState();
+}
+
+class _CalendarTabState extends State<_CalendarTab> {
+  int? _deletingExceptionId;
 
   CalendarDay? _dayData(DateTime date) {
     final key = DateFormat('yyyy-MM-dd').format(date);
-    try { return days.firstWhere((d) => d.date == key); } catch (_) { return null; }
+    try { return widget.days.firstWhere((d) => d.date == key); } catch (_) { return null; }
   }
 
   bool _isFutureDate(DateTime date) {
@@ -1071,12 +1448,50 @@ class _CalendarTab extends StatelessWidget {
     return date.isAfter(todayMidnight);
   }
 
-  Color _statusColor(String? status) {
-    switch (status) {
-      case 'WORKING': return const Color(0xFF10B981);
-      case 'DAY_OFF': return DS.destructive;
-      case 'MODIFIED': return const Color(0xFFF59E0B);
-      default: return DS.border;
+  Color _dotColor(CalendarDay day) {
+    if (day.status == 'DAY_OFF') return DS.destructive;
+    switch (day.visitTypeClass) {
+      case 'online': return const Color(0xFF0EA5E9);
+      case 'homevisit': return const Color(0xFFF97316);
+      case 'mixed': return const Color(0xFF8B5CF6);
+      default:
+        return day.status == 'MODIFIED' ? const Color(0xFFF59E0B) : DS.border;
+    }
+  }
+
+  List<DoctorScheduleException> get _upcomingExceptions {
+    final now = DateTime.now();
+    final list = widget.exceptions.where((e) {
+      final d = DateTime.tryParse(e.exceptionDate);
+      return d != null && !d.isBefore(DateTime(now.year, now.month, now.day));
+    }).toList()
+      ..sort((a, b) => a.exceptionDate.compareTo(b.exceptionDate));
+    return list.take(5).toList();
+  }
+
+  Future<void> _deleteException(DoctorScheduleException exception) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Delete Exception'),
+        content: const Text('Are you sure you want to delete this exception?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+          TextButton(onPressed: () => Navigator.pop(context, true), child: const Text('Delete', style: TextStyle(color: DS.destructive))),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+
+    setState(() => _deletingExceptionId = exception.exceptionId);
+    try {
+      await DoctorScheduleService.deleteException(widget.token, exception.exceptionId);
+      widget.onSnack('Exception deleted successfully', success: true);
+      widget.onDataChanged();
+    } catch (e) {
+      widget.onSnack(e.toString().replaceFirst('Exception: ', ''));
+    } finally {
+      if (mounted) setState(() => _deletingExceptionId = null);
     }
   }
 
@@ -1090,57 +1505,69 @@ class _CalendarTab extends StatelessWidget {
         child: Row(children: [
           IconButton(
             icon: const Icon(Icons.chevron_left),
-            onPressed: () => onMonthChanged(DateTime(month.year, month.month - 1)),
+            onPressed: () => widget.onMonthChanged(DateTime(widget.month.year, widget.month.month - 1)),
           ),
           Expanded(
             child: Text(
-              DateFormat('MMMM yyyy').format(month),
+              DateFormat('MMMM yyyy').format(widget.month),
               textAlign: TextAlign.center,
               style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
             ),
           ),
           IconButton(
             icon: const Icon(Icons.chevron_right),
-            onPressed: () => onMonthChanged(DateTime(month.year, month.month + 1)),
+            onPressed: () => widget.onMonthChanged(DateTime(widget.month.year, widget.month.month + 1)),
           ),
         ]),
       ),
-      if (loading) const LinearProgressIndicator(color: DS.primary),
-      // Weekday headers
-      Container(
-        color: DS.card,
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-        child: Row(
-          children: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
-              .map((d) => Expanded(
-                    child: Text(d,
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(
-                            fontSize: 11, fontWeight: FontWeight.w600, color: DS.mutedForeground)),
-                  ))
-              .toList(),
+      if (widget.loading) const LinearProgressIndicator(color: DS.primary),
+      Expanded(
+        child: ListView(
+          padding: EdgeInsets.zero,
+          children: [
+            Container(
+              color: DS.card,
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+              child: Row(
+                children: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+                    .map((d) => Expanded(
+                          child: Text(d,
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(
+                                  fontSize: 11, fontWeight: FontWeight.w600, color: DS.mutedForeground)),
+                        ))
+                    .toList(),
+              ),
+            ),
+            const Divider(height: 1),
+            _buildGrid(context),
+            // Legend
+            Container(
+              color: DS.card,
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+              child: Wrap(spacing: 14, runSpacing: 8, alignment: WrapAlignment.center, children: [
+                _Legend(color: const Color(0xFF0EA5E9), label: 'Online'),
+                _Legend(color: const Color(0xFFF97316), label: 'Home Visit'),
+                _Legend(color: const Color(0xFF8B5CF6), label: 'Online + Home Visit'),
+                _Legend(color: DS.destructive, label: 'Day Off'),
+                _Legend(color: DS.border, label: 'No Schedule'),
+              ]),
+            ),
+            const Divider(height: 1),
+            _UpcomingExceptionsPanel(
+              exceptions: _upcomingExceptions,
+              deletingId: _deletingExceptionId,
+              onDelete: _deleteException,
+            ),
+          ],
         ),
-      ),
-      const Divider(height: 1),
-      Expanded(child: _buildGrid(context)),
-      // Legend
-      Container(
-        color: DS.card,
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-        child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-          _Legend(color: const Color(0xFF10B981), label: 'Working'),
-          const SizedBox(width: 16),
-          _Legend(color: DS.destructive, label: 'Day Off'),
-          const SizedBox(width: 16),
-          _Legend(color: const Color(0xFFF59E0B), label: 'Modified'),
-        ]),
       ),
     ]);
   }
 
   Widget _buildGrid(BuildContext context) {
+    final month = widget.month;
     final firstDay = DateTime(month.year, month.month, 1);
-    // Monday=0 offset
     int offset = firstDay.weekday - 1; // weekday: 1=Mon
     final daysInMonth = DateTime(month.year, month.month + 1, 0).day;
     final total = offset + daysInMonth;
@@ -1148,6 +1575,8 @@ class _CalendarTab extends StatelessWidget {
 
     return GridView.builder(
       padding: const EdgeInsets.all(8),
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
           crossAxisCount: 7, crossAxisSpacing: 4, mainAxisSpacing: 4, childAspectRatio: 0.9),
       itemCount: rows * 7,
@@ -1183,7 +1612,7 @@ class _CalendarTab extends StatelessWidget {
                     width: 7,
                     height: 7,
                     decoration: BoxDecoration(
-                        color: _statusColor(data.status),
+                        color: _dotColor(data),
                         shape: BoxShape.circle),
                   ),
                 ),
@@ -1195,73 +1624,103 @@ class _CalendarTab extends StatelessWidget {
   }
 
   void _showDayDetail(BuildContext context, DateTime date, CalendarDay data) {
-    final statusColor = _statusColor(data.status);
+    final statusColor = _dotColor(data);
     showModalBottomSheet(
       context: context,
       shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
       builder: (_) => Padding(
         padding: const EdgeInsets.all(20),
-        child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Row(children: [
-            Container(
-              width: 10,
-              height: 10,
-              decoration: BoxDecoration(color: statusColor, shape: BoxShape.circle),
-            ),
-            const SizedBox(width: 8),
-            Text(DateFormat('EEEE, MMM d yyyy').format(date),
-                style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
-            const Spacer(),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-              decoration: BoxDecoration(
-                  color: statusColor.withValues(alpha:0.12),
-                  borderRadius: BorderRadius.circular(20)),
-              child: Text(data.status,
-                  style: TextStyle(color: statusColor, fontSize: 12, fontWeight: FontWeight.w600)),
-            ),
-          ]),
-          const SizedBox(height: 12),
-          if (data.slots.isEmpty)
-            const Text('No scheduled slots for this day.',
-                style: TextStyle(color: DS.mutedForeground))
-          else
-            ...data.slots.map((s) => Padding(
+        child: SingleChildScrollView(
+          child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Row(children: [
+              Container(
+                width: 10,
+                height: 10,
+                decoration: BoxDecoration(color: statusColor, shape: BoxShape.circle),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(DateFormat('EEEE, MMM d yyyy').format(date),
+                    style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                    color: statusColor.withValues(alpha:0.12),
+                    borderRadius: BorderRadius.circular(20)),
+                child: Text(data.status,
+                    style: TextStyle(color: statusColor, fontSize: 12, fontWeight: FontWeight.w600)),
+              ),
+            ]),
+            if (data.visitTypeLabel.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(color: statusColor.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(20)),
+                child: Text(data.visitTypeLabel, style: TextStyle(color: statusColor, fontSize: 12, fontWeight: FontWeight.w600)),
+              ),
+            ],
+            const SizedBox(height: 12),
+            if (data.scheduleBlocks.isEmpty)
+              const Text('No scheduled slots for this day.',
+                  style: TextStyle(color: DS.mutedForeground))
+            else
+              ...data.scheduleBlocks.map((b) {
+                final homeVisit = _isHomeVisit(b.consultationType);
+                final shiftPrefix = homeVisit && b.shiftType != null
+                    ? '${_shiftLabels[b.shiftType!.toUpperCase()] ?? b.shiftType} · '
+                    : '';
+                return Padding(
                   padding: const EdgeInsets.only(bottom: 6),
                   child: Row(children: [
-                    const Icon(Icons.access_time, size: 14, color: DS.primary),
-                    const SizedBox(width: 6),
-                    Text('${_fmtTime(s.startTime)} – ${_fmtTime(s.endTime)}',
-                        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
+                    Icon(homeVisit ? Icons.home_outlined : Icons.laptop_mac, size: 16, color: DS.primary),
                     const SizedBox(width: 8),
-                    Text(_typeLabels[s.consultationType?.toUpperCase()] ?? (s.consultationType ?? ''),
-                        style: const TextStyle(color: DS.mutedForeground, fontSize: 12)),
+                    Text('$shiftPrefix${_fmtTime(b.startTime)} – ${_fmtTime(b.endTime)}',
+                        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
                   ]),
-                )),
-          if (data.status == 'WORKING' && _isFutureDate(date)) ...[
-            const SizedBox(height: 16),
-            SizedBox(
-              width: double.infinity,
-              height: 44,
-              child: OutlinedButton.icon(
-                style: OutlinedButton.styleFrom(
-                    foregroundColor: DS.destructive,
-                    side: const BorderSide(color: DS.destructive),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
-                onPressed: () => _handleMarkDayOff(context, date),
-                icon: const Icon(Icons.block, size: 18),
-                label: const Text('Mark as Day Off', style: TextStyle(fontWeight: FontWeight.w600)),
+                );
+              }),
+            if (data.slots.any((s) => s.status == 'BOOKED')) ...[
+              const SizedBox(height: 14),
+              const Text('Booked Appointments', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: DS.foreground)),
+              const SizedBox(height: 6),
+              ...data.slots.where((s) => s.status == 'BOOKED').map((s) => Padding(
+                    padding: const EdgeInsets.only(bottom: 6),
+                    child: Row(children: [
+                      const Icon(Icons.person_outline, size: 14, color: DS.mutedForeground),
+                      const SizedBox(width: 6),
+                      Text('${_fmtTime(s.startTime)} – ${_fmtTime(s.endTime)}',
+                          style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w500)),
+                      const SizedBox(width: 6),
+                      Expanded(child: Text(s.patientName ?? 'Patient', style: const TextStyle(fontSize: 12.5, color: DS.mutedForeground))),
+                    ]),
+                  )),
+            ],
+            if (data.status == 'WORKING' && _isFutureDate(date)) ...[
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                height: 44,
+                child: OutlinedButton.icon(
+                  style: OutlinedButton.styleFrom(
+                      foregroundColor: DS.destructive,
+                      side: const BorderSide(color: DS.destructive),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
+                  onPressed: () => _handleMarkDayOff(context, date),
+                  icon: const Icon(Icons.block, size: 18),
+                  label: const Text('Mark as Day Off', style: TextStyle(fontWeight: FontWeight.w600)),
+                ),
               ),
-            ),
+              const SizedBox(height: 8),
+              const Text(
+                'Only blocks new bookings from now on — it will not cancel appointments patients already booked for this date.',
+                style: TextStyle(fontSize: 11, color: DS.mutedForeground, height: 1.4),
+              ),
+            ],
             const SizedBox(height: 8),
-            const Text(
-              'Only blocks new bookings from now on — it will not cancel appointments patients already booked for this date.',
-              style: TextStyle(fontSize: 11, color: DS.mutedForeground, height: 1.4),
-            ),
-          ],
-          const SizedBox(height: 8),
-        ]),
+          ]),
+        ),
       ),
     );
   }
@@ -1291,20 +1750,116 @@ class _CalendarTab extends StatelessWidget {
     );
     if (reason == null) return; // user cancelled
     if (reason.trim().isEmpty) {
-      onSnack('A reason is required to register a day off');
+      widget.onSnack('A reason is required to register a day off');
       return;
     }
     if (!context.mounted) return;
 
     try {
       final fmt = DateFormat('yyyy-MM-dd');
-      await DoctorScheduleService.createDayOff(token, fmt.format(date), reason.trim());
+      await DoctorScheduleService.createDayOff(widget.token, fmt.format(date), reason.trim());
       if (context.mounted) Navigator.of(context).pop(); // close day-detail sheet
-      onSnack('Day off registered successfully', success: true);
-      onDayOffCreated();
+      widget.onSnack('Day off registered successfully', success: true);
+      widget.onDataChanged();
     } catch (e) {
-      onSnack(e.toString().replaceAll('Exception: ', ''));
+      widget.onSnack(e.toString().replaceAll('Exception: ', ''));
     }
+  }
+}
+
+class _UpcomingExceptionsPanel extends StatelessWidget {
+  final List<DoctorScheduleException> exceptions;
+  final int? deletingId;
+  final void Function(DoctorScheduleException) onDelete;
+
+  const _UpcomingExceptionsPanel({required this.exceptions, required this.deletingId, required this.onDelete});
+
+  Color _accent(String type) {
+    switch (type) {
+      case 'DayOff': return DS.destructive;
+      case 'Modified': return const Color(0xFFF59E0B);
+      default: return DS.primary;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      color: DS.card,
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [
+          const Icon(Icons.event_note, size: 18, color: DS.primary),
+          const SizedBox(width: 8),
+          const Text('Upcoming Exceptions', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: DS.foreground)),
+          const SizedBox(width: 6),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+            decoration: BoxDecoration(color: DS.secondary, borderRadius: BorderRadius.circular(12)),
+            child: Text('${exceptions.length}', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: DS.mutedForeground)),
+          ),
+        ]),
+        const SizedBox(height: 10),
+        if (exceptions.isEmpty)
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 12),
+            child: Text('No upcoming exceptions', style: TextStyle(color: DS.mutedForeground, fontSize: 13)),
+          )
+        else
+          ...exceptions.map((e) {
+            final accent = _accent(e.exceptionType);
+            final date = DateTime.tryParse(e.exceptionDate);
+            return Container(
+              margin: const EdgeInsets.only(bottom: 8),
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: DS.background,
+                borderRadius: BorderRadius.circular(10),
+                border: Border(left: BorderSide(color: accent, width: 3)),
+              ),
+              child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Expanded(
+                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Row(children: [
+                      Text(date != null ? DateFormat('EEE, MMM d').format(date) : e.exceptionDate,
+                          style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13, color: DS.foreground)),
+                      const SizedBox(width: 8),
+                      Text(e.exceptionType == 'AddSlot' ? 'Extra Slot' : e.exceptionType,
+                          style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: accent)),
+                    ]),
+                    if ((e.reason ?? '').isNotEmpty) ...[
+                      const SizedBox(height: 4),
+                      Row(children: [
+                        Expanded(child: Text(e.reason!, style: const TextStyle(fontSize: 12.5, color: DS.mutedForeground))),
+                        if (e.adminCreated) ...[
+                          const SizedBox(width: 6),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(color: DS.secondary, borderRadius: BorderRadius.circular(4)),
+                            child: const Text('Admin', style: TextStyle(fontSize: 9, fontWeight: FontWeight.w700, color: DS.mutedForeground)),
+                          ),
+                        ],
+                      ]),
+                    ],
+                    if (e.startTime != null && e.endTime != null) ...[
+                      const SizedBox(height: 4),
+                      Text('${_fmtTime(e.startTime)} - ${_fmtTime(e.endTime)}',
+                          style: const TextStyle(fontSize: 11.5, color: DS.mutedForeground)),
+                    ],
+                  ]),
+                ),
+                if (!e.adminCreated)
+                  IconButton(
+                    icon: deletingId == e.exceptionId
+                        ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: DS.destructive))
+                        : const Icon(Icons.delete_outline, size: 18, color: DS.destructive),
+                    onPressed: deletingId == e.exceptionId ? null : () => onDelete(e),
+                  ),
+              ]),
+            );
+          }),
+      ]),
+    );
   }
 }
 
@@ -1433,7 +1988,7 @@ class _RequestsTabState extends State<_RequestsTab> {
               ? const Text('No upcoming scheduled appointments.',
                   style: TextStyle(color: DS.mutedForeground, fontSize: 13))
               : DropdownButtonFormField<int>(
-                  value: _selectedApptId,
+                  initialValue: _selectedApptId,
                   hint: const Text('Select appointment'),
                   decoration: _inputDecor(),
                   items: widget.appointments.map((a) {
@@ -1549,6 +2104,18 @@ class _RequestCard extends StatelessWidget {
         ],
         const SizedBox(height: 6),
         Text(r.reason, style: const TextStyle(fontSize: 13, color: DS.foreground)),
+        if ((r.adminReason ?? '').isNotEmpty) ...[
+          const SizedBox(height: 6),
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(color: DS.secondary, borderRadius: BorderRadius.circular(8)),
+            child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              const Icon(Icons.info_outline, size: 14, color: DS.mutedForeground),
+              const SizedBox(width: 6),
+              Expanded(child: Text('Admin: ${r.adminReason}', style: const TextStyle(fontSize: 12, color: DS.mutedForeground))),
+            ]),
+          ),
+        ],
         if (r.createdAt != null) ...[
           const SizedBox(height: 4),
           Text('Submitted: ${DateFormat('MMM d, HH:mm').format(r.createdAt!)}',
