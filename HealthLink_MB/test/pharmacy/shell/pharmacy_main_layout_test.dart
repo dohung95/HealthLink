@@ -51,8 +51,33 @@ class _NoopWorkflowProvider extends PharmacyWorkflowProvider {
   void stopPolling() {}
 }
 
+/// Tracks calls to load() and refresh() for revenue initialization testing.
+class _TrackingRevenueProvider extends PharmacyRevenueProvider {
+  int loadCallCount = 0;
+  int refreshCallCount = 0;
+
+  @override
+  Future<void> load({
+    required String token,
+    required String pharmacyId,
+    DateTime? now,
+  }) async {
+    loadCallCount++;
+  }
+
+  @override
+  Future<void> refresh({
+    required String token,
+    required String pharmacyId,
+    DateTime? now,
+  }) async {
+    refreshCallCount++;
+  }
+}
+
 Widget _buildTestApp({
   _NoopWorkflowProvider? workflowProvider,
+  _TrackingRevenueProvider? revenueProvider,
 }) {
   return MaterialApp(
     home: MultiProvider(
@@ -72,8 +97,8 @@ Widget _buildTestApp({
         ChangeNotifierProvider<PharmacyInventoryProvider>(
           create: (_) => PharmacyInventoryProvider(),
         ),
-        ChangeNotifierProvider<PharmacyRevenueProvider>(
-          create: (_) => PharmacyRevenueProvider(),
+        ChangeNotifierProvider<PharmacyRevenueProvider>.value(
+          value: revenueProvider ?? PharmacyRevenueProvider(),
         ),
       ],
       child: const PharmacyMainLayout(),
@@ -173,6 +198,41 @@ void main() {
       await tester.pumpWidget(_buildTestApp());
 
       expect(find.byIcon(Icons.notifications_outlined), findsOneWidget);
+    });
+  });
+
+  group('revenue initialization', () {
+    testWidgets('loads revenue once on startup', (tester) async {
+      final revenue = _TrackingRevenueProvider();
+      await tester.pumpWidget(_buildTestApp(revenueProvider: revenue));
+      // Allow post-frame callback to fire
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      expect(revenue.loadCallCount + revenue.refreshCallCount, 1,
+          reason: 'revenue must be loaded exactly once on startup');
+      // Refresh is more appropriate for shell-level initialization
+      expect(revenue.refreshCallCount, 1,
+          reason: 'revenue refresh should be called on startup');
+    });
+
+    testWidgets('does not reload revenue on tab switch', (tester) async {
+      final revenue = _TrackingRevenueProvider();
+      await tester.pumpWidget(_buildTestApp(revenueProvider: revenue));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      // Switch to Requests tab
+      await tester.tap(find.text('Requests'));
+      await tester.pump();
+
+      // Switch back to Home
+      await tester.tap(find.text('Home'));
+      await tester.pump();
+
+      // Count should remain 1 — no additional load on tab switch
+      expect(revenue.loadCallCount + revenue.refreshCallCount, 1,
+          reason: 'revenue must not reload on tab switch');
     });
   });
 }

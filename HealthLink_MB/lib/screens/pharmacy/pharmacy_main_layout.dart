@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import '../../config/api_config.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/pharmacy/pharmacy_workflow_provider.dart';
+import '../../providers/pharmacy/pharmacy_revenue_provider.dart';
 import 'pharmacy_dashboard_screen.dart';
 import 'pharmacy_orders_screen.dart';
 import 'pharmacy_requests_screen.dart';
@@ -26,6 +27,7 @@ class _PharmacyMainLayoutState extends State<PharmacyMainLayout> {
   int? _lastNotifiedBadgeTotal;
   Timer? _notifPollTimer;
   PharmacyWorkflowProvider? _workflowProvider;
+  bool _revenueInitialized = false;
 
   late final List<Widget> _screens;
 
@@ -59,6 +61,16 @@ class _PharmacyMainLayoutState extends State<PharmacyMainLayout> {
         auth.pharmacyProfile?['pharmacyId']?.toString() ?? auth.userId!;
 
     _workflowProvider?.startPolling(auth.accessToken!, pharmacyId);
+
+    // Load revenue once on startup. Guard prevents re-fetching
+    // on widget rebuilds or tab switches.
+    if (!_revenueInitialized) {
+      _revenueInitialized = true;
+      context.read<PharmacyRevenueProvider>().refresh(
+        token: auth.accessToken!,
+        pharmacyId: pharmacyId,
+      );
+    }
 
     _pollUnreadCount(auth.accessToken!);
     _notifPollTimer = Timer.periodic(
