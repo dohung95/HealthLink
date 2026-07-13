@@ -31,7 +31,22 @@ class ChatRoomScreen extends StatefulWidget {
   /// Thông tin conversation đến từ ChatListScreen
   final Conversation conversation;
 
-  const ChatRoomScreen({super.key, required this.conversation});
+  /// If true, suppresses input, send, call, and mutation actions.
+  final bool readOnly;
+
+  /// Overrides the app bar title when [readOnly] is true.
+  final String? title;
+
+  /// Custom read-only banner message.
+  final String? readOnlyMessage;
+
+  const ChatRoomScreen({
+    super.key,
+    required this.conversation,
+    this.readOnly = false,
+    this.title,
+    this.readOnlyMessage,
+  });
 
   @override
   State<ChatRoomScreen> createState() => _ChatRoomScreenState();
@@ -786,7 +801,9 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
                   children: [
                     Flexible(
                       child: Text(
-                        conv.partnerName,
+                        widget.readOnly
+                            ? (widget.title ?? 'Chat history')
+                            : conv.partnerName,
                         style: TextStyle(
                           fontFamily: 'Inter',
                           fontSize: 16,
@@ -824,7 +841,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
           if (context.watch<ChatProvider>().isMuted(conv.id))
             Icon(Icons.notifications_off, color: colors.outline, size: 20),
 
-          if (!conv.isSupport)
+          if (!widget.readOnly && !conv.isSupport)
             Builder(
               builder: (context) {
                 final isBlocked = context.watch<ChatProvider>().isBlocked(conv.id);
@@ -833,6 +850,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
                 final isCallDisabled = isBlocked || isCompleted || isMissingVitals;
                 
                 return IconButton(
+                  key: const Key('chat-video-call-button'),
                   icon: const Icon(Icons.videocam),
                   color: isCallDisabled ? colors.outline : chatTheme.primary,
                   onPressed: isCallDisabled
@@ -842,11 +860,12 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
               }
             ),
             
-          IconButton(
-            icon: const Icon(Icons.info),
-            color: chatTheme.primary,
-            onPressed: () => _showChatDetails(context, conv, colors),
-          ),
+          if (!widget.readOnly)
+            IconButton(
+              icon: const Icon(Icons.info),
+              color: chatTheme.primary,
+              onPressed: () => _showChatDetails(context, conv, colors),
+            ),
         ],
       ),
     );
@@ -1187,6 +1206,17 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
     final conv = chat.currentConversation ?? widget.conversation;
     final chatTheme = getActiveChatTheme(context, chat.chatThemeIndex);
     
+    // ── Ưu tiên 0: Read-only mode (pharmacy request history) ──────────────
+    if (widget.readOnly) {
+      return _buildReadOnlyBanner(
+        colors: colors,
+        chatTheme: chatTheme,
+        icon: Icons.history,
+        message: widget.readOnlyMessage ??
+            'This request has ended. Messages are view-only.',
+      );
+    }
+
     final auth = context.read<AuthProvider>();
     final l10n = AppLocalizations.of(context)!;
     final blockedBy = chat.getBlockedBy(conv.id);
@@ -1406,6 +1436,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
                       border: Border.all(color: chatTheme.primary.withValues(alpha: 0.2)),
                     ),
                     child: TextField(
+                      key: const Key('chat-message-input'),
                       controller: _messageController,
                       maxLines: null,
                       keyboardType: TextInputType.multiline,
@@ -1462,6 +1493,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
                               )
                             : const Icon(Icons.send, size: 20),
                         color: colors.onPrimary,
+                        key: const Key('chat-send-button'),
                         onPressed: !chat.isSending ? _sendMessage : null,
                       ),
                     ),
