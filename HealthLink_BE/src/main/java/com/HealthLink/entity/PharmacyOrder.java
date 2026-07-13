@@ -81,13 +81,22 @@ public class PharmacyOrder {
     private LocalDateTime actualDeliveryTime;
     private LocalDateTime confirmedAt;
     private LocalDateTime patientConfirmedAt;
+
+    @Column(name = "PatientConfirmationRequestedAt")
+    private LocalDateTime patientConfirmationRequestedAt;
+
+    @Column(name = "PatientConfirmationReason", length = 50)
+    private String patientConfirmationReason;
+
     private LocalDateTime preparingAt;
     private LocalDateTime shippedAt;
     private LocalDateTime deliveredAt;
+    private LocalDateTime completedAt;
     private LocalDateTime cancelledAt;
     private String cancelReason;
     private String cancelledBy;
     private LocalDateTime revisionRequestedAt;
+    @Nationalized
     @Column(length = 1000)
     private String revisionRequestNotes;
     private LocalDateTime revisionResolvedAt;

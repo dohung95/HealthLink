@@ -20,6 +20,7 @@ import com.HealthLink.service.chat.ChatService;
 import com.HealthLink.service.impl.pharmacy.PharmacyServiceHelper;
 import com.HealthLink.service.notification.NotificationService;
 import com.HealthLink.service.pharmacy.PharmacyConsultationRequestService;
+import com.HealthLink.service.pharmacy.PharmacyOrderService;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
@@ -29,10 +30,12 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
@@ -55,6 +58,7 @@ public class PharmacyConsultationRequestServiceImpl implements PharmacyConsultat
     private final DeviceTokenRepository deviceTokenRepository;
     private final ObjectMapper objectMapper;
     private final ChatService chatService;
+    private final PharmacyOrderService pharmacyOrderService;
 
     @Override
     @Transactional
@@ -94,6 +98,20 @@ public class PharmacyConsultationRequestServiceImpl implements PharmacyConsultat
         attachRequestPrescriptions(consultationRequest, requestPrescriptions);
 
         PharmacyConsultationRequest saved = consultationRequestRepository.save(consultationRequest);
+
+        if (REQUEST_TYPE_ORDER_REQUEST.equals(requestType)) {
+            Optional<PharmacyOrderResponse> orderOpt = pharmacyOrderService
+                    .tryAutoQuoteOrderRequest(saved.getRequestId(), pharmacy.getPharmacyId());
+            if (orderOpt.isPresent()) {
+                PharmacyConsultationRequest reloaded = consultationRequestRepository
+                        .findById(saved.getRequestId())
+                        .orElse(saved);
+                return toResponse(reloaded);
+            }
+            notifyPharmacyAboutNewRequestAfterCommit(saved);
+            return toResponse(saved);
+        }
+
         notifyPharmacyAboutNewRequestAfterCommit(saved);
         return toResponse(saved);
     }
@@ -257,6 +275,11 @@ public class PharmacyConsultationRequestServiceImpl implements PharmacyConsultat
     }
 
     private PrescriptionItemResponse toItemResponse(PrescriptionItem item) {
+        BigDecimal unitPrice = item.getMedicine() != null ? item.getMedicine().getPrice() : null;
+        BigDecimal totalPrice = unitPrice;
+        if (unitPrice != null && item.getQuantity() != null) {
+            totalPrice = unitPrice.multiply(BigDecimal.valueOf(item.getQuantity()));
+        }
         return PrescriptionItemResponse.builder()
                 .prescriptionItemId(item.getPrescriptionItemId())
                 .medicineId(item.getMedicine() != null ? item.getMedicine().getMedicineId() : null)
@@ -271,6 +294,8 @@ public class PharmacyConsultationRequestServiceImpl implements PharmacyConsultat
                 .timings(PharmacyServiceHelper.timingsForResponse(item.getTiming()))
                 .route(item.getRoute())
                 .notes(item.getNotes())
+                .unitPrice(unitPrice)
+                .totalPrice(totalPrice)
                 .build();
     }
 
@@ -281,12 +306,16 @@ public class PharmacyConsultationRequestServiceImpl implements PharmacyConsultat
             List<PrescriptionHeader> prescriptions
     ) {
         if (REQUEST_TYPE_ORDER_REQUEST.equals(requestType)) {
-            // Allow order requests without prescriptions (e.g. OTC or pharmacy will add items)
+            if (prescriptions == null || prescriptions.isEmpty()) {
+                throw new BadRequestException("Order request requires at least one prescription");
+            }
             return;
         }
 
-        if (PharmacyServiceHelper.trimToNull(symptoms) == null && PharmacyServiceHelper.trimToNull(description) == null) {
-            throw new BadRequestException("Symptoms or description is required");
+        if (!REQUEST_TYPE_CONSULTATION.equals(requestType)) {
+            if (PharmacyServiceHelper.trimToNull(symptoms) == null && PharmacyServiceHelper.trimToNull(description) == null) {
+                throw new BadRequestException("Symptoms or description is required");
+            }
         }
     }
 

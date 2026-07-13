@@ -4,6 +4,7 @@ import { doctorReviewApi } from '@api/reviewApi';
 import { toast } from 'sonner';
 import DoctorEmptyState from '@components/doctor/DoctorEmptyState';
 import DoctorSkeleton from '@components/doctor/DoctorSkeleton';
+import DoctorWithdrawalSecurityCard from '@components/doctor/DoctorWithdrawalSecurityCard';
 
 const formatDate = (dateStr) => {
   if (!dateStr) return '';
@@ -193,6 +194,7 @@ export default function DoctorProfilePage() {
 
         {/* Right Column — Reviews */}
         <div className="col-12 col-md-8">
+          <div className="mb-4"><DoctorWithdrawalSecurityCard /></div>
           {loading && !stats ? (
             <DoctorSkeleton />
           ) : (

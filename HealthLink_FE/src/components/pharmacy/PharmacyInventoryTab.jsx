@@ -2,8 +2,8 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { toast } from 'sonner';
 import pharmacyApi from '../../api/pharmacyApi';
 import { medicineApi } from '../../api/medicineApi';
-import { money, useDebouncedValue, Modal } from './PharmacyShared';
-import { flattenCategoryTree } from './workflow/inventoryCategoryTree';
+import { useDebouncedValue, Modal } from './PharmacyShared';
+import { collectExpandableCategoryIds, flattenCategoryTree } from './workflow/inventoryCategoryTree';
 
 const PAGE_SIZE = 5;
 const LOW_STOCK_THRESHOLD = 10;
@@ -38,6 +38,21 @@ function formatInventoryDate(value) {
   return date.toLocaleDateString('en-US');
 }
 
+function getExpiryTone(value, now = new Date()) {
+  if (!value) return '';
+  const expiry = new Date(`${value}T00:00:00`);
+  if (Number.isNaN(expiry.getTime())) return '';
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const diffDays = Math.floor((expiry.getTime() - today.getTime()) / 86400000);
+  if (diffDays <= 0) return 'danger';
+  if (diffDays < 30) return 'warning';
+  return '';
+}
+
+function deriveOptions(items, field) {
+  return [...new Set((items || []).map((item) => item?.[field]).filter(Boolean))].sort();
+}
+
 function getVisiblePageNumbers(totalPages, currentPage) {
   if (totalPages <= 0) return [];
   const visibleCount = Math.min(PAGE_BUTTON_LIMIT, totalPages);
@@ -46,7 +61,7 @@ function getVisiblePageNumbers(totalPages, currentPage) {
   return Array.from({ length: visibleCount }, (_, index) => start + index);
 }
 
-export default function PharmacyInventoryTab({ globalSearch }) {
+export default function PharmacyInventoryTab({ inventoryRefreshToken = 0 }) {
   const [inventory, setInventory] = useState({ content: [], totalElements: 0, totalPages: 0 });
   const [lowStockCount, setLowStockCount] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -56,39 +71,71 @@ export default function PharmacyInventoryTab({ globalSearch }) {
   const [editItem, setEditItem] = useState(null);
   const [selectedCategoryId, setSelectedCategoryId] = useState(null);
   const [categoryTree, setCategoryTree] = useState([]);
-  const deferredSearch = useDebouncedValue(globalSearch);
+  const [inventorySearch, setInventorySearch] = useState('');
+  const [selectedDosageForm, setSelectedDosageForm] = useState('');
+  const [dosageFormOptions, setDosageFormOptions] = useState([]);
+  const [expandedCategoryIds, setExpandedCategoryIds] = useState(() => new Set());
+  const deferredInventorySearch = useDebouncedValue(inventorySearch);
 
-  const loadInventory = useCallback(async (params, shouldFetchLowStock) => {
+  const loadInventory = useCallback(async (overrides = {}) => {
     setLoading(true);
     try {
+      const params = { page: overrides.page ?? page, size: PAGE_SIZE };
+      const q = overrides.query ?? deferredInventorySearch;
+      if (q) params.query = q;
+      const form = overrides.dosageForm ?? selectedDosageForm;
+      if (form) params.dosageForm = form;
+      const f = overrides.filter ?? filter;
+      if (f === 'active') params.active = true;
+      else if (f === 'inactive') params.active = false;
+      else if (f === 'lowStock') params.lowStock = true;
+      else if (f === 'expiringSoon') params.expiringSoon = true;
+      const cid = overrides.categoryId ?? selectedCategoryId;
+      if (cid) params.categoryId = cid;
+
       const data = await pharmacyApi.getInventory(params);
       setInventory(data);
 
-      if (shouldFetchLowStock) {
+      if ((overrides.filter ?? filter) === 'lowStock') {
         const lowStockData = await pharmacyApi.getInventory({ page: 0, size: 1, lowStock: true });
         setLowStockCount(Number(lowStockData?.totalElements ?? 0));
       }
+
+      return data;
     } catch {
       toast.error('Unable to load inventory.');
     } finally {
       setLoading(false);
     }
+  }, [page, filter, deferredInventorySearch, selectedDosageForm, selectedCategoryId]);
+
+  useEffect(() => {
+    medicineApi.getMedicineCategoryTree()
+      .then((tree) => {
+        const safeTree = Array.isArray(tree) ? tree : [];
+        setCategoryTree(safeTree);
+        setExpandedCategoryIds(new Set(collectExpandableCategoryIds(safeTree)));
+      })
+      .catch(() => {});
   }, []);
 
   useEffect(() => {
-    medicineApi.getMedicineCategoryTree().then(setCategoryTree).catch(() => {});
+    let mounted = true;
+    medicineApi.searchMedicines({})
+      .then((data) => {
+        if (!mounted) return;
+        setDosageFormOptions(deriveOptions(Array.isArray(data) ? data : [], 'dosageForm'));
+      })
+      .catch(() => setDosageFormOptions([]));
+
+    return () => {
+      mounted = false;
+    };
   }, []);
 
   useEffect(() => {
-    const params = { page, size: PAGE_SIZE };
-    if (deferredSearch) params.query = deferredSearch;
-    if (filter === 'active') params.active = true;
-    else if (filter === 'inactive') params.active = false;
-    else if (filter === 'lowStock') params.lowStock = true;
-    else if (filter === 'expiringSoon') params.expiringSoon = true;
-    if (selectedCategoryId) params.categoryId = selectedCategoryId;
-    loadInventory(params, filter === 'lowStock');
-  }, [page, filter, deferredSearch, selectedCategoryId, loadInventory]);
+    loadInventory();
+  }, [inventoryRefreshToken, loadInventory]);
 
   const handleImportClick = () => setShowImportModal(true);
   const handleDownloadTemplate = () => pharmacyApi.downloadInventoryTemplate();
@@ -101,11 +148,36 @@ export default function PharmacyInventoryTab({ globalSearch }) {
   const endEntry = totalElements > 0 ? Math.min(page * PAGE_SIZE + items.length, totalElements) : 0;
   const visiblePageNumbers = useMemo(() => getVisiblePageNumbers(totalPages, page), [totalPages, page]);
 
-  const categories = useMemo(() => flattenCategoryTree(categoryTree), [categoryTree]);
+  const categories = useMemo(
+    () => flattenCategoryTree(categoryTree, expandedCategoryIds),
+    [categoryTree, expandedCategoryIds]
+  );
 
   const handleFilterChange = (nextFilter) => {
     setFilter(nextFilter);
     setPage(0);
+  };
+
+  const handleInventorySearchChange = (event) => {
+    setInventorySearch(event.target.value);
+    setPage(0);
+  };
+
+  const handleDosageFormChange = (event) => {
+    setSelectedDosageForm(event.target.value);
+    setPage(0);
+  };
+
+  const toggleCategoryExpanded = (categoryId) => {
+    setExpandedCategoryIds((current) => {
+      const next = new Set(current);
+      if (next.has(categoryId)) {
+        next.delete(categoryId);
+      } else {
+        next.add(categoryId);
+      }
+      return next;
+    });
   };
 
   const handlePageChange = (nextPage) => {
@@ -144,32 +216,88 @@ export default function PharmacyInventoryTab({ globalSearch }) {
                 className={`pharmacy-inventory-category ${selectedCategoryId === cat.categoryId ? 'is-active' : ''}`}
                 key={cat.categoryId}
                 onClick={() => { setSelectedCategoryId(cat.categoryId); setPage(0); }}
-                style={{ paddingLeft: 12 + cat.depth * 16 }}
+                style={{ paddingLeft: 12 + Math.min(cat.depth, 4) * 12 }}
                 type="button"
               >
-                {cat.name}
+                <span className="pharmacy-inventory-category-main">
+                  {cat.hasChildren ? (
+                    <span
+                      aria-label={expandedCategoryIds.has(cat.categoryId) ? `Collapse ${cat.name}` : `Expand ${cat.name}`}
+                      className="pharmacy-inventory-category-toggle"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        toggleCategoryExpanded(cat.categoryId);
+                      }}
+                      role="button"
+                      tabIndex={0}
+                      onKeyDown={(event) => {
+                        if (event.key === 'Enter' || event.key === ' ') {
+                          event.preventDefault();
+                          event.stopPropagation();
+                          toggleCategoryExpanded(cat.categoryId);
+                        }
+                      }}
+                    >
+                      <span className="material-symbols-outlined">
+                        {expandedCategoryIds.has(cat.categoryId) ? 'expand_more' : 'chevron_right'}
+                      </span>
+                    </span>
+                  ) : (
+                    <span className="pharmacy-inventory-category-spacer" />
+                  )}
+                  <span className="pharmacy-inventory-category-name">{cat.name}</span>
+                </span>
+                {cat.hasChildren ? (
+                  <span className="pharmacy-inventory-category-count">{cat.childCount}</span>
+                ) : null}
               </button>
             ))}
           </aside>
         )}
 
       <section className="pharmacy-inventory-card">
-        <div className="pharmacy-inventory-tabs" role="tablist" aria-label="Inventory filters">
-          {FILTER_OPTIONS.map((opt) => (
-            <button
-              aria-selected={filter === opt.key}
-              className={filter === opt.key ? 'active' : ''}
-              key={opt.key}
-              onClick={() => handleFilterChange(opt.key)}
-              role="tab"
-              type="button"
+        <div className="pharmacy-inventory-toolbar">
+          <div className="pharmacy-inventory-tabs" role="tablist" aria-label="Inventory filters">
+            {FILTER_OPTIONS.map((opt) => (
+              <button
+                aria-selected={filter === opt.key}
+                className={filter === opt.key ? 'active' : ''}
+                key={opt.key}
+                onClick={() => handleFilterChange(opt.key)}
+                role="tab"
+                type="button"
+              >
+                {opt.label}
+                {opt.key === 'lowStock' && lowStockCount > 0 ? (
+                  <span className="pharmacy-inventory-tab-count">{lowStockCount}</span>
+                ) : null}
+              </button>
+            ))}
+          </div>
+
+          <div className="pharmacy-inventory-toolbar-controls" aria-label="Inventory search and form filter">
+            <label className="pharmacy-inventory-search">
+              <span className="material-symbols-outlined">search</span>
+              <input
+                aria-label="Search inventory by medicine name"
+                onChange={handleInventorySearchChange}
+                placeholder="Search medicine"
+                type="search"
+                value={inventorySearch}
+              />
+            </label>
+            <select
+              aria-label="Filter inventory by dosage form"
+              className="pharmacy-inventory-form-filter"
+              onChange={handleDosageFormChange}
+              value={selectedDosageForm}
             >
-              {opt.label}
-              {opt.key === 'lowStock' && lowStockCount > 0 ? (
-                <span className="pharmacy-inventory-tab-count">{lowStockCount}</span>
-              ) : null}
-            </button>
-          ))}
+              <option value="">All forms</option>
+              {dosageFormOptions.map((option) => (
+                <option key={option} value={option}>{option}</option>
+              ))}
+            </select>
+          </div>
         </div>
 
         {loading ? (
@@ -193,9 +321,9 @@ export default function PharmacyInventoryTab({ globalSearch }) {
                     <th>Medicine</th>
                     <th>Strength</th>
                     <th>Form</th>
-                    <th className="is-number">Qty</th>
-                    <th className="is-number">Reserved</th>
-                    <th className="is-number">Available</th>
+                    <th className="is-number" title="Physical units currently in the pharmacy">On hand</th>
+                    <th className="is-number" title="Units committed to confirmed orders that are not yet packed">Reserved</th>
+                    <th className="is-number" title="On hand minus reserved units">Available</th>
                     <th className="is-number">Min Stock</th>
                     <th>Expiry</th>
                     <th className="is-center">Active</th>
@@ -205,15 +333,11 @@ export default function PharmacyInventoryTab({ globalSearch }) {
                 <tbody>
                   {items.map((item) => {
                     const availableTone = getAvailableTone(item.availableQuantity);
+                    const expiryTone = getExpiryTone(item.expiryDate);
                     return (
                       <tr className={getRowStockClass(item.availableQuantity)} key={item.inventoryId}>
                         <td className="pharmacy-inventory-medicine">
                           {item.medicineName || '-'}
-                          {item.expiringSoon ? (
-                            <span className="pharmacy-inventory-expiring-badge" title="Expiring within 30 days">
-                              <span className="material-symbols-outlined">warning</span> Expiring
-                            </span>
-                          ) : null}
                         </td>
                         <td>{item.strength || '-'}</td>
                         <td>{item.dosageForm || '-'}</td>
@@ -223,7 +347,7 @@ export default function PharmacyInventoryTab({ globalSearch }) {
                           {item.availableQuantity ?? 0}
                         </td>
                         <td className="is-number">{item.minStockLevel ?? '-'}</td>
-                        <td>{formatInventoryDate(item.expiryDate)}</td>
+                        <td className={expiryTone ? `pharmacy-inventory-expiry-text is-${expiryTone}` : ''}>{formatInventoryDate(item.expiryDate)}</td>
                         <td className="is-center">
                           <span className={`pharmacy-inventory-status ${item.active ? 'is-active' : 'is-inactive'}`}>
                             {item.active ? 'Yes' : 'No'}
@@ -287,7 +411,13 @@ export default function PharmacyInventoryTab({ globalSearch }) {
       {showImportModal && (
         <ImportModal
           onClose={() => setShowImportModal(false)}
-          onImported={() => { setShowImportModal(false); loadInventory(); }}
+          onImported={async () => {
+            setShowImportModal(false);
+            const data = await loadInventory();
+            if (data?.content?.length === 0 && page > 0) {
+              setPage(0);
+            }
+          }}
         />
       )}
 
@@ -295,7 +425,10 @@ export default function PharmacyInventoryTab({ globalSearch }) {
         <EditInventoryModal
           item={editItem}
           onClose={() => setEditItem(null)}
-          onSaved={() => { setEditItem(null); loadInventory(); }}
+          onSaved={async () => {
+            setEditItem(null);
+            await loadInventory({ page });
+          }}
         />
       )}
     </div>
@@ -331,7 +464,7 @@ function ImportModal({ onClose, onImported }) {
               <input type="file" className="form-control" accept=".csv"
                 onChange={(e) => setFile(e.target.files[0])} />
               <div className="form-text">
-                Columns: medicineId, medicineName, strength, dosageForm, quantity, unit, expiryDate, active.
+                Columns: medicineId, medicineName, strength, dosageForm, quantity, unit, expiryDate, active. Unit is read from the medicine master.
                 Max 5MB, 5000 rows.
               </div>
             </div>
@@ -390,7 +523,6 @@ function ImportModal({ onClose, onImported }) {
 function EditInventoryModal({ item, onClose, onSaved }) {
   const [form, setForm] = useState({
     quantity: item.quantity ?? '',
-    unit: item.unit ?? '',
     expiryDate: item.expiryDate ? item.expiryDate.substring(0, 10) : '',
     active: item.active ?? true,
     minStockLevel: item.minStockLevel ?? '',
@@ -402,7 +534,6 @@ function EditInventoryModal({ item, onClose, onSaved }) {
     try {
       const payload = {};
       if (form.quantity !== '') payload.quantity = Number(form.quantity);
-      if (form.unit) payload.unit = form.unit;
       if (form.expiryDate) payload.expiryDate = form.expiryDate;
       if (form.minStockLevel !== '') payload.minStockLevel = Number(form.minStockLevel);
       payload.active = form.active;
@@ -427,8 +558,7 @@ function EditInventoryModal({ item, onClose, onSaved }) {
           </div>
           <div className="col-sm-6">
             <label className="form-label">Unit</label>
-            <input type="text" className="form-control"
-              value={form.unit} onChange={(e) => setForm({ ...form, unit: e.target.value })} />
+            <div className="form-control-plaintext">{item.unit || 'Missing unit'}</div>
           </div>
           <div className="col-sm-6">
             <label className="form-label">Expiry Date</label>

@@ -2,8 +2,10 @@ package com.HealthLink.service.impl.pharmacy;
 
 import com.HealthLink.dto.pharmacy.PharmacyWorkItemResponse;
 import com.HealthLink.entity.PharmacyConsultationRequest;
+import com.HealthLink.entity.PharmacyDeliveryContactChangeRequest;
 import com.HealthLink.entity.PharmacyOrder;
 import com.HealthLink.repository.pharmacy.PharmacyConsultationRequestRepository;
+import com.HealthLink.repository.pharmacy.PharmacyDeliveryContactChangeRequestRepository;
 import com.HealthLink.repository.pharmacy.PharmacyOrderRepository;
 import com.HealthLink.service.impl.pharmacy.PharmacyServiceHelper;
 import com.HealthLink.service.pharmacy.PharmacyWorkItemService;
@@ -45,51 +47,136 @@ public class PharmacyWorkItemServiceImpl implements PharmacyWorkItemService {
     private static final String SOURCE_CONSULTATION_REQUEST = "CONSULTATION_REQUEST";
     private static final String SOURCE_DIRECT_ORDER = "DIRECT_ORDER";
     private static final String SOURCE_RETAIL_ORDER = "RETAIL_ORDER";
+    private static final String SOURCE_DELIVERY_CONTACT_CHANGE_REQUEST = "DELIVERY_CONTACT_CHANGE_REQUEST";
+    private static final String SOURCE_DELIVERY_QUOTE_REQUEST = "DELIVERY_QUOTE_REQUEST";
+    private static final String SOURCE_PICKUP_ORDER_REVIEW = "PICKUP_ORDER_REVIEW";
+
+    private static final String STAGE_DELIVERY_CONTACT_REVIEW = "DELIVERY_CONTACT_REVIEW";
 
     private static final String ACTION_ACCEPT_REQUEST = "ACCEPT_REQUEST";
+    private static final String ACTION_APPROVE_DELIVERY_CONTACT_CHANGE = "APPROVE_DELIVERY_CONTACT_CHANGE";
+    private static final String ACTION_REJECT_DELIVERY_CONTACT_CHANGE = "REJECT_DELIVERY_CONTACT_CHANGE";
     private static final String ACTION_REJECT_REQUEST = "REJECT_REQUEST";
     private static final String ACTION_CHAT = "CHAT";
     private static final String ACTION_VIDEO_CALL = "VIDEO_CALL";
     private static final String ACTION_CREATE_ORDER = "CREATE_ORDER";
+    private static final String ACTION_SEND_DELIVERY_QUOTE = "SEND_DELIVERY_QUOTE";
     private static final String ACTION_UPDATE_ORDER_STATUS = "UPDATE_ORDER_STATUS";
     private static final String ACTION_CANCEL_ORDER = "CANCEL_ORDER";
     private static final String ACTION_VIEW_ONLY = "VIEW_ONLY";
+    private static final String ACTION_UPDATE_QUOTE = "UPDATE_QUOTE";
 
     private static final String PAYMENT_STATUS_PAID = "PAID";
 
     private final PharmacyConsultationRequestRepository requestRepository;
     private final PharmacyOrderRepository orderRepository;
+    private final PharmacyDeliveryContactChangeRequestRepository deliveryContactChangeRequestRepository;
     private final ObjectMapper objectMapper;
+
+    private boolean isClosedRequestStatus(String requestStatus) {
+        return Set.of("CANCELLED", "REJECTED").contains(normalize(requestStatus));
+    }
+
+    private boolean isTerminalOrderStatus(PharmacyOrder order) {
+        if (order == null) {
+            return false;
+        }
+        return Set.of("DELIVERED", "COMPLETED", "CANCELLED", "REFUNDED")
+                .contains(normalize(order.getStatus()));
+    }
+
+    private boolean shouldIncludeRequestWorkItem(PharmacyConsultationRequest request) {
+        if (request == null || isClosedRequestStatus(request.getStatus())) {
+            return false;
+        }
+
+        PharmacyOrder order = request.getOrder();
+        String requestStatus = normalize(request.getStatus());
+        String requestType = PharmacyServiceHelper.requestTypeOf(request);
+
+        if (order == null) {
+            return Set.of("PENDING", "NEED_MORE_INFO", "IN_REVIEW").contains(requestStatus);
+        }
+
+        if (isTerminalOrderStatus(order)) {
+            return false;
+        }
+
+        String orderStatus = normalize(order.getStatus());
+        if ("REVISION_REQUESTED".equals(orderStatus)) {
+            return true;
+        }
+
+        if (REQUEST_TYPE_ORDER_REQUEST.equals(requestType) && "PENDING".equals(requestStatus)) {
+            return true;
+        }
+
+        return false;
+    }
+
+    private boolean shouldIncludeDirectOrderWorkItem(PharmacyOrder order) {
+        if (order == null || isTerminalOrderStatus(order)) {
+            return false;
+        }
+
+        String orderStatus = normalize(order.getStatus());
+        return "REVISION_REQUESTED".equals(orderStatus)
+                || isDeliveryPendingQuoteOrder(order)
+                || isPickupPendingReviewOrder(order)
+                || isRetailPendingDirectOrder(order);
+    }
 
     @Override
     @Transactional(readOnly = true)
     public List<PharmacyWorkItemResponse> getWorkItemsByPharmacy(String pharmacyId) {
-        List<PharmacyConsultationRequest> requests = requestRepository
-                .findByPharmacy_PharmacyIdOrderByCreatedAtDesc(pharmacyId);
+        try {
+            List<PharmacyConsultationRequest> requests = requestRepository
+                    .findByPharmacy_PharmacyIdOrderByCreatedAtDesc(pharmacyId);
 
-        List<PharmacyOrder> directOrders = orderRepository
-                .findByPharmacy_PharmacyIdAndConsultationRequestIsNull(pharmacyId);
+            List<PharmacyOrder> directOrders = orderRepository
+                    .findByPharmacy_PharmacyIdAndConsultationRequestIsNull(pharmacyId);
 
-        Set<String> seenCaseIds = new HashSet<>();
-        List<PharmacyWorkItemResponse> items = new ArrayList<>();
+            List<PharmacyDeliveryContactChangeRequest> deliveryChangeRequests = deliveryContactChangeRequestRepository
+                    .findByOrder_Pharmacy_PharmacyIdAndStatus(pharmacyId, "PENDING");
 
-        for (PharmacyConsultationRequest request : requests) {
-            PharmacyWorkItemResponse item = toWorkItem(request);
-            if (seenCaseIds.add(item.getCaseId())) {
-                items.add(item);
+            Set<String> seenCaseIds = new HashSet<>();
+            List<PharmacyWorkItemResponse> items = new ArrayList<>();
+
+            for (PharmacyConsultationRequest request : requests) {
+                if (!shouldIncludeRequestWorkItem(request)) {
+                    continue;
+                }
+                PharmacyWorkItemResponse item = toWorkItem(request);
+                if (seenCaseIds.add(item.getCaseId())) {
+                    items.add(item);
+                }
             }
-        }
 
-        for (PharmacyOrder order : directOrders) {
-            String caseId = "ORD-" + order.getOrderId();
-            if (seenCaseIds.add(caseId)) {
-                items.add(toDirectOrderWorkItem(order));
+            for (PharmacyOrder order : directOrders) {
+                if (!shouldIncludeDirectOrderWorkItem(order)) {
+                    continue;
+                }
+                String caseId = "ORD-" + order.getOrderId();
+                if (seenCaseIds.add(caseId)) {
+                    items.add(toDirectOrderWorkItem(order));
+                }
             }
-        }
 
-        items.sort(Comparator.comparing(PharmacyWorkItemResponse::getSortAt,
-                Comparator.nullsLast(Comparator.reverseOrder())));
-        return items;
+            // Append pending delivery contact change requests
+            for (PharmacyDeliveryContactChangeRequest changeRequest : deliveryChangeRequests) {
+                String caseId = "DELIVERY-CHANGE-" + changeRequest.getRequestId();
+                if (seenCaseIds.add(caseId)) {
+                    items.add(toDeliveryContactChangeWorkItem(changeRequest));
+                }
+            }
+
+            items.sort(Comparator.comparing(PharmacyWorkItemResponse::getSortAt,
+                    Comparator.nullsLast(Comparator.reverseOrder())));
+            return items;
+        } catch (RuntimeException exception) {
+            log.error("Failed to build pharmacy workflow data for pharmacyId={}. Check the current database schema and migration version.", pharmacyId, exception);
+            throw exception;
+        }
     }
 
     private PharmacyWorkItemResponse toWorkItem(PharmacyConsultationRequest request) {
@@ -154,6 +241,9 @@ public class PharmacyWorkItemServiceImpl implements PharmacyWorkItemService {
                     .orderStatus(order.getStatus())
                     .paymentStatus(order.getPaymentStatus())
                     .patientConfirmedAt(order.getPatientConfirmedAt())
+                    .requiresPatientConfirmation(PharmacyServiceHelper.requiresPatientConfirmation(order))
+                    .patientConfirmationRequestedAt(order.getPatientConfirmationRequestedAt())
+                    .patientConfirmationReason(order.getPatientConfirmationReason())
                     .medicineAmount(order.getMedicineAmount())
                     .deliveryFee(order.getDeliveryFee())
                     .totalAmount(order.getTotalAmount())
@@ -186,8 +276,23 @@ public class PharmacyWorkItemServiceImpl implements PharmacyWorkItemService {
         String workflowStage = deriveOrderStage(order, false);
         List<String> actions = deriveOrderActions(workflowStage, order);
         boolean retailOrder = isRetailPendingDirectOrder(order);
-        String sourceType = retailOrder ? SOURCE_RETAIL_ORDER : SOURCE_DIRECT_ORDER;
-        String displayId = retailOrder ? "Retail Order #" + order.getOrderId() : "Order #" + order.getOrderId();
+        boolean isDeliveryPending = isDeliveryPendingQuoteOrder(order);
+        boolean isPickupReview = isPickupPendingReviewOrder(order);
+        String sourceType;
+        String displayId;
+        if (isDeliveryPending) {
+            sourceType = SOURCE_DELIVERY_QUOTE_REQUEST;
+            displayId = "Delivery Quote #" + order.getOrderId();
+        } else if (isPickupReview) {
+            sourceType = SOURCE_PICKUP_ORDER_REVIEW;
+            displayId = "Pickup Review #" + order.getOrderId();
+        } else if (retailOrder) {
+            sourceType = SOURCE_RETAIL_ORDER;
+            displayId = "Retail Order #" + order.getOrderId();
+        } else {
+            sourceType = SOURCE_DIRECT_ORDER;
+            displayId = "Order #" + order.getOrderId();
+        }
 
         return PharmacyWorkItemResponse.builder()
                 .caseId(caseId)
@@ -206,6 +311,9 @@ public class PharmacyWorkItemServiceImpl implements PharmacyWorkItemService {
                 .orderStatus(order.getStatus())
                 .paymentStatus(order.getPaymentStatus())
                 .patientConfirmedAt(order.getPatientConfirmedAt())
+                .requiresPatientConfirmation(PharmacyServiceHelper.requiresPatientConfirmation(order))
+                .patientConfirmationRequestedAt(order.getPatientConfirmationRequestedAt())
+                .patientConfirmationReason(order.getPatientConfirmationReason())
                 .medicineAmount(order.getMedicineAmount())
                 .deliveryFee(order.getDeliveryFee())
                 .totalAmount(order.getTotalAmount())
@@ -223,9 +331,68 @@ public class PharmacyWorkItemServiceImpl implements PharmacyWorkItemService {
                 .cancelledAt(order.getCancelledAt())
                 .cancelReason(order.getCancelReason())
                 .cancelledBy(order.getCancelledBy())
+                .revisionRequestedAt(order.getRevisionRequestedAt())
+                .revisionRequestNotes(order.getRevisionRequestNotes())
+                .revisionResolvedAt(order.getRevisionResolvedAt())
                 .platformFee(order.getPlatformFee())
                 .pharmacyEarning(order.getPharmacyEarning())
                 .createdAt(order.getCreatedAt())
+                .build();
+    }
+
+    private boolean isDeliveryPendingQuoteOrder(PharmacyOrder order) {
+        return order != null
+                && "Delivery".equalsIgnoreCase(order.getDeliveryType())
+                && "PENDING".equals(normalize(order.getStatus()))
+                && order.getDeliveryFee() == null
+                && order.getPrescriptionHeader() == null
+                && !PAYMENT_STATUS_PAID.equals(normalize(order.getPaymentStatus()));
+    }
+
+    private boolean isPickupPendingReviewOrder(PharmacyOrder order) {
+        return order != null
+                && "Pickup".equalsIgnoreCase(order.getDeliveryType())
+                && "PENDING".equals(normalize(order.getStatus()))
+                && order.getPrescriptionHeader() == null;
+    }
+
+    private PharmacyWorkItemResponse toDeliveryContactChangeWorkItem(PharmacyDeliveryContactChangeRequest request) {
+        String caseId = "DELIVERY-CHANGE-" + request.getRequestId();
+        PharmacyOrder order = request.getOrder();
+
+        return PharmacyWorkItemResponse.builder()
+                .workItemId(caseId)
+                .caseId(caseId)
+                .sourceType(SOURCE_DELIVERY_CONTACT_CHANGE_REQUEST)
+                .requestType(null)
+                .workflowStage(STAGE_DELIVERY_CONTACT_REVIEW)
+                .availableActions(List.of(ACTION_APPROVE_DELIVERY_CONTACT_CHANGE, ACTION_REJECT_DELIVERY_CONTACT_CHANGE))
+                .hasConsultationRequest(false)
+                .hasOrder(true)
+                .orderId(order != null ? order.getOrderId() : null)
+                .orderNumber(order != null ? order.getOrderNumber() : null)
+                .patientId(order != null && order.getPatient() != null ? order.getPatient().getPatientId() : null)
+                .patientName(order != null && order.getPatient() != null ? order.getPatient().getFullName() : null)
+                .sortAt(request.getRequestedAt())
+                .createdAt(request.getCreatedAt())
+                .deliveryContactChangeRequestId(request.getRequestId())
+                .oldDeliveryAddress(request.getOldDeliveryAddress())
+                .oldDeliveryLatitude(request.getOldDeliveryLatitude())
+                .oldDeliveryLongitude(request.getOldDeliveryLongitude())
+                .oldDeliveryPhoneNumber(request.getOldDeliveryPhoneNumber())
+                .oldDeliveryAddressSource(request.getOldDeliveryAddressSource())
+                .newDeliveryAddress(request.getNewDeliveryAddress())
+                .newDeliveryLatitude(request.getNewDeliveryLatitude())
+                .newDeliveryLongitude(request.getNewDeliveryLongitude())
+                .newDeliveryPhoneNumber(request.getNewDeliveryPhoneNumber())
+                .newDeliveryAddressSource(request.getNewDeliveryAddressSource())
+                .deliveryContactChangeStatus(request.getStatus())
+                .deliveryContactChangeReason(request.getPatientReason())
+                .deliveryContactChangeRequestedAt(request.getRequestedAt())
+                .oldDeliveryFee(request.getOldDeliveryFee())
+                .newDeliveryFee(request.getNewDeliveryFee())
+                .oldTotalAmount(request.getOldTotalAmount())
+                .newTotalAmount(request.getNewTotalAmount())
                 .build();
     }
 
@@ -258,6 +425,14 @@ public class PharmacyWorkItemServiceImpl implements PharmacyWorkItemService {
             return STAGE_REVISION_REQUESTED;
         }
 
+        if (!linkedToConsultationRequest && isDeliveryPendingQuoteOrder(order)) {
+            return STAGE_NEW_REQUEST;
+        }
+
+        if (!linkedToConsultationRequest && isPickupPendingReviewOrder(order)) {
+            return STAGE_NEW_REQUEST;
+        }
+
         if (!linkedToConsultationRequest && isRetailPendingDirectOrder(order)) {
             return STAGE_NEW_REQUEST;
         }
@@ -287,39 +462,12 @@ public class PharmacyWorkItemServiceImpl implements PharmacyWorkItemService {
                 actions.add(ACTION_CREATE_ORDER);
                 yield List.copyOf(actions);
             }
-            case STAGE_REVISION_REQUESTED -> {
-                List<String> actions = new ArrayList<>();
-                actions.add(ACTION_CREATE_ORDER);
-                actions.addAll(communicationActionsForConsulting(request));
-                yield List.copyOf(actions);
-            }
-            case STAGE_AWAITING_PAYMENT -> {
-                List<String> actions = new ArrayList<>();
-                actions.add(ACTION_VIEW_ONLY);
-                actions.addAll(communicationActionsForConsulting(request));
-                yield List.copyOf(actions);
-            }
-            case STAGE_PREPARING -> actionsWithChatIfAvailable(
-                    cancellableOrderActions(order),
-                    request
-            );
-            case STAGE_READY -> actionsWithChatIfAvailable(
-                    cancellableOrderActions(order),
-                    request
-            );
-            case STAGE_SHIPPING -> actionsWithChatIfAvailable(
-                    List.of(ACTION_UPDATE_ORDER_STATUS),
-                    request
-            );
-            case STAGE_DELIVERED -> actionsWithChatIfAvailable(
-                    List.of(ACTION_UPDATE_ORDER_STATUS),
-                    request
-            );
-            case STAGE_COMPLETED -> actionsWithChatIfAvailable(
-                    List.of(ACTION_VIEW_ONLY),
-                    request
-            );
-            case STAGE_CANCELLED -> List.of(ACTION_VIEW_ONLY);
+            case STAGE_REVISION_REQUESTED -> List.of(ACTION_UPDATE_QUOTE);
+            case STAGE_AWAITING_PAYMENT -> List.of(ACTION_VIEW_ONLY);
+            case STAGE_PREPARING -> cancellableOrderActions(order);
+            case STAGE_READY -> cancellableOrderActions(order);
+            case STAGE_SHIPPING -> List.of(ACTION_UPDATE_ORDER_STATUS);
+            case STAGE_DELIVERED, STAGE_COMPLETED, STAGE_CANCELLED -> List.of(ACTION_VIEW_ONLY);
             default -> List.of(ACTION_VIEW_ONLY);
         };
     }
@@ -382,15 +530,23 @@ public class PharmacyWorkItemServiceImpl implements PharmacyWorkItemService {
 
     private List<String> deriveOrderActions(String stage, PharmacyOrder order) {
         return switch (stage) {
-            case STAGE_NEW_REQUEST -> isRetailPendingDirectOrder(order)
-                    ? List.of(ACTION_UPDATE_ORDER_STATUS, ACTION_CANCEL_ORDER)
-                    : List.of(ACTION_VIEW_ONLY);
+            case STAGE_NEW_REQUEST -> {
+                if (isDeliveryPendingQuoteOrder(order)) {
+                    yield List.of(ACTION_SEND_DELIVERY_QUOTE, ACTION_CANCEL_ORDER);
+                }
+                if (isPickupPendingReviewOrder(order)) {
+                    yield List.of(ACTION_UPDATE_ORDER_STATUS, ACTION_CANCEL_ORDER);
+                }
+                if (isRetailPendingDirectOrder(order)) {
+                    yield List.of(ACTION_UPDATE_ORDER_STATUS, ACTION_CANCEL_ORDER);
+                }
+                yield List.of(ACTION_VIEW_ONLY);
+            }
+            case STAGE_REVISION_REQUESTED -> List.of(ACTION_UPDATE_QUOTE);
             case STAGE_PREPARING -> cancellableOrderActions(order);
             case STAGE_READY -> cancellableOrderActions(order);
             case STAGE_SHIPPING -> List.of(ACTION_UPDATE_ORDER_STATUS);
-            case STAGE_DELIVERED -> List.of(ACTION_UPDATE_ORDER_STATUS);
-            case STAGE_COMPLETED -> List.of(ACTION_VIEW_ONLY);
-            case STAGE_CANCELLED -> List.of(ACTION_VIEW_ONLY);
+            case STAGE_DELIVERED, STAGE_COMPLETED, STAGE_CANCELLED -> List.of(ACTION_VIEW_ONLY);
             default -> List.of(ACTION_VIEW_ONLY);
         };
     }

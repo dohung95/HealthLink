@@ -2,6 +2,7 @@ package com.HealthLink.service.impl.pharmacy;
 
 import com.HealthLink.entity.Patient;
 import com.HealthLink.entity.PharmacyConsultationRequest;
+import com.HealthLink.entity.PharmacyOrder;
 import com.HealthLink.entity.enums.PrescriptionTiming;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -9,11 +10,16 @@ import lombok.experimental.UtilityClass;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 
 @UtilityClass
 public class PharmacyServiceHelper {
 
     public static final double EARTH_RADIUS_KM = 6371.0;
+
+    private static final String PAYMENT_STATUS_PAID = "PAID";
+    private static final Set<String> PATIENT_CONFIRMATION_TERMINAL_STATUSES =
+            Set.of("CANCELLED", "REFUNDED", "SHIPPING", "DELIVERED", "COMPLETED");
 
     public static String trimToNull(String value) {
         if (value == null) return null;
@@ -24,6 +30,18 @@ public class PharmacyServiceHelper {
     public static String firstNonBlank(String primary, String fallback) {
         String trimmedPrimary = trimToNull(primary);
         return trimmedPrimary != null ? trimmedPrimary : trimToNull(fallback);
+    }
+
+    public static boolean requiresPatientConfirmation(PharmacyOrder order) {
+        if (order == null) return false;
+        if (order.getPatientConfirmationRequestedAt() == null) return false;
+        if (order.getPatientConfirmedAt() != null) return false;
+        if (PAYMENT_STATUS_PAID.equalsIgnoreCase(trimToEmpty(order.getPaymentStatus()))) return false;
+        return !PATIENT_CONFIRMATION_TERMINAL_STATUSES.contains(trimToEmpty(order.getStatus()).toUpperCase());
+    }
+
+    private static String trimToEmpty(String value) {
+        return value == null ? "" : value.trim();
     }
 
     public static String normalizeDeliveryAddressSource(String source) {

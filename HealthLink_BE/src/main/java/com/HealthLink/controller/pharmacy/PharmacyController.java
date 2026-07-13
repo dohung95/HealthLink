@@ -3,6 +3,7 @@ package com.HealthLink.controller.pharmacy;
 import com.HealthLink.dto.auth.ChangeEmailRequest;
 import com.HealthLink.dto.auth.ChangePasswordRequest;
 import com.HealthLink.dto.auth.VerifyEmailChangeRequest;
+import com.HealthLink.dto.auth.PharmacyPasswordOtpChangeRequest;
 import com.HealthLink.dto.pharmacy.PharmacyProfileResponse;
 import com.HealthLink.dto.pharmacy.PharmacyUpdateRequest;
 import com.HealthLink.exception.ResourceNotFoundException;
@@ -113,6 +114,24 @@ public class PharmacyController {
             @AuthenticationPrincipal UserDetails userDetails) {
         String pharmacyId = resolveUserId(userDetails);
         pharmacyProfileService.changePassword(pharmacyId, request);
+        return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/auth/password/request-otp")
+    @PreAuthorize("hasRole('PHARMACY')")
+    public ResponseEntity<String> requestPasswordChangeOtp(
+            @AuthenticationPrincipal UserDetails userDetails) {
+        String pharmacyId = resolveUserId(userDetails);
+        return ResponseEntity.ok(pharmacyProfileService.requestPasswordChangeOtp(pharmacyId));
+    }
+
+    @PutMapping("/auth/password/change-with-otp")
+    @PreAuthorize("hasRole('PHARMACY')")
+    public ResponseEntity<Void> changePasswordWithOtp(
+            @Valid @RequestBody PharmacyPasswordOtpChangeRequest request,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        String pharmacyId = resolveUserId(userDetails);
+        pharmacyProfileService.changePasswordWithOtp(pharmacyId, request);
         return ResponseEntity.noContent().build();
     }
 

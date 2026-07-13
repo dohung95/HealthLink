@@ -1372,8 +1372,3 @@ PRINT 'Analytics / charts seed (2024) completed successfully!';
 -- Total: 51 seed sections, mixed sample sizes
 -- =====================================================
 PRINT 'Seed data completed successfully!';
-
-
-
-
-

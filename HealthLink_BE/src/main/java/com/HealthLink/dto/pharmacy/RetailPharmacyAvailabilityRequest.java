@@ -18,6 +18,7 @@ public class RetailPharmacyAvailabilityRequest {
     private Double lat;
     private Double lng;
     private Boolean deliveryOnly;
+    private String fulfillmentType;
 
     @NotEmpty(message = "Cart must have at least 1 item")
     @Valid

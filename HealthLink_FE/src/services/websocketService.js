@@ -10,6 +10,7 @@ class WebSocketService {
     this.connected = false;
     this.subscriptions = new Map();
     this.pending = [];
+    this.notificationCallbacks = new Set();
   }
 
   connect(token = localStorage.getItem('token') || sessionStorage.getItem('token')) {
@@ -52,6 +53,7 @@ class WebSocketService {
     this.subscriptions.forEach((subscription) => subscription.unsubscribe());
     this.subscriptions.clear();
     this.pending = [];
+    this.notificationCallbacks.clear();
     this.connected = false;
 
     if (this.client) {
@@ -96,7 +98,18 @@ class WebSocketService {
   }
 
   subscribeToNotifications(callback) {
-    return this.subscribe('/user/queue/notifications', callback);
+    this.notificationCallbacks.add(callback);
+    const unsubscribe = this.subscribe('/user/queue/notifications', callback);
+    return () => {
+      this.notificationCallbacks.delete(callback);
+      unsubscribe();
+    };
+  }
+
+  dispatchNotificationForTesting(notification) {
+    if (!import.meta.env.DEV) return;
+    const normalized = normalizeNotification(notification);
+    this.notificationCallbacks.forEach((callback) => callback(normalized));
   }
 
   isConnected() {
@@ -109,4 +122,11 @@ class WebSocketService {
 }
 
 const websocketService = new WebSocketService();
+
+if (import.meta.env.DEV && typeof window !== 'undefined') {
+  window.__healthLinkDispatchNotification = (notification) => {
+    websocketService.dispatchNotificationForTesting(notification);
+  };
+}
+
 export default websocketService;

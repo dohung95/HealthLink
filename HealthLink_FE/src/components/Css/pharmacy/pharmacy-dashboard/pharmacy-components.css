@@ -180,7 +180,7 @@
 .pharmacy-metric-card.tone-danger > span { color: var(--pharmacy-danger); background: white; }
 
 .pharmacy-metrics-grid.is-overview-dashboard {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
 .pharmacy-metric-rate {

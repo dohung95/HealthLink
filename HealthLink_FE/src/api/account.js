@@ -185,13 +185,14 @@ export const requestPharmacyPasswordChangeOtp = async (token) => {
     return res.data;
 };
 
-/** PUT /api/account/pharmacy/auth/password/change — Bước 2: Xác nhận OTP + đổi mật khẩu */
+/** PUT /api/account/pharmacy/auth/password/change-with-otp — Bước 2: Xác nhận OTP + đổi mật khẩu */
 export const verifyPharmacyPasswordChangeOtp = async (token, data) => {
     const payload = {
         otp: data.otp,
         newPassword: data.newPassword,
+        confirmNewPassword: data.confirmNewPassword,
     };
-    const res = await axios.put(`${BASE}/pharmacy/auth/password/change`, payload, authConfig(token));
+    const res = await axios.put(`${BASE}/pharmacy/auth/password/change-with-otp`, payload, authConfig(token));
     return res.data;
 };
 

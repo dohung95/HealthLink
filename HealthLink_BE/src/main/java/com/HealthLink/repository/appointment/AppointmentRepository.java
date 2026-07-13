@@ -13,6 +13,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 public interface AppointmentRepository extends JpaRepository<Appointment, Integer> {
@@ -30,13 +31,13 @@ public interface AppointmentRepository extends JpaRepository<Appointment, Intege
 
               OR (
                   :status = 'UPCOMING'
-                  AND UPPER(a.status) IN ('SCHEDULED', 'CONFIRMED')
+                  AND UPPER(a.status) IN ('SCHEDULED', 'CONFIRMED', 'FOLLOW_UP_PROPOSED', 'AWAITING_PAYMENT')
                   AND a.appointmentTime >= :expiredBefore
               )
 
               OR (
                   :status = 'EXPIRED'
-                  AND UPPER(a.status) IN ('SCHEDULED', 'CONFIRMED')
+                  AND UPPER(a.status) IN ('SCHEDULED', 'CONFIRMED', 'FOLLOW_UP_PROPOSED', 'AWAITING_PAYMENT')
                   AND a.appointmentTime < :expiredBefore
               )
 
@@ -261,6 +262,9 @@ public interface AppointmentRepository extends JpaRepository<Appointment, Intege
     List<Appointment> findByStatusAndAppointmentTimeBefore(String status, LocalDateTime before);
 
     List<Appointment> findByStatusAndFollowUpSourceAppointmentId(String status, Integer followUpSourceAppointmentId);
+
+    Optional<Appointment> findFirstByFollowUpSourceAppointmentIdAndStatusNot(
+            Integer followUpSourceAppointmentId, String status);
 
     @Modifying
     @Query("DELETE FROM Appointment a WHERE a.status = :status AND a.appointmentTime < :before")

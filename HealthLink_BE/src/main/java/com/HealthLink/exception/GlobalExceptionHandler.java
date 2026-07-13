@@ -164,6 +164,31 @@ public class GlobalExceptionHandler {
     public ResponseEntity<Map<String, Object>> handleInvalidStatus(InvalidStatusException ex) {
         return buildResponse(HttpStatus.UNPROCESSABLE_ENTITY, ex.getMessage());
     }
+
+    @ExceptionHandler(PartnerPinException.class)
+    public ResponseEntity<Map<String, Object>> handlePartnerPin(PartnerPinException ex) {
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("timestamp", LocalDateTime.now());
+        body.put("status", ex.getStatus().value());
+        body.put("error", ex.getStatus().getReasonPhrase());
+        body.put("message", ex.getMessage());
+        if (ex.getAttemptsRemaining() != null) body.put("attemptsRemaining", ex.getAttemptsRemaining());
+        if (ex.getLockedUntil() != null) body.put("lockedUntil", ex.getLockedUntil());
+        if (ex.getCode() != null) body.put("code", ex.getCode());
+        if (ex.getRetryAfterSeconds() != null) body.put("retryAfterSeconds", ex.getRetryAfterSeconds());
+        return ResponseEntity.status(ex.getStatus()).body(body);
+    }
+
+    @ExceptionHandler(GeocodingResultNotFoundException.class)
+    public ResponseEntity<Map<String, Object>> handleGeocodingResultNotFound(GeocodingResultNotFoundException ex) {
+        return buildResponse(HttpStatus.UNPROCESSABLE_ENTITY, ex.getMessage());
+    }
+
+    @ExceptionHandler(GeocodingProviderUnavailableException.class)
+    public ResponseEntity<Map<String, Object>> handleGeocodingProviderUnavailable(GeocodingProviderUnavailableException ex) {
+        log.warn("Geocoding provider unavailable: {}", ex.getMessage());
+        return buildResponse(HttpStatus.SERVICE_UNAVAILABLE, ex.getMessage());
+    }
     
     // Xử lý lỗi Validate dữ liệu đầu vào (@Valid)
     @ExceptionHandler(MethodArgumentNotValidException.class)

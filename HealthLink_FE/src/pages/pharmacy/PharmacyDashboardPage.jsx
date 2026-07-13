@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 
 import '../../components/Css/pharmacy/pharmacy-dashboard/pharmacy-dashboard.css';
@@ -9,22 +9,30 @@ import { useAuth } from '../../context/AuthContext';
 import { useNotifications } from '../../context/NotificationContext';
 import PharmacyInventoryTab from '../../components/pharmacy/PharmacyInventoryTab';
 import PharmacyOverviewTab from '../../components/pharmacy/PharmacyOverviewTab';
-import { Avatar, getProfileName, navItems, routeByTab } from '../../components/pharmacy/PharmacyShared';
+import { Avatar, navItems, routeByTab } from '../../components/pharmacy/PharmacyShared';
 import PharmacyNotificationDropdown from '../../components/pharmacy/PharmacyNotificationDropdown';
 import PharmacyProfileTab from '../../components/pharmacy/PharmacyProfileTab';
 import PharmacyWalletTab from '../../components/pharmacy/PharmacyWalletTab';
-import PharmacyAnalyticsTab from '../../components/pharmacy/PharmacyAnalyticsTab';
+
 import PharmacyOnlineToggle from '../../components/pharmacy/PharmacyOnlineToggle';
 import ChatPage from '../../components/ChatPage';
 import PharmacyAnnouncementBar from '../../components/pharmacy/PharmacyAnnouncementBar';
-import { isPharmacyAnnouncementType } from '../../components/pharmacy/workflow/pharmacyWorkflow';
+import {
+  getPharmacyNavBadgeCounts,
+  getWorkflowNotificationOrderId,
+  isPharmacyAnnouncementType,
+  isRevisionWorkflowNotification,
+} from '../../components/pharmacy/workflow/pharmacyWorkflow';
+import { buildFallbackRequestWorkItems } from '../../components/pharmacy/workflow/pharmacyWorkflowFallback';
 import PharmacyRequestsPage from '../../components/pharmacy/PharmacyRequestsPage';
 import PharmacyKanbanOrdersPage from '../../components/pharmacy/PharmacyKanbanOrdersPage';
 import PharmacyOrderListPage from '../../components/pharmacy/PharmacyOrderListPage';
 
+const formatNavBadgeCount = (count) => (count > 99 ? '99+' : String(count));
+
 export default function PharmacyDashboardPage() {
   const { token, currentUserId, logout } = useAuth();
-  const { notifications, latestRealtimeNotification } = useNotifications();
+  const { latestRealtimeNotification } = useNotifications();
   const navigate = useNavigate();
   const location = useLocation();
   const profileDropdownRef = useRef(null);
@@ -36,16 +44,20 @@ export default function PharmacyDashboardPage() {
   const [orders, setOrders] = useState([]);
   const [requests, setRequests] = useState([]);
   const [workItems, setWorkItems] = useState([]);
+  const [workItemsError, setWorkItemsError] = useState(null);
+  const [workItemsLoading, setWorkItemsLoading] = useState(false);
   const [balance, setBalance] = useState(null);
   const [transactions, setTransactions] = useState([]);
   const [settlements, setSettlements] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [lastHandledWorkflowNotificationId, setLastHandledWorkflowNotificationId] = useState(null);
+  const [inventoryRefreshToken, setInventoryRefreshToken] = useState(0);
+  const [workflowAttention, setWorkflowAttention] = useState(null);
+  const handledWorkflowNotificationsRef = useRef(new Set());
+  const workflowAttentionTimerRef = useRef(null);
 
   const pharmacyId = profile?.pharmacyId || currentUserId;
 
   const activeTab = useMemo(() => {
-    if (location.pathname.includes('/inventory/analytics')) return 'inventoryAnalytics';
     if (location.pathname.includes('/inventory')) return 'inventory';
     if (location.pathname.includes('/requests')) return 'requests';
     if (location.pathname.includes('/order-list')) return 'orderList';
@@ -56,9 +68,32 @@ export default function PharmacyDashboardPage() {
     return 'overview';
   }, [location.pathname]);
 
-  const loadDashboardData = async () => {
+  const applyWorkflowResults = useCallback((requestResult, workItemResult) => {
+    const rawRequests = requestResult.status === 'fulfilled' && Array.isArray(requestResult.value)
+      ? requestResult.value
+      : [];
+
+    if (requestResult.status === 'fulfilled') {
+      setRequests(rawRequests);
+    }
+
+    if (workItemResult.status === 'fulfilled') {
+      setWorkItems(Array.isArray(workItemResult.value) ? workItemResult.value : []);
+      setWorkItemsError(null);
+      return;
+    }
+
+    setWorkItems(buildFallbackRequestWorkItems(rawRequests, []));
+    setWorkItemsError(
+      workItemResult.reason?.response?.data?.message
+      || 'Workflow data is temporarily unavailable. Showing new requests that can still be handled.',
+    );
+  }, []);
+
+  const loadDashboardData = useCallback(async () => {
     if (!token) return;
     setLoading(true);
+    setWorkItemsLoading(true);
     try {
       const profileData = await getPharmacyProfile(token);
       const resolvedPharmacyId = profileData?.pharmacyId || currentUserId;
@@ -75,40 +110,91 @@ export default function PharmacyDashboardPage() {
       const [orderResult, requestResult, workItemResult, balanceResult, transactionResult, settlementResult] = results;
 
       if (orderResult.status === 'fulfilled') setOrders(Array.isArray(orderResult.value) ? orderResult.value : []);
-      if (requestResult.status === 'fulfilled') setRequests(Array.isArray(requestResult.value) ? requestResult.value : []);
-      if (workItemResult.status === 'fulfilled') setWorkItems(Array.isArray(workItemResult.value) ? workItemResult.value : []);
+      applyWorkflowResults(requestResult, workItemResult);
       if (balanceResult.status === 'fulfilled') setBalance(balanceResult.value);
       if (transactionResult.status === 'fulfilled') setTransactions(Array.isArray(transactionResult.value) ? transactionResult.value : []);
       if (settlementResult.status === 'fulfilled') setSettlements(Array.isArray(settlementResult.value) ? settlementResult.value : []);
+      setInventoryRefreshToken((value) => value + 1);
     } catch (error) {
       console.error('Failed to load pharmacy dashboard', error);
     } finally {
       setLoading(false);
+      setWorkItemsLoading(false);
     }
-  };
+  }, [applyWorkflowResults, currentUserId, token]);
 
   useEffect(() => {
     loadDashboardData();
-  }, [token, currentUserId]);
+  }, [loadDashboardData]);
+
+  const refreshWorkflowData = useCallback(async () => {
+    const resolvedPharmacyId = profile?.pharmacyId || currentUserId;
+    if (!resolvedPharmacyId) return;
+    setWorkItemsLoading(true);
+    try {
+      const [orderResult, requestResult, workItemResult] = await Promise.allSettled([
+        pharmacyApi.getOrdersByPharmacy(resolvedPharmacyId),
+        pharmacyApi.getConsultationRequestsByPharmacy(resolvedPharmacyId),
+        pharmacyApi.getWorkItemsByPharmacy(resolvedPharmacyId),
+      ]);
+
+      if (orderResult.status === 'fulfilled') {
+        setOrders(Array.isArray(orderResult.value) ? orderResult.value : []);
+      }
+      applyWorkflowResults(requestResult, workItemResult);
+      setInventoryRefreshToken((value) => value + 1);
+    } finally {
+      setWorkItemsLoading(false);
+    }
+  }, [applyWorkflowResults, currentUserId, profile?.pharmacyId]);
 
   useEffect(() => {
-    const latest = notifications?.[0];
-    if (!latest || !isPharmacyAnnouncementType(latest.type)) return;
+    const latest = latestRealtimeNotification;
+    if (!latest) return;
+    const isOrderStatus = latest.type === 'ORDER_STATUS';
+    if (!isPharmacyAnnouncementType(latest.type) && !isOrderStatus) return;
 
     const notificationKey = latest.notificationId || `${latest.type}-${latest.relatedId}-${latest.createdAt || latest.timestamp || ''}`;
-    if (!notificationKey || notificationKey === lastHandledWorkflowNotificationId) return;
+    if (!notificationKey || handledWorkflowNotificationsRef.current.has(notificationKey)) return;
 
     const actionUrl = latest.actionUrl || '';
+    const isRevision = isRevisionWorkflowNotification(latest);
     const isPharmacyWorkflowEvent =
       latest.type === 'NEW_PHARMACY_REQUEST'
+      || isRevision
       || actionUrl.includes('/pharmacy-orders/')
       || actionUrl.includes('/pharmacy-requests/');
 
     if (!isPharmacyWorkflowEvent) return;
 
-    setLastHandledWorkflowNotificationId(notificationKey);
-    loadDashboardData();
-  }, [notifications, lastHandledWorkflowNotificationId]);
+    handledWorkflowNotificationsRef.current.add(notificationKey);
+    if (handledWorkflowNotificationsRef.current.size > 100) {
+      handledWorkflowNotificationsRef.current.clear();
+      handledWorkflowNotificationsRef.current.add(notificationKey);
+    }
+
+    refreshWorkflowData().then(() => {
+      if (!isRevision) return;
+      const orderId = getWorkflowNotificationOrderId(latest);
+      if (!orderId) return;
+
+      if (workflowAttentionTimerRef.current) {
+        window.clearTimeout(workflowAttentionTimerRef.current);
+      }
+      setWorkflowAttention({ orderId, notificationId: notificationKey });
+      workflowAttentionTimerRef.current = window.setTimeout(() => {
+        setWorkflowAttention(null);
+      }, 4000);
+    }).catch((error) => {
+      console.error('Failed to refresh pharmacy workflow', error);
+    });
+  }, [latestRealtimeNotification, refreshWorkflowData]);
+
+  useEffect(() => () => {
+    if (workflowAttentionTimerRef.current) {
+      window.clearTimeout(workflowAttentionTimerRef.current);
+    }
+  }, []);
 
   useEffect(() => {
     if (!showProfileDropdown) return;
@@ -142,18 +228,28 @@ export default function PharmacyDashboardPage() {
       : null
   ), [latestRealtimeNotification]);
 
+  const navBadgeCounts = useMemo(
+    () => getPharmacyNavBadgeCounts({ workItems, orders }),
+    [orders, workItems],
+  );
+
   const shellProps = {
     profile,
     orders,
     requests,
     workItems,
+    workItemsError,
+    workItemsLoading,
     balance,
     transactions,
     settlements,
     pharmacyId,
     loading,
     reload: loadDashboardData,
+    retryWorkItems: refreshWorkflowData,
     navigate,
+    workflowAttention,
+    inventoryRefreshToken,
   };
 
   return (
@@ -173,21 +269,34 @@ export default function PharmacyDashboardPage() {
         </div>
 
         <nav className="pharmacy-nav">
-          {navItems.map((item) => (
-            <div className="pharmacy-nav-group" key={item.key}>
-              <NavLink
-                className={({ isActive }) => `pharmacy-nav-link ${isActive ? 'active' : ''}`}
-                end={item.end}
-                onClick={closeMobile}
-                to={item.path}
-              >
-                <span className="material-symbols-outlined">{item.icon}</span>
-                <span>{item.label}</span>
-              </NavLink>
+          {navItems.map((item) => {
+            const badgeCount = navBadgeCounts[item.key] || 0;
 
-              {item.children?.length ? (
-                <div className="pharmacy-nav-children">
-                  {item.children.map((child) => (
+            return (
+              <div className="pharmacy-nav-group" key={item.key}>
+                <NavLink
+                  className={({ isActive }) => `pharmacy-nav-link ${isActive ? 'active' : ''}`}
+                  end={item.end}
+                  onClick={closeMobile}
+                  to={item.path}
+                >
+                  <span className="material-symbols-outlined">{item.icon}</span>
+                  <span className="pharmacy-nav-label">
+                    {item.label}
+                    {badgeCount > 0 ? (
+                      <span
+                        aria-label={`${badgeCount} ${item.label.toLowerCase()} need attention`}
+                        className="pharmacy-nav-badge"
+                      >
+                        {formatNavBadgeCount(badgeCount)}
+                      </span>
+                    ) : null}
+                  </span>
+                </NavLink>
+
+                {item.children?.length ? (
+                  <div className="pharmacy-nav-children">
+                    {item.children.map((child) => (
                     <NavLink
                       className={({ isActive }) => `pharmacy-nav-child ${isActive ? 'active' : ''}`}
                       end={child.end}
@@ -201,7 +310,8 @@ export default function PharmacyDashboardPage() {
                 </div>
               ) : null}
             </div>
-          ))}
+          );
+        })}
         </nav>
       </aside>
 
@@ -220,21 +330,17 @@ export default function PharmacyDashboardPage() {
                 onClick={() => setShowProfileDropdown((value) => !value)}
                 type="button"
               >
-                <Avatar profile={profile} compact />
+                <Avatar profile={profile} compact showOnlineStatus />
               </button>
 
                 {showProfileDropdown ? (
                   <div className="pharmacy-avatar-dropdown">
-                    <div className="pharmacy-avatar-dropdown-card">
-                      <Avatar profile={profile} compact />
-                      <div className="pharmacy-avatar-dropdown-copy">
-                        <strong>{getProfileName(profile)}</strong>
-                        <PharmacyOnlineToggle
-                          token={token}
-                          profile={profile}
-                          onProfileUpdated={setProfile}
-                        />
-                      </div>
+                    <div className="pharmacy-avatar-dropdown-status">
+                      <PharmacyOnlineToggle
+                        token={token}
+                        profile={profile}
+                        onProfileUpdated={setProfile}
+                      />
                     </div>
 
                     <div className="pharmacy-avatar-dropdown-actions">
@@ -279,7 +385,7 @@ export default function PharmacyDashboardPage() {
             <>
               {activeTab === 'overview' && <PharmacyOverviewTab {...shellProps} />}
               {activeTab === 'inventory' && <PharmacyInventoryTab {...shellProps} />}
-              {activeTab === 'inventoryAnalytics' && <PharmacyAnalyticsTab token={token} profile={profile} />}
+
               {activeTab === 'requests' && <PharmacyRequestsPage {...shellProps} />}
               {activeTab === 'orders' && <PharmacyKanbanOrdersPage {...shellProps} />}
               {activeTab === 'orderList' && <PharmacyOrderListPage {...shellProps} />}

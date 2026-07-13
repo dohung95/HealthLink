@@ -4,7 +4,9 @@ import com.HealthLink.entity.Consultation;
 import com.HealthLink.entity.enums.HomeVisitProposalStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.repository.query.Param;
+import jakarta.persistence.LockModeType;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDateTime;
@@ -15,6 +17,13 @@ import java.util.Optional;
 public interface ConsultationRepository extends JpaRepository<Consultation, Integer> {
 
     Optional<Consultation> findByAppointment_AppointmentId(Integer appointmentId);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT c FROM Consultation c WHERE c.appointment.appointmentId = :appointmentId")
+    Optional<Consultation> findByAppointmentIdForUpdate(@Param("appointmentId") Integer appointmentId);
+
+    @Query("SELECT c FROM Consultation c WHERE c.followUpDate > :now AND c.followUpAppointmentId IS NULL")
+    List<Consultation> findFutureFollowUpsWithoutAppointment(@Param("now") LocalDateTime now);
 
     Optional<Consultation> findFirstByAppointment_Patient_User_IdAndHomeVisitProposalStatusOrderByHomeVisitProposedAtDesc(
             String userId,

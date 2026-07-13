@@ -103,7 +103,9 @@ public class PharmacyRecommendationServiceImpl implements PharmacyRecommendation
             throw new BadRequestException("Cart must have at least 1 item");
         }
 
-        List<Pharmacy> pharmacies = Boolean.TRUE.equals(request.getDeliveryOnly())
+        boolean isDelivery = Boolean.TRUE.equals(request.getDeliveryOnly())
+                || "Delivery".equalsIgnoreCase(request.getFulfillmentType());
+        List<Pharmacy> pharmacies = isDelivery
                 ? pharmacyRepository.findByActiveTrueAndVerifiedTrueAndIsOnlineTrueAndDeliveryAvailableTrue()
                 : pharmacyRepository.findByActiveTrueAndVerifiedTrueAndIsOnlineTrue();
 

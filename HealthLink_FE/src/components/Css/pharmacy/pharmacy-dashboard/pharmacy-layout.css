@@ -85,6 +85,34 @@
   font-weight: 700;
 }
 
+.pharmacy-nav-label {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+  line-height: 1.2;
+}
+
+.pharmacy-nav-badge {
+  position: absolute;
+  top: -12px;
+  right: -18px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: var(--pharmacy-danger);
+  color: #fff;
+  border: 2px solid var(--pharmacy-card);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 1;
+  box-shadow: 0 4px 10px rgba(239, 68, 68, 0.24);
+}
+
 .pharmacy-nav-group {
   display: flex;
   flex-direction: column;
@@ -245,7 +273,29 @@
 
 .pharmacy-avatar-trigger {
   padding: 0;
-  overflow: hidden;
+}
+
+.pharmacy-avatar {
+  position: relative;
+}
+
+.pharmacy-avatar__online-status {
+  position: absolute;
+  right: 1px;
+  bottom: 1px;
+  width: 10px;
+  height: 10px;
+  border: 2px solid #ffffff;
+  border-radius: 50%;
+  box-sizing: border-box;
+}
+
+.pharmacy-avatar__online-status.is-online {
+  background: #059669;
+}
+
+.pharmacy-avatar__online-status.is-offline {
+  background: #94a3b8;
 }
 
 .pharmacy-avatar-dropdown {
@@ -261,41 +311,21 @@
   overflow: hidden;
 }
 
-.pharmacy-avatar-dropdown-card {
+.pharmacy-avatar-dropdown-status {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 16px;
+  padding: 12px 16px;
   border-bottom: 1px solid var(--pharmacy-border);
 }
 
-.pharmacy-avatar-dropdown-copy {
-  min-width: 0;
-  display: flex;
-  flex: 1;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 6px;
-}
-
-.pharmacy-avatar-dropdown-copy strong {
-  display: block;
-  font-size: 14px;
-  line-height: 1.2;
-  color: var(--pharmacy-text);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.pharmacy-avatar-dropdown-copy .pharmacy-online-toggle {
+.pharmacy-avatar-dropdown-status .pharmacy-online-toggle {
   width: auto;
   justify-content: flex-start;
   padding: 0;
   background: transparent;
 }
 
-.pharmacy-avatar-dropdown-copy .pharmacy-online-toggle-track {
+.pharmacy-avatar-dropdown-status .pharmacy-online-toggle-track {
   width: 96px;
 }
 
@@ -513,6 +543,10 @@
   .pharmacy-request-detail {
     position: static;
     max-height: none;
+  }
+
+  .pharmacy-nav-badge {
+    right: -16px;
   }
 }
 
