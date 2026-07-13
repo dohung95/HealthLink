@@ -246,24 +246,18 @@ class _DoctorHomeScreenState extends State<DoctorHomeScreen> {
       if (token == null) return;
       await DoctorService.startConsultation(token, appointment.appointmentId);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Consultation started'), behavior: SnackBarBehavior.floating),
-        );
+        await showDoctorNotice(context, 'Consultation started');
         _loadData();
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e'), behavior: SnackBarBehavior.floating, backgroundColor: DS.rose700),
-        );
+        showDoctorNotice(context, e.toString().replaceFirst('Exception: ', ''), isError: true);
       }
     }
   }
 
   void _cancelAppointment(DoctorAppointment appointment) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Appointment updated'), behavior: SnackBarBehavior.floating),
-    );
+    showDoctorNotice(context, 'Appointment updated');
     _loadData();
   }
 
@@ -288,13 +282,7 @@ class _DoctorHomeScreenState extends State<DoctorHomeScreen> {
   }
 
   void _startCall(DoctorAppointment appointment) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Connecting call with ${appointment.patientName ?? "patient"}...'),
-        behavior: SnackBarBehavior.floating,
-        backgroundColor: DS.primary,
-      ),
-    );
+    showDoctorNotice(context, 'Connecting call with ${appointment.patientName ?? "patient"}...');
   }
 
   @override

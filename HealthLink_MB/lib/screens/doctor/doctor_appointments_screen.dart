@@ -281,19 +281,15 @@ class _DoctorAppointmentsScreenState extends State<DoctorAppointmentsScreen> {
       }
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(newStatus == 'IN_PROGRESS' ? 'Consultation started' : 'Appointment updated'),
-            behavior: SnackBarBehavior.floating,
-          ),
+        await showDoctorNotice(
+          context,
+          newStatus == 'IN_PROGRESS' ? 'Consultation started' : 'Appointment updated',
         );
         _loadData();
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e'), behavior: SnackBarBehavior.floating, backgroundColor: DS.rose700),
-        );
+        showDoctorNotice(context, e.toString().replaceFirst('Exception: ', ''), isError: true);
       }
     }
   }
@@ -320,9 +316,7 @@ class _DoctorAppointmentsScreenState extends State<DoctorAppointmentsScreen> {
 
   void _startCall(String id) {
     final apt = _allAppointments.firstWhere((a) => a.appointmentId.toString() == id, orElse: () => _allAppointments.first);
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Connecting call with ${apt.patientName ?? "patient"}...'), behavior: SnackBarBehavior.floating, backgroundColor: DS.primary),
-    );
+    showDoctorNotice(context, 'Connecting call with ${apt.patientName ?? "patient"}...');
   }
 }
 

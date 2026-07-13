@@ -449,7 +449,7 @@ class _DoctorProfileScreenState extends State<DoctorProfileScreen> {
       child: Column(
         children: [
           DoctorMenuItem(icon: Icons.help_outline, label: 'Help & Support', onTap: () {
-            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Support: support@healthlink.com'), behavior: SnackBarBehavior.floating));
+            showDoctorNotice(context, 'Support: support@healthlink.com');
           }),
         ],
       ),
@@ -507,10 +507,7 @@ class _DoctorProfileScreenState extends State<DoctorProfileScreen> {
       final newUrl = await DoctorService.uploadAvatar(token, picked.path);
       await _loadData();
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('Avatar updated successfully'),
-          backgroundColor: DS.primary,
-        ));
+        await showDoctorNotice(context, 'Avatar updated successfully');
         // Update local avatar immediately without waiting for full reload
         if (_profile != null) {
           setState(() => _profile = DoctorProfile(
@@ -535,10 +532,7 @@ class _DoctorProfileScreenState extends State<DoctorProfileScreen> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(e.toString().replaceAll('Exception: ', '')),
-          backgroundColor: DS.destructive,
-        ));
+        showDoctorNotice(context, e.toString().replaceAll('Exception: ', ''), isError: true);
       }
     } finally {
       if (mounted) setState(() => _uploadingAvatar = false);

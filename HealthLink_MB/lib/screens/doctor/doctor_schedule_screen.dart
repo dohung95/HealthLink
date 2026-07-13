@@ -7,6 +7,7 @@ import '../../models/doctor/doctor_schedule.dart';
 import '../../models/doctor/doctor_appointment.dart';
 import '../../services/doctor/doctor_schedule_service.dart';
 import '../../services/doctor/doctor_service.dart';
+import '../../widgets/doctor/doctor_widgets.dart';
 
 typedef DS = DoctorStyles;
 
@@ -161,10 +162,7 @@ class _DoctorScheduleScreenState extends State<DoctorScheduleScreen>
     if (success) {
       _showSuccessPopup(msg);
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(msg),
-        backgroundColor: DS.destructive,
-      ));
+      showDoctorNotice(context, msg, isError: true);
     }
   }
 

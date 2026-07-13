@@ -4,6 +4,7 @@ import '../../models/chat/conversation.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/chat/chat_provider.dart';
 import '../../config/api_config.dart';
+import '../../widgets/doctor/doctor_widgets.dart';
 import '../chat/chat_room_screen.dart';
 
 class DoctorChatScreen extends StatefulWidget {
@@ -213,15 +214,11 @@ class _DoctorChatScreenState extends State<DoctorChatScreen> {
                               await chatProvider.toggleBlock(auth.accessToken!, auth.userId!, conv.id);
                               if (context.mounted) {
                                 Navigator.pop(context);
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(content: Text('Unblocked user successfully')),
-                                );
+                                showDoctorNotice(context, 'Unblocked user successfully');
                               }
                             } catch (e) {
                               if (context.mounted) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(content: Text('Error: $e')),
-                                );
+                                showDoctorNotice(context, e.toString().replaceFirst('Exception: ', ''), isError: true);
                               }
                             }
                           },
