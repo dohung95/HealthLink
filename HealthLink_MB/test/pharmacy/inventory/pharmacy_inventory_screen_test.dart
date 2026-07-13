@@ -73,7 +73,7 @@ void main() {
       final service = PharmacyInventoryService(client: mockClient);
       final provider = PharmacyInventoryProvider(inventoryService: service);
 
-      provider.refresh('token', 'pharm-1');
+      provider.refresh('token');
       await tester.pumpWidget(_buildTestApp(provider));
       await tester.pump();
 

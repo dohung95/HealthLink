@@ -65,7 +65,7 @@ class _PharmacyOrderDetailScreenState
         orderProvider.refreshOrders(auth.accessToken!, pharmacyId),
         workflowProvider.refresh(auth.accessToken!, pharmacyId),
         if (newStatus == 'READY')
-          inventoryProvider.refresh(auth.accessToken!, pharmacyId),
+          inventoryProvider.refresh(auth.accessToken!),
       ]);
     }
   }

@@ -132,8 +132,7 @@ class _PharmacyQuoteEditorScreenState
     final inventoryProvider = context.read<PharmacyInventoryProvider>();
 
     if (inventoryProvider.items.isEmpty && auth.accessToken != null) {
-      await inventoryProvider.refresh(
-          auth.accessToken!, auth.pharmacyProfile?['pharmacyId'] ?? '');
+      await inventoryProvider.refresh(auth.accessToken!);
     }
 
     if (!mounted) return;

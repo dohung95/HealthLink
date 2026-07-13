@@ -41,10 +41,7 @@ class _PharmacyInventoryScreenState extends State<PharmacyInventoryScreen> {
       if (provider.hasMore && !provider.loading) {
         final auth = context.read<AuthProvider>();
         if (auth.accessToken != null) {
-          provider.loadMore(
-            auth.accessToken!,
-            auth.pharmacyProfile?['pharmacyId']?.toString() ?? auth.userId!,
-          );
+          provider.loadMore(auth.accessToken!);
         }
       }
     }
@@ -53,11 +50,9 @@ class _PharmacyInventoryScreenState extends State<PharmacyInventoryScreen> {
   Future<void> _loadInventory() async {
     final auth = context.read<AuthProvider>();
     if (auth.accessToken == null) return;
-    final pharmacyId =
-        auth.pharmacyProfile?['pharmacyId']?.toString() ?? auth.userId!;
     await context
         .read<PharmacyInventoryProvider>()
-        .refresh(auth.accessToken!, pharmacyId);
+        .refresh(auth.accessToken!);
   }
 
   void _showFilterSheet() {
@@ -71,10 +66,7 @@ class _PharmacyInventoryScreenState extends State<PharmacyInventoryScreen> {
           provider.setFilter(filter);
           final auth = context.read<AuthProvider>();
           if (auth.accessToken != null) {
-            provider.refresh(
-              auth.accessToken!,
-              auth.pharmacyProfile?['pharmacyId']?.toString() ?? auth.userId!,
-            );
+            provider.refresh(auth.accessToken!);
           }
         },
       ),
@@ -90,11 +82,9 @@ class _PharmacyInventoryScreenState extends State<PharmacyInventoryScreen> {
         onSave: (updated) async {
           final auth = context.read<AuthProvider>();
           if (auth.accessToken == null) return;
-          final pharmacyId = auth.pharmacyProfile?['pharmacyId']?.toString() ??
-              auth.userId!;
           final ok = await context
               .read<PharmacyInventoryProvider>()
-              .updateItem(auth.accessToken!, updated, pharmacyId);
+              .updateItem(auth.accessToken!, updated);
           if (ok && mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(content: Text('Item updated')),
@@ -186,17 +176,13 @@ class _PharmacyInventoryScreenState extends State<PharmacyInventoryScreen> {
   }
 
   void _applySearch(String query) {
-    final provider = context.read<PharmacyInventoryProvider>();
-    provider.setFilter(provider.filter.copyWith(
-      search: query.isNotEmpty ? query : null,
-    ));
-    final auth = context.read<AuthProvider>();
-    if (auth.accessToken != null) {
-      provider.refresh(
-        auth.accessToken!,
-        auth.pharmacyProfile?['pharmacyId']?.toString() ?? auth.userId!,
-      );
-    }
+    final provider = context.read<PharmacyInventoryProvider>();      provider.setFilter(provider.filter.copyWith(
+        search: query.isNotEmpty ? query : null,
+      ));
+      final auth = context.read<AuthProvider>();
+      if (auth.accessToken != null) {
+        provider.refresh(auth.accessToken!);
+      }
   }
 
   Widget _buildSummaryBar(ThemeData theme) {
