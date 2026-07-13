@@ -3,8 +3,11 @@ import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/partner/partner_wallet_service.dart';
 import '../../services/partner/partner_security_service.dart';
+import '../../models/partner/partner_payment_exception.dart';
 import '../../models/partner/partner_wallet_models.dart';
+import '../../widgets/partner/partner_pin_code_field.dart';
 import '../../widgets/partner/partner_pin_wizard.dart';
+import '../../widgets/partner/withdrawal_result_dialog.dart';
 
 class PharmacyWalletScreen extends StatefulWidget {
   const PharmacyWalletScreen({super.key});
@@ -161,59 +164,184 @@ class _PharmacyWalletScreenState extends State<PharmacyWalletScreen> {
 
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Enter PIN'),
-        content: TextField(
-          controller: pinCtrl,
-          decoration: const InputDecoration(labelText: '6-digit PIN'),
-          keyboardType: TextInputType.number,
-          obscureText: true,
-          maxLength: 6,
-        ),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('Cancel')),
-          FilledButton(
-            onPressed: () async {
-              if (pinCtrl.text.trim().length != 6) return;
-              Navigator.pop(ctx);
-              _executeWithdrawal(amount, pinCtrl.text.trim());
-            },
-            child: const Text('Withdraw'),
-          ),
-        ],
+      barrierDismissible: false,
+      builder: (ctx) => _WithdrawalPinDialog(
+        amount: amount,
+        walletService: _walletService,
+        token: auth.accessToken!,
+        onSuccess: () {
+          if (mounted) _loadData();
+        },
       ),
     );
   }
+}
 
-  Future<void> _executeWithdrawal(double amount, String pin) async {
-    final auth = context.read<AuthProvider>();
-    if (auth.accessToken == null) return;
-    setState(() => _loading = true);
+/// Stateful dialog for entering a withdrawal PIN with six-slot input.
+class _WithdrawalPinDialog extends StatefulWidget {
+  final double amount;
+  final PartnerWalletService walletService;
+  final String token;
+  final VoidCallback onSuccess;
+
+  const _WithdrawalPinDialog({
+    required this.amount,
+    required this.walletService,
+    required this.token,
+    required this.onSuccess,
+  });
+
+  @override
+  State<_WithdrawalPinDialog> createState() => _WithdrawalPinDialogState();
+}
+
+class _WithdrawalPinDialogState extends State<_WithdrawalPinDialog> {
+  final _pinCtrl = TextEditingController();
+  bool _sending = false;
+  String? _error;
+  int? _lockedMinutes;
+
+  @override
+  void dispose() {
+    _pinCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submit() async {
+    final pin = _pinCtrl.text;
+    if (pin.length != 6) return;
+
+    setState(() {
+      _sending = true;
+      _error = null;
+    });
+
     try {
-      final paypalEmail = context.read<AuthProvider>().pharmacyProfile?['paypalEmail']?.toString();
-      await _walletService.requestWithdrawal(
-        auth.accessToken!,
-        amount: amount,
-        paypalEmail: paypalEmail ?? '',
+      final paypalEmail =
+          context.read<AuthProvider>().pharmacyProfile?['paypalEmail']?.toString() ?? '';
+      final settlement = await widget.walletService.requestWithdrawal(
+        widget.token,
+        amount: widget.amount,
+        paypalEmail: paypalEmail,
         pin: pin,
       );
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Withdrawal request submitted')),
-        );
-        _loadData();
+
+      if (!mounted) return;
+
+      // Close PIN dialog
+      Navigator.of(context).pop();
+
+      // Show result dialog
+      final isCompleted = settlement.isCompleted;
+      if (!context.mounted) return;
+      await showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (_) => WithdrawalResultDialog(
+          isCompleted: isCompleted,
+          amount: widget.amount,
+          onDone: widget.onSuccess,
+        ),
+      );
+    } on PartnerPaymentException catch (e) {
+      if (!mounted) return;
+      if (e.isPinInvalid) {
+        setState(() {
+          _sending = false;
+          _error = 'Invalid PIN';
+          if (e.attemptsRemaining != null) {
+            _error = 'Invalid PIN (${e.attemptsRemaining} attempt${e.attemptsRemaining == 1 ? '' : 's'} remaining)';
+          }
+          _pinCtrl.clear();
+        });
+        _focusNode.requestFocus();
+      } else if (e.isPinLocked) {
+        setState(() {
+          _sending = false;
+          _error = 'PIN is locked';
+          if (e.lockedUntil != null) {
+            final mins = e.lockedUntil!.difference(DateTime.now()).inMinutes;
+            if (mins > 0) {
+              _lockedMinutes = mins;
+              _error = 'PIN is locked. Try again in $mins minute${mins == 1 ? '' : 's'}';
+            }
+          }
+        });
+      } else {
+        setState(() {
+          _sending = false;
+          _error = e.message;
+        });
       }
     } catch (e) {
-      if (mounted) {
-        setState(() => _loading = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.toString())),
-        );
-      }
+      if (!mounted) return;
+      setState(() {
+        _sending = false;
+        _error = e.toString().replaceFirst('Exception: ', '');
+      });
     }
   }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return AlertDialog(
+      title: Row(
+        children: [
+          Expanded(
+            child: Text(
+              'Enter PIN',
+              style: theme.textTheme.titleMedium,
+            ),
+          ),
+        ],
+      ),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            'Withdraw \$${widget.amount.toStringAsFixed(2)}',
+            style: theme.textTheme.bodyMedium
+                ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+          ),
+          const SizedBox(height: 16),
+          PartnerPinCodeField(
+            controller: _pinCtrl,
+            enabled: !_sending && _lockedMinutes == null,
+            autofocus: true,
+            errorText: _error,
+          ),
+          if (_lockedMinutes != null) ...[
+            const SizedBox(height: 8),
+            Text(
+              'Withdrawal is temporarily disabled.',
+              style: TextStyle(fontSize: 12, color: theme.colorScheme.error),
+            ),
+          ],
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: _sending ? null : () => Navigator.of(context).pop(),
+          child: const Text('Cancel'),
+        ),
+        FilledButton(
+          onPressed: (_sending || _lockedMinutes != null || _pinCtrl.text.length != 6)
+              ? null
+              : _submit,
+          child: _sending
+              ? const SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : const Text('Withdraw'),
+        ),
+      ],
+    );
+  }
+}
 
   @override
   Widget build(BuildContext context) {

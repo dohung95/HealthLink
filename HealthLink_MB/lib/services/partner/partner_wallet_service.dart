@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../../config/api_config.dart';
+import '../../models/partner/partner_payment_exception.dart';
 import '../../models/partner/partner_wallet_models.dart';
 
 class PartnerWalletService {
@@ -25,6 +26,33 @@ class PartnerWalletService {
       };
 
   void close() => _client.close();
+
+  /// Parse a non-2xx response into a [PartnerPaymentException].
+  PartnerPaymentException _parseError(int statusCode, String body) {
+    try {
+      final map = jsonDecode(body) as Map<String, dynamic>;
+      final message = map['message']?.toString() ??
+          'Unable to process withdrawal (HTTP $statusCode)';
+      final code = map['code']?.toString();
+      int? attemptsRemaining = map['attemptsRemaining'] as int?;
+      DateTime? lockedUntil;
+      if (map['lockedUntil'] != null) {
+        lockedUntil = DateTime.tryParse(map['lockedUntil'].toString());
+      }
+      return PartnerPaymentException(
+        statusCode: statusCode,
+        message: message,
+        code: code,
+        attemptsRemaining: attemptsRemaining,
+        lockedUntil: lockedUntil,
+      );
+    } catch (_) {
+      return PartnerPaymentException(
+        statusCode: statusCode,
+        message: 'Unable to process withdrawal (HTTP $statusCode)',
+      );
+    }
+  }
 
   Future<PartnerWalletBalance> getBalance(String token) async {
     final uri = Uri.parse(ApiConfig.partnerWalletBalance(partnerId))
@@ -105,6 +133,6 @@ class PartnerWalletService {
       return PartnerSettlement.fromJson(
           jsonDecode(res.body) as Map<String, dynamic>);
     }
-    throw Exception('Failed to process withdrawal: ${res.body}');
+    throw _parseError(res.statusCode, res.body);
   }
 }
