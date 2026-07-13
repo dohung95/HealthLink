@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:math' as math;
 
+import 'package:HealthLink/models/booking/home_visit_session_slot.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../utils/localization_utils.dart';
@@ -43,7 +44,7 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
 
   List<PatientAppointment> _appointments = [];
   Map<int, bool> _reviewableAppointments = {};
-  
+
   int _currentPage = 1;
   int _totalPages = 1;
   int _totalItems = 0;
@@ -53,6 +54,7 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
   StreamSubscription<void>? _systemUpdateSub;
 
   String _statusFilter = 'ALL';
+  int? _expandedHomeVisitId;
 
   Map<String, String> _getStatusOptions(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
@@ -164,16 +166,23 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
   Future<void> _checkReviewableStatus(List<PatientAppointment> items) async {
     final auth = context.read<AuthProvider>();
     if (auth.accessToken == null) return;
-    
-    final completedApps = items.where((a) => a.status?.toUpperCase() == 'COMPLETED').toList();
+
+    final completedApps = items
+        .where((a) => a.status?.toUpperCase() == 'COMPLETED')
+        .toList();
     if (completedApps.isEmpty) return;
 
     final Map<int, bool> newStatus = {};
-    await Future.wait(completedApps.map((apt) async {
-      final canReview = await PatientReviewService.canReview(auth.accessToken!, apt.appointmentId);
-      newStatus[apt.appointmentId] = canReview;
-    }));
-    
+    await Future.wait(
+      completedApps.map((apt) async {
+        final canReview = await PatientReviewService.canReview(
+          auth.accessToken!,
+          apt.appointmentId,
+        );
+        newStatus[apt.appointmentId] = canReview;
+      }),
+    );
+
     if (mounted) {
       setState(() {
         _reviewableAppointments.addAll(newStatus);
@@ -275,17 +284,20 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
 
   void _handleJoinRoom(PatientAppointment appointment) async {
     final auth = context.read<AuthProvider>();
-    if (!auth.isAuthenticated || auth.accessToken == null || _patientId == null) return;
+    if (!auth.isAuthenticated || auth.accessToken == null || _patientId == null)
+      return;
 
     setState(() => _actionLoading = true);
     try {
       final vitals = await VitalSignService.getLatestAppointmentVitalSign(
-        auth.accessToken!, appointment.appointmentId);
-      
+        auth.accessToken!,
+        appointment.appointmentId,
+      );
+
       if (vitals == null || vitals['vitalSignId'] == null) {
         if (!mounted) return;
         setState(() => _actionLoading = false);
-        
+
         showModalBottomSheet(
           context: context,
           isScrollControlled: true,
@@ -682,7 +694,17 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
               appointment.consultationType.toLocalizedConsultationType(context),
             ),
             const SizedBox(height: 8),
-            _infoRow(colors, Icons.person_outline, appointment.patientName),
+            if (appointment.isHomeVisit)
+              _homeVisitPatientBlock(colors, appointment)
+            else
+              _infoRow(colors, Icons.person_outline, appointment.patientName),
+
+            if (appointment.isHomeVisit &&
+                _expandedHomeVisitId == appointment.appointmentId) ...[
+              const SizedBox(height: 12),
+              _homeVisitDetailsPanel(colors, appointment),
+            ],
+
             const SizedBox(height: 16),
             Wrap(
               spacing: 10,
@@ -694,6 +716,25 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
                     icon: const Icon(Icons.login),
                     label: Text(AppLocalizations.of(context)!.btnJoinRoom),
                   ),
+
+                if (appointment.isHomeVisit)
+                  OutlinedButton.icon(
+                    onPressed: () {
+                      setState(() {
+                        _expandedHomeVisitId =
+                            _expandedHomeVisitId == appointment.appointmentId
+                            ? null
+                            : appointment.appointmentId;
+                      });
+                    },
+                    icon: const Icon(Icons.house_outlined),
+                    label: Text(
+                      _expandedHomeVisitId == appointment.appointmentId
+                          ? 'Hide Details'
+                          : 'View Details',
+                    ),
+                  ),
+
                 if (canReschedule)
                   OutlinedButton.icon(
                     onPressed: () => _handleReschedule(appointment),
@@ -707,16 +748,21 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
                     label: Text(AppLocalizations.of(context)!.btnCancel),
                   ),
                 if (appointment.status?.toUpperCase() == 'COMPLETED')
-                  if (_reviewableAppointments[appointment.appointmentId] == null)
+                  if (_reviewableAppointments[appointment.appointmentId] ==
+                      null)
                     const Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      padding: EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 8,
+                      ),
                       child: SizedBox(
                         width: 20,
                         height: 20,
                         child: CircularProgressIndicator(strokeWidth: 2),
                       ),
                     )
-                  else if (_reviewableAppointments[appointment.appointmentId] == true)
+                  else if (_reviewableAppointments[appointment.appointmentId] ==
+                      true)
                     FilledButton.icon(
                       onPressed: () => _handleRateClick(appointment),
                       style: FilledButton.styleFrom(
@@ -724,9 +770,13 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
                         foregroundColor: Colors.white,
                       ),
                       icon: const Icon(Icons.star),
-                      label: Text(AppLocalizations.of(context)!.btnRate, style: const TextStyle(fontWeight: FontWeight.bold)),
+                      label: Text(
+                        AppLocalizations.of(context)!.btnRate,
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
                     )
-                  else if (_reviewableAppointments[appointment.appointmentId] == false)
+                  else if (_reviewableAppointments[appointment.appointmentId] ==
+                      false)
                     OutlinedButton.icon(
                       onPressed: () => _handleViewRateClick(appointment),
                       style: OutlinedButton.styleFrom(
@@ -740,6 +790,186 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
           ],
         ),
       ),
+    );
+  }
+
+  Widget _homeVisitPatientBlock(
+    ColorScheme colors,
+    PatientAppointment appointment,
+  ) {
+    final recipientPhone = appointment.homeVisitRecipientPhone;
+    final contactPhone = appointment.homeVisitContactPhone;
+
+    String onlyDigits(String value) => value.replaceAll(RegExp(r'\D'), '');
+
+    final showRecipientPhone =
+        recipientPhone.isNotEmpty &&
+        onlyDigits(recipientPhone) != onlyDigits(contactPhone);
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: colors.primary.withValues(alpha: 0.07),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: colors.primary.withValues(alpha: 0.22)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _homeVisitMiniRow(
+            colors,
+            Icons.person_outline,
+            'Receiver',
+            appointment.homeVisitReceiverName,
+          ),
+          const SizedBox(height: 8),
+          _homeVisitMiniRow(
+            colors,
+            Icons.diversity_1_outlined,
+            'For',
+            appointment.homeVisitForText,
+          ),
+          if (appointment.homeVisitAgeGenderText.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            _homeVisitMiniRow(
+              colors,
+              Icons.badge_outlined,
+              'Info',
+              appointment.homeVisitAgeGenderText,
+            ),
+          ],
+          if (showRecipientPhone) ...[
+            const SizedBox(height: 8),
+            _homeVisitMiniRow(
+              colors,
+              Icons.phone_android_outlined,
+              'Recipient Phone',
+              recipientPhone,
+            ),
+          ],
+          if (contactPhone.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            _homeVisitMiniRow(
+              colors,
+              Icons.phone_outlined,
+              'Phone',
+              contactPhone,
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _homeVisitDetailsPanel(
+    ColorScheme colors,
+    PatientAppointment appointment,
+  ) {
+    final reason = (appointment.reasonForHomeVisit ?? '').trim();
+    final notes = (appointment.specialNotes ?? '').trim();
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: colors.surfaceContainerLow,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: colors.outlineVariant),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _homeVisitDetailRow(
+            colors,
+            Icons.location_on_outlined,
+            'Visit address',
+            appointment.homeVisitFullAddress.isEmpty
+                ? 'No address provided'
+                : appointment.homeVisitFullAddress,
+          ),
+          const SizedBox(height: 10),
+          _homeVisitDetailRow(
+            colors,
+            Icons.assignment_outlined,
+            'Reason',
+            reason.isEmpty ? 'No reason provided' : reason,
+          ),
+          if (notes.isNotEmpty) ...[
+            const SizedBox(height: 10),
+            _homeVisitDetailRow(
+              colors,
+              Icons.sticky_note_2_outlined,
+              'Special notes',
+              notes,
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _homeVisitMiniRow(
+    ColorScheme colors,
+    IconData icon,
+    String label,
+    String value,
+  ) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(icon, size: 17, color: colors.primary),
+        const SizedBox(width: 8),
+        SizedBox(
+          width: 72,
+          child: Text(
+            label,
+            style: TextStyle(
+              color: colors.onSurfaceVariant,
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ),
+        Expanded(
+          child: Text(
+            value,
+            style: const TextStyle(fontWeight: FontWeight.w800),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _homeVisitDetailRow(
+    ColorScheme colors,
+    IconData icon,
+    String label,
+    String value,
+  ) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(icon, size: 18, color: colors.primary),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                style: TextStyle(
+                  color: colors.onSurfaceVariant,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(value, style: const TextStyle(fontWeight: FontWeight.w800)),
+            ],
+          ),
+        ),
+      ],
     );
   }
 
@@ -938,8 +1168,19 @@ class _RescheduleAppointmentSheetState
   bool _submitting = false;
 
   DateTime _selectedDate = DateTime.now();
+
+  // State reschedule Online
   List<BookingSlot> _slots = [];
   BookingSlot? _selectedSlot;
+  List<String> _onlineAvailableDates = [];
+  int _onlineDatePage = 0;
+  static const int _onlineDatesPerPage = 7;
+
+  // State reschedule HomeVisit
+  List<HomeVisitSessionSlot> _homeVisitSlots = [];
+  HomeVisitSessionSlot? _selectedHomeVisitSlot;
+
+  bool get _isHomeVisit => widget.appointment.isHomeVisit;
   int _bookingWindowDays = 30;
 
   @override
@@ -954,7 +1195,11 @@ class _RescheduleAppointmentSheetState
         : DateTime(today.year, today.month, today.day);
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _loadSlots();
+      if (_isHomeVisit) {
+        _loadHomeVisitSlots();
+      } else {
+        _loadOnlineAvailableDates();
+      }
     });
   }
 
@@ -962,6 +1207,95 @@ class _RescheduleAppointmentSheetState
   void dispose() {
     _releaseHoldSilently();
     super.dispose();
+  }
+
+  Future<void> _loadOnlineAvailableDates() async {
+    setState(() {
+      _loadingSlots = true;
+      _onlineAvailableDates = [];
+      _slots = [];
+      _selectedSlot = null;
+    });
+
+    try {
+      final dates = await widget.appointmentService.getOnlineRescheduleDates(
+        appointmentId: widget.appointment.appointmentId,
+      );
+
+      if (!mounted) return;
+
+      if (dates.isEmpty) {
+        setState(() {
+          _onlineAvailableDates = [];
+          _slots = [];
+          _selectedSlot = null;
+        });
+        return;
+      }
+
+      final parsedDates =
+          dates
+              .map(DateTime.tryParse)
+              .whereType<DateTime>()
+              .map(_dayStart)
+              .toSet()
+              .toList()
+            ..sort();
+
+      if (parsedDates.isEmpty) {
+        setState(() {
+          _onlineAvailableDates = [];
+          _slots = [];
+          _selectedSlot = null;
+        });
+        return;
+      }
+
+      // Đặt đoạn bạn hỏi tại đây
+      setState(() {
+        _onlineAvailableDates = parsedDates.map(_formatDate).toList();
+
+        _onlineDatePage = 0;
+        _selectedDate = parsedDates.first;
+      });
+
+      // Sau khi chọn ngày đầu tiên, tải slot của ngày đó
+      await _loadSlots();
+    } catch (e) {
+      _showSheetMessage(_cleanError(e), isError: true);
+    } finally {
+      if (mounted) {
+        setState(() {
+          _loadingSlots = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _changeOnlineDatePage(int nextPage) async {
+    final pageCount = (_onlineAvailableDates.length / _onlineDatesPerPage)
+        .ceil();
+
+    if (nextPage < 0 || nextPage >= pageCount) {
+      return;
+    }
+
+    await _releaseHoldSilently();
+
+    final firstIndex = nextPage * _onlineDatesPerPage;
+
+    final firstDate = DateTime.tryParse(_onlineAvailableDates[firstIndex]);
+
+    if (firstDate == null) return;
+
+    setState(() {
+      _onlineDatePage = nextPage;
+      _selectedDate = _dayStart(firstDate);
+      _selectedSlot = null;
+      _slots = [];
+    });
+
+    await _loadSlots();
   }
 
   Future<void> _loadSlots() async {
@@ -983,6 +1317,42 @@ class _RescheduleAppointmentSheetState
       setState(() {
         _bookingWindowDays = result.bookingWindowDays;
         _slots = result.slots;
+      });
+    } catch (e) {
+      _showSheetMessage(_cleanError(e), isError: true);
+    } finally {
+      if (mounted) {
+        setState(() {
+          _loadingSlots = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _loadHomeVisitSlots() async {
+    setState(() {
+      _loadingSlots = true;
+      _homeVisitSlots = [];
+      _selectedHomeVisitSlot = null;
+    });
+
+    try {
+      final slots = await widget.appointmentService.getHomeVisitRescheduleSlots(
+        appointmentId: widget.appointment.appointmentId,
+      );
+
+      if (!mounted) return;
+
+      setState(() {
+        _homeVisitSlots = slots;
+
+        if (slots.isNotEmpty) {
+          final firstDate = DateTime.tryParse(slots.first.bookingDate);
+
+          if (firstDate != null) {
+            _selectedDate = _dayStart(firstDate);
+          }
+        }
       });
     } catch (e) {
       _showSheetMessage(_cleanError(e), isError: true);
@@ -1073,9 +1443,30 @@ class _RescheduleAppointmentSheetState
   }
 
   Future<void> _confirmReschedule() async {
-    if (_selectedSlot == null) {
-      _showSheetMessage('Please select a new time slot.');
+    // dành cho HomeVisit.
+    if (_isHomeVisit && _selectedHomeVisitSlot == null) {
+      _showSheetMessage('Please select a new HomeVisit slot.', isError: true);
       return;
+    }
+
+    // dành cho Online.
+    if (!_isHomeVisit && _selectedSlot == null) {
+      _showSheetMessage('Please select a new time slot.', isError: true);
+      return;
+    }
+
+    // Hai loại slot có cấu trúc khác nhau nên build thời gian riêng.
+    final String newAppointmentTime;
+
+    if (_isHomeVisit) {
+      newAppointmentTime = _homeVisitAppointmentDateTime(
+        _selectedHomeVisitSlot!,
+      );
+    } else {
+      newAppointmentTime = _appointmentDateTime(
+        _selectedDate,
+        _selectedSlot!.startTime,
+      );
     }
 
     setState(() {
@@ -1085,18 +1476,28 @@ class _RescheduleAppointmentSheetState
     try {
       await widget.appointmentService.rescheduleAppointment(
         appointmentId: widget.appointment.appointmentId,
-        newAppointmentTime: _appointmentDateTime(
-          _selectedDate,
-          _selectedSlot!.startTime,
-        ),
+        newAppointmentTime: newAppointmentTime,
       );
 
       if (!mounted) return;
 
+      // Xóa selection trước khi đóng để dispose không release nhầm hold.
       _selectedSlot = null;
+      _selectedHomeVisitSlot = null;
+
       Navigator.of(context).pop(true);
     } catch (e) {
+      if (!mounted) return;
+
       _showSheetMessage(_cleanError(e), isError: true);
+
+      // Backend có thể từ chối vì slot vừa bị người khác lấy.
+      // Tải lại danh sách để loại slot cũ khỏi giao diện.
+      if (_isHomeVisit) {
+        await _loadHomeVisitSlots();
+      } else {
+        await _loadSlots();
+      }
     } finally {
       if (mounted) {
         setState(() {
@@ -1106,13 +1507,63 @@ class _RescheduleAppointmentSheetState
     }
   }
 
+  String _homeVisitAppointmentDateTime(HomeVisitSessionSlot slot) {
+    final rawTime = slot.startTime.trim();
+
+    final normalizedTime = rawTime.length == 5
+        ? '$rawTime:00'
+        : rawTime.split('.').first;
+
+    return '${slot.bookingDate}T$normalizedTime';
+  }
+
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
-    final days = List.generate(
-      _bookingWindowDays.clamp(7, 30).toInt(),
-      (index) => _dayStart(DateTime.now()).add(Duration(days: index)),
+
+    final canConfirm = _isHomeVisit
+        ? _selectedHomeVisitSlot != null
+        : _selectedSlot != null;
+
+    final days = _isHomeVisit
+        ? (_homeVisitSlots
+              .map((slot) => DateTime.tryParse(slot.bookingDate))
+              .whereType<DateTime>()
+              .map(_dayStart)
+              .toSet()
+              .toList()
+            ..sort())
+        : (_onlineAvailableDates
+              .map(DateTime.tryParse)
+              .whereType<DateTime>()
+              .map(_dayStart)
+              .toSet()
+              .toList()
+            ..sort());
+
+    final onlinePageCount = (_onlineAvailableDates.length / _onlineDatesPerPage)
+        .ceil()
+        .clamp(1, 999);
+
+    final onlinePageStart = _onlineDatePage * _onlineDatesPerPage;
+
+    final onlinePageEnd = (onlinePageStart + _onlineDatesPerPage).clamp(
+      0,
+      _onlineAvailableDates.length,
     );
+
+    final visibleDays = _isHomeVisit
+        ? days
+        : days.sublist(
+            onlinePageStart.clamp(0, days.length),
+            onlinePageEnd.clamp(0, days.length),
+          );
+
+    final selectedDateText = _formatDate(_selectedDate);
+
+    final visibleHomeVisitSlots = _homeVisitSlots
+        .where((slot) => slot.bookingDate == selectedDateText)
+        .toList();
 
     return Padding(
       padding: EdgeInsets.only(
@@ -1149,28 +1600,69 @@ class _RescheduleAppointmentSheetState
           ),
           const SizedBox(height: 18),
 
+          if (!_isHomeVisit && _onlineAvailableDates.isNotEmpty) ...[
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: _loadingSlots || _onlineDatePage <= 0
+                        ? null
+                        : () => _changeOnlineDatePage(_onlineDatePage - 1),
+                    child: const Text('Previous'),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Text(
+                  '${_onlineDatePage + 1}'
+                  ' / '
+                  '$onlinePageCount',
+                  style: const TextStyle(fontWeight: FontWeight.w800),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed:
+                        _loadingSlots || _onlineDatePage >= onlinePageCount - 1
+                        ? null
+                        : () => _changeOnlineDatePage(_onlineDatePage + 1),
+                    child: const Text('Next'),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+          ],
+
           SizedBox(
             height: 82,
             child: ListView.separated(
               scrollDirection: Axis.horizontal,
-              itemCount: days.length,
+              itemCount: visibleDays.length,
               separatorBuilder: (_, __) => const SizedBox(width: 10),
               itemBuilder: (context, index) {
-                final day = days[index];
+                final day = visibleDays[index];
                 final selected = _sameDay(day, _selectedDate);
 
                 return InkWell(
                   borderRadius: BorderRadius.circular(18),
                   onTap: () async {
-                    await _releaseHoldSilently();
+                    if (!_isHomeVisit) {
+                      await _releaseHoldSilently();
+                    }
 
                     setState(() {
                       _selectedDate = day;
                       _selectedSlot = null;
-                      _slots = [];
+                      _selectedHomeVisitSlot = null;
+
+                      if (!_isHomeVisit) {
+                        _slots = [];
+                      }
                     });
 
-                    await _loadSlots();
+                    if (!_isHomeVisit) {
+                      await _loadSlots();
+                    }
                   },
                   child: Container(
                     width: 96,
@@ -1224,12 +1716,9 @@ class _RescheduleAppointmentSheetState
           const SizedBox(height: 12),
 
           if (_loadingSlots)
-            const Center(
-              child: Padding(
-                padding: EdgeInsets.all(24),
-                child: CircularProgressIndicator(),
-              ),
-            )
+            const Center(child: CircularProgressIndicator())
+          else if (_isHomeVisit)
+            _buildHomeVisitRescheduleSlots(colors, visibleHomeVisitSlots)
           else if (_slots.isEmpty)
             Container(
               width: double.infinity,
@@ -1300,7 +1789,9 @@ class _RescheduleAppointmentSheetState
               const SizedBox(width: 12),
               Expanded(
                 child: FilledButton(
-                  onPressed: _submitting ? null : _confirmReschedule,
+                  onPressed: _submitting || !canConfirm
+                      ? null
+                      : _confirmReschedule,
                   child: _submitting
                       ? const SizedBox(
                           width: 18,
@@ -1375,5 +1866,74 @@ class _RescheduleAppointmentSheetState
       'Sat',
       'Sun',
     ][date.weekday - 1];
+  }
+
+  Widget _buildHomeVisitRescheduleSlots(
+    ColorScheme colors,
+    List<HomeVisitSessionSlot> slots,
+  ) {
+    if (slots.isEmpty) {
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(18),
+        decoration: BoxDecoration(
+          color: colors.surfaceContainerLow,
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Text(
+          'No available HomeVisit slots.',
+          style: TextStyle(color: colors.onSurfaceVariant),
+        ),
+      );
+    }
+
+    return Column(
+      children: slots.map((slot) {
+        final selected =
+            _selectedHomeVisitSlot?.scheduleId == slot.scheduleId &&
+            _selectedHomeVisitSlot?.bookingDate == slot.bookingDate &&
+            _selectedHomeVisitSlot?.startTime == slot.startTime;
+
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 10),
+          child: InkWell(
+            borderRadius: BorderRadius.circular(16),
+            onTap: () {
+              setState(() {
+                _selectedHomeVisitSlot = slot;
+                _selectedSlot = null;
+              });
+            },
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: selected
+                    ? colors.primaryContainer
+                    : colors.surfaceContainerLow,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: selected ? colors.primary : colors.outlineVariant,
+                ),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '${slot.startTime} - ${slot.endTime}',
+                    style: const TextStyle(fontWeight: FontWeight.w900),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    '${slot.totalBlockMinutes} min total',
+                    style: TextStyle(color: colors.onSurfaceVariant),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      }).toList(),
+    );
   }
 }

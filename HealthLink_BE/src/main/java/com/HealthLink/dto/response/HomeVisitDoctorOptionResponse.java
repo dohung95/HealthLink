@@ -13,6 +13,7 @@ public class HomeVisitDoctorOptionResponse {
     private String specialtyName;
     private String avatarUrl;
     private BigDecimal consultationFee;
+    private BigDecimal homeVisitConsultationFee;
 
     private Double distanceKm;
     private Integer estimatedTravelMinutes;

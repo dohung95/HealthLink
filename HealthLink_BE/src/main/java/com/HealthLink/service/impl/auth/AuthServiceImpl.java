@@ -10,6 +10,7 @@ import com.HealthLink.entity.EmailVerificationToken;
 import com.HealthLink.entity.PasswordResetToken;
 import com.HealthLink.entity.RefreshToken;
 import com.HealthLink.entity.Role;
+import com.HealthLink.entity.TokenType;
 import com.HealthLink.entity.User;
 import com.HealthLink.exception.BadRequestException;
 import com.HealthLink.exception.DuplicateResourceException;
@@ -490,5 +491,47 @@ public class AuthServiceImpl implements AuthService {
         emailVerificationTokenRepository.save(emailToken);
 
         log.info("Email confirmed for userId: {}", user.getId());
+    }
+
+    // =========================================================================
+    // Xác nhận PayPal email sau khi đăng ký được duyệt
+    // =========================================================================
+    @Override
+    @Transactional
+    public void confirmPaypalEmail(String token) {
+        EmailVerificationToken paypalToken = emailVerificationTokenRepository.findByToken(token)
+                .orElseThrow(() -> new InvalidTokenException("Invalid or expired confirmation link"));
+
+        if (paypalToken.getType() != TokenType.PAYPAL_EMAIL_CONFIRM) {
+            throw new InvalidTokenException("Invalid or expired confirmation link");
+        }
+        if (paypalToken.isUsed()) {
+            throw new BadRequestException("This confirmation link has already been used");
+        }
+        if (paypalToken.isExpired()) {
+            throw new InvalidTokenException("Confirmation link has expired.");
+        }
+
+        User user = paypalToken.getUser();
+        String roleName = user.getRole() != null ? user.getRole().getName() : null;
+
+        if ("Doctor".equalsIgnoreCase(roleName)) {
+            Doctor doctor = doctorRepository.findById(user.getId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Doctor", "id", user.getId()));
+            doctor.setPaypalEmail(paypalToken.getNewEmail());
+            doctorRepository.save(doctor);
+        } else if ("Pharmacy".equalsIgnoreCase(roleName)) {
+            Pharmacy pharmacy = pharmacyRepository.findById(user.getId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Pharmacy", "id", user.getId()));
+            pharmacy.setPaypalEmail(paypalToken.getNewEmail());
+            pharmacyRepository.save(pharmacy);
+        } else {
+            throw new BadRequestException("PayPal email confirmation is not applicable to this account");
+        }
+
+        paypalToken.setUsed(true);
+        emailVerificationTokenRepository.save(paypalToken);
+
+        log.info("PayPal email confirmed for userId: {}", user.getId());
     }
 }

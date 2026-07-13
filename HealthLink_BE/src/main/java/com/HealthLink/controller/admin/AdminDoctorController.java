@@ -2,11 +2,14 @@ package com.HealthLink.controller.admin;
 
 import com.HealthLink.dto.admin.*;
 import com.HealthLink.service.admin.AdminDoctorService;
+import jakarta.validation.Valid;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.Map;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -73,6 +76,28 @@ public class AdminDoctorController {
     public ResponseEntity<Void> deleteDoctor(@PathVariable String doctorId) {
         adminDoctorService.deleteDoctor(doctorId);
         return ResponseEntity.noContent().build();
+    }
+
+    @PutMapping("/{doctorId}/paypal-email/request")
+    public ResponseEntity<Map<String, String>> requestDoctorPaypalEmailChange(
+            @PathVariable String doctorId,
+            @Valid @RequestBody PaypalEmailChangeRequest request
+    ) {
+        adminDoctorService.requestDoctorPaypalEmailChange(doctorId, request.getNewPaypalEmail());
+        return ResponseEntity.ok(Map.of("message", "OTP sent to " + request.getNewPaypalEmail()));
+    }
+
+    @PutMapping("/{doctorId}/paypal-email/verify")
+    public ResponseEntity<AdminDoctorDto> verifyDoctorPaypalEmailChange(
+            @PathVariable String doctorId,
+            @Valid @RequestBody PaypalEmailOtpRequest request,
+            Authentication authentication
+    ) {
+        String adminUserId = authentication != null ? authentication.getName() : null;
+        AdminDoctorDto updatedDoctor = adminDoctorService.verifyDoctorPaypalEmailChange(
+                doctorId, request.getOtp(), request.getReason(), adminUserId
+        );
+        return ResponseEntity.ok(updatedDoctor);
     }
 
     /**

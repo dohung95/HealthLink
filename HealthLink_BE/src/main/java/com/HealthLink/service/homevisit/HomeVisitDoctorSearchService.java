@@ -33,8 +33,8 @@ public class HomeVisitDoctorSearchService {
                 .filter(doctor -> DoctorServiceHelper.isConsultationTypeSupported(doctor, "HomeVisit"))
                 .filter(doctor -> doctor.getLatitude() != null && doctor.getLongitude() != null)
                 .filter(doctor -> request.getSpecialtyName() == null
-                        || request.getSpecialtyName().isBlank()
-                        || request.getSpecialtyName().equalsIgnoreCase(resolveSpecialtyName(doctor)))
+                || request.getSpecialtyName().isBlank()
+                || request.getSpecialtyName().equalsIgnoreCase(resolveSpecialtyName(doctor)))
                 .map(doctor -> buildOptionOrNull(doctor, request))
                 .filter(option -> option != null)
                 .toList();
@@ -58,26 +58,38 @@ public class HomeVisitDoctorSearchService {
             return null;
         }
 
-        BigDecimal doctorFee = doctor.getConsultationFee() != null
+        BigDecimal consultationFee = doctor.getConsultationFee() != null
                 ? doctor.getConsultationFee().setScale(2, RoundingMode.HALF_UP)
                 : BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP);
 
+        BigDecimal homeVisitConsultationFee = consultationFee
+                .multiply(BigDecimal.valueOf(1.5))
+                .setScale(2, RoundingMode.HALF_UP);
+
         BigDecimal homeVisitTotal = estimate.getTotalFee() != null
-                ? estimate.getTotalFee()
-                : BigDecimal.ZERO;
+                ? estimate.getTotalFee().setScale(2, RoundingMode.HALF_UP)
+                : BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP);
 
         return HomeVisitDoctorOptionResponse.builder()
                 .doctorId(doctor.getDoctorId())
                 .fullName(doctor.getFullName())
                 .specialtyName(resolveSpecialtyName(doctor))
                 .avatarUrl(doctor.getAvatarUrl())
-                .consultationFee(doctorFee)
+                // Fee thực tế cho online
+                .consultationFee(consultationFee)
+                // Fee thực tế của HomeVisit = consultationFee x 1.5.
+                .homeVisitConsultationFee(homeVisitConsultationFee)
                 .distanceKm(estimate.getDistanceKm())
                 .estimatedTravelMinutes(estimate.getEstimatedTravelMinutes())
                 .homeVisitFee(estimate.getHomeVisitFee())
                 .travelFee(estimate.getTravelFee())
                 .homeVisitTotal(homeVisitTotal)
-                .temporaryTotal(doctorFee.add(homeVisitTotal).setScale(2, RoundingMode.HALF_UP))
+                // Tổng tạm tính = phí khám HomeVisit + phí di chuyển/HomeVisit.
+                .temporaryTotal(
+                        homeVisitConsultationFee
+                                .add(homeVisitTotal)
+                                .setScale(2, RoundingMode.HALF_UP)
+                )
                 .build();
     }
 

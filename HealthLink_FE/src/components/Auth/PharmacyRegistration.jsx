@@ -1,33 +1,120 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Modal, Button } from 'react-bootstrap';
+import L from 'leaflet';
+import { MapContainer, Marker, TileLayer, useMapEvents, useMap } from 'react-leaflet';
 import Loading from '../Loading';
 import registrationService from '../../api/registrationApi';
 import CVImportModal from './CVImportModal';
 import { quickContentCheck } from '../../utils/documentModeration';
 import './Css/PharmacyRegistration.css';
 
+import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png';
+import markerIcon from 'leaflet/dist/images/marker-icon.png';
+import markerShadow from 'leaflet/dist/images/marker-shadow.png';
+
+delete L.Icon.Default.prototype._getIconUrl;
+
+L.Icon.Default.mergeOptions({
+    iconRetinaUrl: markerIcon2x,
+    iconUrl: markerIcon,
+    shadowUrl: markerShadow,
+});
+
+const LocationPicker = ({ location, onPick }) => {
+    useMapEvents({
+        click(e) {
+            onPick(e.latlng.lat, e.latlng.lng);
+        },
+    });
+
+    if (!location?.lat || !location?.lng) return null;
+
+    return <Marker position={[location.lat, location.lng]} />;
+};
+
+const MapRecenter = ({ location }) => {
+    const map = useMap();
+
+    useEffect(() => {
+        if (location?.lat && location?.lng) {
+            map.setView([location.lat, location.lng], 16);
+        }
+    }, [location, map]);
+
+    return null;
+};
+
 export function PharmacyRegistration() {
     const navigate = useNavigate();
     const [loading, setLoading] = useState(true);
     const [submitting, setSubmitting] = useState(false);
+    const [locatingPharmacy, setLocatingPharmacy] = useState(false);
     const [error, setError] = useState('');
+    const [fieldErrors, setFieldErrors] = useState({});
     const [showSuccessModal, setShowSuccessModal] = useState(false);
+
+    const setFieldError = (field, message) => {
+        setFieldErrors(prev => ({ ...prev, [field]: message }));
+    };
+
+    const clearFieldError = (field) => {
+        setFieldErrors(prev => {
+            if (!(field in prev)) return prev;
+            const next = { ...prev };
+            delete next[field];
+            return next;
+        });
+    };
+
+    const fieldSelectors = {
+        name: 'input[name="name"]',
+        licenseNumber: 'input[name="licenseNumber"]',
+        email: 'input[name="email"]',
+        phoneNumber: 'input[name="phoneNumber"]',
+        paypalEmail: 'input[name="paypalEmail"]',
+        avatar: '#avatarUpload',
+        address: 'input[name="address"]',
+        locationMap: '#pharmacyMapGroup',
+        businessLicense: '#businessLicense',
+        pharmacyLicense: '#pharmacyLicense',
+        ownerIdCard: '#ownerIdCard',
+        openTime: 'input[name="openTime"]',
+        closeTime: 'input[name="closeTime"]',
+        workingDays: 'select[name="workingDays"]',
+        deliveryAvailable: 'input[name="deliveryAvailable"]',
+        deliveryRadius: 'input[name="deliveryRadius"]',
+        deliveryFee: 'input[name="deliveryFee"]',
+        acceptedTerms: '#acceptedTermsCheckbox',
+    };
+
+    const focusAndScrollToField = (fieldKey) => {
+        const selector = fieldSelectors[fieldKey];
+        const el = selector && document.querySelector(selector);
+        if (!el) return;
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        if (typeof el.focus === 'function') {
+            setTimeout(() => el.focus({ preventScroll: true }), 300);
+        }
+    };
 
     const [formData, setFormData] = useState({
         name: '',  // Pharmacy name - consistent with Pharmacy entity
         email: '',
         phoneNumber: '',
+        paypalEmail: '',
         licenseNumber: '',
         address: '',
         city: '',
         district: '',
         ward: '',
+        latitude: null,
+        longitude: null,
         openTime: '08:00',
         closeTime: '22:00',
         open24Hours: false,
         workingDays: 'Mon-Sun',
-        deliveryAvailable: false,
+        deliveryAvailable: true,
         deliveryRadius: '',
         deliveryFee: '',
         description: ''
@@ -42,6 +129,14 @@ export function PharmacyRegistration() {
         ownerIdCard: null,
         otherDocuments: []
     });
+
+    // Preview URLs for uploaded documents that are images
+    const [documentPreviews, setDocumentPreviews] = useState({
+        businessLicense: null,
+        pharmacyLicense: null,
+        ownerIdCard: null,
+    });
+    const [otherDocumentPreviews, setOtherDocumentPreviews] = useState([]);
 
     // Avatar state
     const [avatar, setAvatar] = useState(null);
@@ -83,10 +178,45 @@ export function PharmacyRegistration() {
 
     const handleChange = (e) => {
         const { name, value, type, checked } = e.target;
+        clearFieldError(name);
         setFormData(prev => ({
             ...prev,
             [name]: type === 'checkbox' ? checked : value
         }));
+    };
+
+    const handlePickLocation = (lat, lng) => {
+        setFormData(prev => ({
+            ...prev,
+            latitude: lat,
+            longitude: lng
+        }));
+        clearFieldError('locationMap');
+    };
+
+    const handleUseCurrentLocation = () => {
+        if (!navigator.geolocation) {
+            setError('Your browser does not support location detection.');
+            return;
+        }
+
+        setError('');
+        setLocatingPharmacy(true);
+
+        navigator.geolocation.getCurrentPosition(
+            (position) => {
+                handlePickLocation(position.coords.latitude, position.coords.longitude);
+                setLocatingPharmacy(false);
+            },
+            () => {
+                setError('Unable to access your location.');
+                setLocatingPharmacy(false);
+            },
+            {
+                enableHighAccuracy: true,
+                timeout: 10000,
+            }
+        );
     };
 
     const handleAvatarChange = async (e) => {
@@ -94,13 +224,13 @@ export function PharmacyRegistration() {
         if (file) {
             // Validate file size (max 5MB for avatar)
             if (file.size > 5 * 1024 * 1024) {
-                setError('Avatar size must be less than 5MB');
+                setFieldError('avatar', 'Avatar size must be less than 5MB');
                 return;
             }
             // Validate file type (images only)
             const allowedTypes = ['image/jpeg', 'image/png', 'image/jpg', 'image/webp'];
             if (!allowedTypes.includes(file.type)) {
-                setError('Please upload an image file (JPG, PNG, or WebP)');
+                setFieldError('avatar', 'Please upload an image file (JPG, PNG, or WebP)');
                 return;
             }
 
@@ -109,7 +239,7 @@ export function PharmacyRegistration() {
             try {
                 const result = await quickContentCheck(file);
                 if (!result.safe) {
-                    setError(result.reason || 'This image contains inappropriate content and cannot be uploaded.');
+                    setFieldError('avatar', result.reason || 'This image contains inappropriate content and cannot be uploaded.');
                     e.target.value = '';
                     setModeratingFile(null);
                     return;
@@ -122,7 +252,7 @@ export function PharmacyRegistration() {
 
             setAvatar(file);
             setAvatarPreview(URL.createObjectURL(file));
-            setError('');
+            clearFieldError('avatar');
         }
     };
 
@@ -138,24 +268,24 @@ export function PharmacyRegistration() {
         const file = e.target.files[0];
         if (file) {
             if (file.size > 10 * 1024 * 1024) {
-                setError('File size must be less than 10MB');
+                setFieldError(documentType, 'File size must be less than 10MB');
                 return;
             }
             const allowedTypes = ['application/pdf', 'image/jpeg', 'image/png', 'image/jpg',
                                   'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
             if (!allowedTypes.includes(file.type)) {
-                setError('File type not allowed. Please upload PDF, JPG, PNG, DOC, or DOCX files.');
+                setFieldError(documentType, 'File type not allowed. Please upload PDF, JPG, PNG, DOC, or DOCX files.');
                 return;
             }
 
             // Content moderation for images
             if (file.type.startsWith('image/')) {
                 setModeratingFile(documentType);
-                setError('');
+                clearFieldError(documentType);
                 try {
                     const result = await quickContentCheck(file);
                     if (!result.safe) {
-                        setError(result.reason || 'This image contains inappropriate content and cannot be uploaded.');
+                        setFieldError(documentType, result.reason || 'This image contains inappropriate content and cannot be uploaded.');
                         e.target.value = '';
                         setModeratingFile(null);
                         return;
@@ -174,7 +304,16 @@ export function PharmacyRegistration() {
                 ...prev,
                 [documentType]: file
             }));
-            setError('');
+            setDocumentPreviews(prev => {
+                if (prev[documentType]) {
+                    URL.revokeObjectURL(prev[documentType]);
+                }
+                return {
+                    ...prev,
+                    [documentType]: file.type.startsWith('image/') ? URL.createObjectURL(file) : null
+                };
+            });
+            clearFieldError(documentType);
         }
     };
 
@@ -200,6 +339,10 @@ export function PharmacyRegistration() {
             ...prev,
             otherDocuments: [...prev.otherDocuments, ...validFiles]
         }));
+        setOtherDocumentPreviews(prev => [
+            ...prev,
+            ...validFiles.map(file => file.type.startsWith('image/') ? URL.createObjectURL(file) : null)
+        ]);
         setError('');
     };
 
@@ -209,11 +352,26 @@ export function PharmacyRegistration() {
                 ...prev,
                 otherDocuments: prev.otherDocuments.filter((_, i) => i !== index)
             }));
+            setOtherDocumentPreviews(prev => {
+                if (prev[index]) {
+                    URL.revokeObjectURL(prev[index]);
+                }
+                return prev.filter((_, i) => i !== index);
+            });
         } else {
             setDocuments(prev => ({
                 ...prev,
                 [documentType]: null
             }));
+            setDocumentPreviews(prev => {
+                if (prev[documentType]) {
+                    URL.revokeObjectURL(prev[documentType]);
+                }
+                return {
+                    ...prev,
+                    [documentType]: null
+                };
+            });
         }
     };
 
@@ -251,27 +409,114 @@ export function PharmacyRegistration() {
         e.preventDefault();
         setError('');
 
-        // Validation
-        if (!formData.name || !formData.email || !formData.phoneNumber) {
-            setError('Please fill in all required fields');
-            return;
+        const errors = {};
+
+        if (!formData.name?.trim()) {
+            errors.name = 'Pharmacy name is required';
         }
 
-        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
-            setError('Please enter a valid email address');
-            return;
+        if (!formData.licenseNumber?.trim()) {
+            errors.licenseNumber = 'License number is required';
         }
 
-        if (!formData.licenseNumber || !formData.address) {
-            setError('Please fill in license number and address');
-            return;
+        if (!formData.email?.trim()) {
+            errors.email = 'Email is required';
+        } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+            errors.email = 'Please enter a valid email address';
+        }
+
+        if (!formData.phoneNumber?.trim()) {
+            errors.phoneNumber = 'Phone number is required';
+        }
+
+        if (!formData.paypalEmail?.trim()) {
+            errors.paypalEmail = 'PayPal email is required';
+        } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.paypalEmail)) {
+            errors.paypalEmail = 'Please enter a valid PayPal email address';
+        }
+
+        if (!avatar) {
+            errors.avatar = 'Profile photo is required';
+        }
+
+        if (!formData.address?.trim()) {
+            errors.address = 'Address is required';
+        }
+
+        if (!formData.latitude || !formData.longitude) {
+            errors.locationMap = 'Please pin your pharmacy location on the map';
+        }
+
+        if (!documents.businessLicense) {
+            errors.businessLicense = 'Business License is required';
+        }
+
+        if (!documents.pharmacyLicense) {
+            errors.pharmacyLicense = 'Pharmacy License (GPP) is required';
+        }
+
+        if (!documents.ownerIdCard) {
+            errors.ownerIdCard = 'Owner ID Card / Passport is required';
+        }
+
+        if (!formData.open24Hours) {
+            if (!formData.openTime) {
+                errors.openTime = 'Open time is required';
+            }
+            if (!formData.closeTime) {
+                errors.closeTime = 'Close time is required';
+            }
+        }
+
+        if (!formData.workingDays) {
+            errors.workingDays = 'Working days is required';
+        }
+
+        if (!formData.deliveryAvailable) {
+            errors.deliveryAvailable = 'HealthLink pharmacy partners must offer delivery';
+        }
+
+        if (formData.deliveryAvailable) {
+            if (formData.deliveryRadius === '' || formData.deliveryRadius === null) {
+                errors.deliveryRadius = 'Delivery radius is required';
+            } else {
+                const radiusValue = parseFloat(formData.deliveryRadius);
+                if (Number.isNaN(radiusValue) || radiusValue < 0) {
+                    errors.deliveryRadius = 'Please enter a valid delivery radius';
+                } else if (radiusValue > 50) {
+                    errors.deliveryRadius = 'Delivery radius cannot exceed 50 km';
+                }
+            }
+
+            if (formData.deliveryFee === '' || formData.deliveryFee === null) {
+                errors.deliveryFee = 'Delivery fee is required';
+            } else {
+                const feeValue = parseFloat(formData.deliveryFee);
+                if (Number.isNaN(feeValue) || feeValue < 0) {
+                    errors.deliveryFee = 'Please enter a valid delivery fee';
+                } else if (feeValue > 20) {
+                    errors.deliveryFee = 'Delivery fee cannot exceed $20.00';
+                }
+            }
         }
 
         if (!acceptedTerms) {
-            setError('You must accept the Terms and Conditions to proceed');
+            errors.acceptedTerms = 'You must accept the Terms and Conditions to proceed';
+        }
+
+        if (Object.keys(errors).length > 0) {
+            setFieldErrors(prev => ({ ...prev, ...errors }));
+            const fieldOrder = [
+                'name', 'licenseNumber', 'email', 'phoneNumber', 'paypalEmail', 'avatar', 'address', 'locationMap',
+                'businessLicense', 'pharmacyLicense', 'ownerIdCard',
+                'openTime', 'closeTime', 'workingDays', 'deliveryAvailable', 'deliveryRadius', 'deliveryFee', 'acceptedTerms',
+            ];
+            const firstField = fieldOrder.find(f => errors[f]);
+            focusAndScrollToField(firstField);
             return;
         }
 
+        setFieldErrors({});
         setSubmitting(true);
         setSubmissionStep('submitting');
 
@@ -324,6 +569,14 @@ export function PharmacyRegistration() {
     if (loading) {
         return <Loading />;
     }
+
+    const FieldError = ({ field }) => (
+        fieldErrors[field] ? (
+            <p className="field-error-text">
+                <i className="bi bi-exclamation-circle-fill"></i> {fieldErrors[field]}
+            </p>
+        ) : null
+    );
 
     return (
         <>
@@ -392,6 +645,16 @@ export function PharmacyRegistration() {
                         <Link to="/register-as" className="back-link">
                             <i className="bi bi-arrow-left"></i> Back
                         </Link>
+                        <button
+                            type="button"
+                            className="quick-fill-corner-btn"
+                            onClick={() => setShowCVImportModal(true)}
+                            disabled={submitting}
+                            title="Upload documents to auto-fill the form (PDF, DOCX, or image)"
+                        >
+                            <i className="bi bi-magic"></i>
+                            Quick Fill
+                        </button>
                         <h2>Pharmacy Registration</h2>
                         <p>Complete the form below to register your pharmacy</p>
                     </div>
@@ -404,109 +667,125 @@ export function PharmacyRegistration() {
                     )}
 
                     <form onSubmit={handleSubmit} noValidate>
-                        {/* Document Import Section */}
-                        <div className="form-section cv-import-section">
-                            <h3><i className="bi bi-file-text"></i> Quick Fill</h3>
-                            <p className="section-description">
-                                Upload documents to auto-fill the form (PDF, DOCX, or image)
-                            </p>
-                            <button
-                                type="button"
-                                className="cv-import-btn"
-                                onClick={() => setShowCVImportModal(true)}
-                                disabled={submitting}
-                            >
-                                <i className="bi bi-upload"></i>
-                                Upload Document
-                            </button>
-                        </div>
-
-                        {/* Profile Photo */}
-                        <div className="form-section">
-                            <h3><i className="bi bi-image"></i> Profile Photo</h3>
-                            <p className="section-description">Upload your pharmacy's logo or storefront photo (Optional - JPG, PNG, WebP - Max 5MB)</p>
-                            <div className="avatar-upload-wrapper">
-                                <div className="avatar-preview">
-                                    {avatarPreview ? (
-                                        <img src={avatarPreview} alt="Avatar preview" />
-                                    ) : (
-                                        <div className="avatar-placeholder">
-                                            <i className="bi bi-shop"></i>
-                                        </div>
-                                    )}
+                        {/* Basic Information + Profile Photo */}
+                        <div className="form-section profile-basic-row">
+                            <div className="basic-info-col">
+                                <h3><i className="bi bi-shop"></i> Basic Information</h3>
+                                <div className="form-row">
+                                    <div className="form-group">
+                                        <label>Pharmacy Name <span className="required">*</span></label>
+                                        <input
+                                            type="text"
+                                            name="name"
+                                            value={formData.name}
+                                            onChange={handleChange}
+                                            placeholder="HealthLink Pharmacy"
+                                            disabled={submitting}
+                                            className={fieldErrors.name ? 'input-error' : undefined}
+                                        />
+                                        <FieldError field="name" />
+                                    </div>
+                                    <div className="form-group">
+                                        <label>License Number <span className="required">*</span></label>
+                                        <input
+                                            type="text"
+                                            name="licenseNumber"
+                                            value={formData.licenseNumber}
+                                            onChange={handleChange}
+                                            placeholder="GPP-2024-001"
+                                            disabled={submitting}
+                                            className={fieldErrors.licenseNumber ? 'input-error' : undefined}
+                                        />
+                                        <FieldError field="licenseNumber" />
+                                    </div>
                                 </div>
-                                <div className="avatar-controls">
-                                    <input
-                                        type="file"
-                                        id="avatarUpload"
-                                        accept="image/jpeg,image/png,image/jpg,image/webp"
-                                        onChange={handleAvatarChange}
-                                        disabled={submitting}
-                                        className="file-input"
-                                    />
-                                    <label htmlFor="avatarUpload" className="avatar-upload-btn">
-                                        <i className="bi bi-cloud-upload"></i>
-                                        {avatar ? 'Change Photo' : 'Upload Photo'}
-                                    </label>
-                                    {avatar && (
-                                        <button type="button" className="avatar-remove-btn" onClick={removeAvatar}>
-                                            <i className="bi bi-trash"></i> Remove
-                                        </button>
-                                    )}
+                                <div className="form-row">
+                                    <div className="form-group">
+                                        <label>Email <span className="required">*</span></label>
+                                        <input
+                                            type="email"
+                                            name="email"
+                                            value={formData.email}
+                                            onChange={handleChange}
+                                            placeholder="pharmacy@example.com"
+                                            disabled={submitting}
+                                            className={fieldErrors.email ? 'input-error' : undefined}
+                                        />
+                                        <FieldError field="email" />
+                                    </div>
+                                    <div className="form-group">
+                                        <label>Phone Number <span className="required">*</span></label>
+                                        <input
+                                            type="tel"
+                                            name="phoneNumber"
+                                            value={formData.phoneNumber}
+                                            onChange={handleChange}
+                                            placeholder="0901234567"
+                                            disabled={submitting}
+                                            className={fieldErrors.phoneNumber ? 'input-error' : undefined}
+                                        />
+                                        <FieldError field="phoneNumber" />
+                                    </div>
+                                </div>
+                                <div className="form-row">
+                                    <div className="form-group full-width">
+                                        <label>PayPal Email <span className="required">*</span></label>
+                                        <input
+                                            type="email"
+                                            name="paypalEmail"
+                                            value={formData.paypalEmail}
+                                            onChange={handleChange}
+                                            placeholder="pharmacy-payout@example.com"
+                                            disabled={submitting}
+                                            className={fieldErrors.paypalEmail ? 'input-error' : undefined}
+                                        />
+                                        <small className="form-text text-muted">
+                                            We'll email a confirmation link to this address once your registration is approved. Payouts won't work until you confirm it.
+                                        </small>
+                                        <FieldError field="paypalEmail" />
+                                    </div>
                                 </div>
                             </div>
-                        </div>
-
-                        {/* Basic Information */}
-                        <div className="form-section">
-                            <h3><i className="bi bi-shop"></i> Basic Information</h3>
-                            <div className="form-row">
-                                <div className="form-group">
-                                    <label>Pharmacy Name <span className="required">*</span></label>
-                                    <input
-                                        type="text"
-                                        name="name"
-                                        value={formData.name}
-                                        onChange={handleChange}
-                                        placeholder="HealthLink Pharmacy"
-                                        disabled={submitting}
-                                    />
+                            <div className="profile-photo-col">
+                                <h3><i className="bi bi-image"></i> Profile Photo <span className="required">*</span></h3>
+                                <div className={`avatar-upload-wrapper${avatarPreview ? ' has-avatar' : ''}`}>
+                                    <div className="avatar-preview">
+                                        {avatarPreview ? (
+                                            <>
+                                                <img src={avatarPreview} alt="Avatar preview" />
+                                                <button
+                                                    type="button"
+                                                    className="avatar-remove-btn"
+                                                    onClick={removeAvatar}
+                                                    title="Remove photo"
+                                                    aria-label="Remove photo"
+                                                >
+                                                    <i className="bi bi-trash"></i>
+                                                </button>
+                                            </>
+                                        ) : (
+                                            <div className="avatar-placeholder">
+                                                <i className="bi bi-shop"></i>
+                                            </div>
+                                        )}
+                                    </div>
+                                    <div className="avatar-controls">
+                                        <input
+                                            type="file"
+                                            id="avatarUpload"
+                                            accept="image/jpeg,image/png,image/jpg,image/webp"
+                                            onChange={handleAvatarChange}
+                                            disabled={submitting}
+                                            className="file-input"
+                                        />
+                                        <label htmlFor="avatarUpload" className="avatar-upload-btn">
+                                            <i className="bi bi-cloud-upload"></i>
+                                            {avatar ? 'Change Photo' : 'Upload Photo'}
+                                        </label>
+                                        <p className="photo-format-hint">Logo or storefront photo (JPG, PNG - Max 5MB)</p>
+                                    </div>
                                 </div>
-                                <div className="form-group">
-                                    <label>License Number <span className="required">*</span></label>
-                                    <input
-                                        type="text"
-                                        name="licenseNumber"
-                                        value={formData.licenseNumber}
-                                        onChange={handleChange}
-                                        placeholder="GPP-2024-001"
-                                        disabled={submitting}
-                                    />
-                                </div>
-                            </div>
-                            <div className="form-row">
-                                <div className="form-group">
-                                    <label>Email <span className="required">*</span></label>
-                                    <input
-                                        type="email"
-                                        name="email"
-                                        value={formData.email}
-                                        onChange={handleChange}
-                                        placeholder="pharmacy@example.com"
-                                        disabled={submitting}
-                                    />
-                                </div>
-                                <div className="form-group">
-                                    <label>Phone Number <span className="required">*</span></label>
-                                    <input
-                                        type="tel"
-                                        name="phoneNumber"
-                                        value={formData.phoneNumber}
-                                        onChange={handleChange}
-                                        placeholder="0901234567"
-                                        disabled={submitting}
-                                    />
-                                </div>
+                                <FieldError field="avatar" />
                             </div>
                         </div>
 
@@ -522,7 +801,9 @@ export function PharmacyRegistration() {
                                     onChange={handleChange}
                                     placeholder="123 Main Street"
                                     disabled={submitting}
+                                    className={fieldErrors.address ? 'input-error' : undefined}
                                 />
+                                <FieldError field="address" />
                             </div>
                             <div className="form-row three-cols">
                                 <div className="form-group">
@@ -559,9 +840,71 @@ export function PharmacyRegistration() {
                                     />
                                 </div>
                             </div>
+                            <div className="form-row">
+                                <div className="form-group pharmacy-map-group" id="pharmacyMapGroup">
+                                    <label>Pin Pharmacy Location on Map <span className="required">*</span></label>
+                                    <small className="form-text text-muted">
+                                        Click on the map to mark the exact location of your pharmacy. This pin determines whether patients can order delivery from you and how delivery distance is calculated.
+                                    </small>
+                                    <FieldError field="locationMap" />
+                                    <div className="pharmacy-map-actions">
+                                        <button
+                                            type="button"
+                                            className="pharmacy-map-location-btn"
+                                            onClick={handleUseCurrentLocation}
+                                            disabled={submitting || locatingPharmacy}
+                                        >
+                                            {locatingPharmacy ? (
+                                                <>
+                                                    <span className="pharmacy-map-location-spinner"></span>
+                                                    Detecting your location...
+                                                </>
+                                            ) : (
+                                                'Use my current location'
+                                            )}
+                                        </button>
+                                        {locatingPharmacy && (
+                                            <small className="pharmacy-map-location-status">
+                                                Please wait, requesting your current location from the browser...
+                                            </small>
+                                        )}
+                                    </div>
+                                    <MapContainer
+                                        center={[
+                                            formData.latitude || 13.5,
+                                            formData.longitude || 106.0,
+                                        ]}
+                                        zoom={formData.latitude && formData.longitude ? 15 : 4}
+                                        style={{ height: '300px', width: '100%' }}
+                                    >
+                                        <TileLayer
+                                            attribution="&copy; OpenStreetMap contributors"
+                                            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                                        />
+
+                                        <MapRecenter
+                                            location={
+                                                formData.latitude && formData.longitude
+                                                    ? { lat: formData.latitude, lng: formData.longitude }
+                                                    : null
+                                            }
+                                        />
+
+                                        <LocationPicker
+                                            location={
+                                                formData.latitude && formData.longitude
+                                                    ? { lat: formData.latitude, lng: formData.longitude }
+                                                    : null
+                                            }
+                                            onPick={handlePickLocation}
+                                        />
+                                    </MapContainer>
+                                </div>
+                            </div>
                         </div>
 
-                        {/* Business Hours */}
+                        {/* Business Hours + Delivery Services */}
+                        <div className="form-section-row">
                         <div className="form-section">
                             <h3><i className="bi bi-clock"></i> Business Hours</h3>
                             <div className="checkbox-single">
@@ -580,45 +923,51 @@ export function PharmacyRegistration() {
                             {!formData.open24Hours && (
                                 <div className="form-row">
                                     <div className="form-group">
-                                        <label>Open Time</label>
+                                        <label>Open Time <span className="required">*</span></label>
                                         <input
                                             type="time"
                                             name="openTime"
                                             value={formData.openTime}
                                             onChange={handleChange}
                                             disabled={submitting}
+                                            className={fieldErrors.openTime ? 'input-error' : undefined}
                                         />
+                                        <FieldError field="openTime" />
                                     </div>
                                     <div className="form-group">
-                                        <label>Close Time</label>
+                                        <label>Close Time <span className="required">*</span></label>
                                         <input
                                             type="time"
                                             name="closeTime"
                                             value={formData.closeTime}
                                             onChange={handleChange}
                                             disabled={submitting}
+                                            className={fieldErrors.closeTime ? 'input-error' : undefined}
                                         />
+                                        <FieldError field="closeTime" />
                                     </div>
                                 </div>
                             )}
                             <div className="form-group">
-                                <label>Working Days</label>
+                                <label>Working Days <span className="required">*</span></label>
                                 <select
                                     name="workingDays"
                                     value={formData.workingDays}
                                     onChange={handleChange}
                                     disabled={submitting}
+                                    className={fieldErrors.workingDays ? 'input-error' : undefined}
                                 >
                                     <option value="Mon-Sun">Monday - Sunday (7 days)</option>
                                     <option value="Mon-Sat">Monday - Saturday (6 days)</option>
                                     <option value="Mon-Fri">Monday - Friday (5 days)</option>
                                 </select>
+                                <FieldError field="workingDays" />
                             </div>
                         </div>
 
                         {/* Delivery */}
                         <div className="form-section">
-                            <h3><i className="bi bi-truck"></i> Delivery Services</h3>
+                            <h3><i className="bi bi-truck"></i> Delivery Services <span className="required">*</span></h3>
                             <div className="checkbox-single">
                                 <label className="checkbox-label">
                                     <input
@@ -631,11 +980,15 @@ export function PharmacyRegistration() {
                                     <span className="checkmark"></span>
                                     <i className="bi bi-box-seam"></i> Delivery Available
                                 </label>
+                                <small className="form-text text-muted">
+                                    All HealthLink pharmacy partners must offer delivery so patients can order medicine remotely.
+                                </small>
+                                <FieldError field="deliveryAvailable" />
                             </div>
                             {formData.deliveryAvailable && (
                                 <div className="form-row">
                                     <div className="form-group">
-                                        <label>Delivery Radius (km)</label>
+                                        <label>Delivery Radius (km) <span className="required">*</span></label>
                                         <input
                                             type="number"
                                             name="deliveryRadius"
@@ -643,24 +996,33 @@ export function PharmacyRegistration() {
                                             onChange={handleChange}
                                             placeholder="5"
                                             min="0"
+                                            max="50"
                                             step="0.5"
                                             disabled={submitting}
+                                            className={fieldErrors.deliveryRadius ? 'input-error' : undefined}
                                         />
+                                        <small className="form-text text-muted">Maximum 50 km</small>
+                                        <FieldError field="deliveryRadius" />
                                     </div>
                                     <div className="form-group">
-                                        <label>Delivery Fee (USD)</label>
+                                        <label>Delivery Fee (USD) <span className="required">*</span></label>
                                         <input
                                             type="number"
                                             name="deliveryFee"
                                             value={formData.deliveryFee}
                                             onChange={handleChange}
-                                            placeholder="20000"
+                                            placeholder="10"
                                             min="0"
+                                            max="20"
+                                            step="0.5"
                                             disabled={submitting}
+                                            className={fieldErrors.deliveryFee ? 'input-error' : undefined}
                                         />
+                                        <FieldError field="deliveryFee" />
                                     </div>
                                 </div>
                             )}
+                        </div>
                         </div>
 
                         {/* Required Documents */}
@@ -681,7 +1043,11 @@ export function PharmacyRegistration() {
                                             className="file-input"
                                         />
                                         <label htmlFor="businessLicense" className="file-upload-label">
-                                            <i className="bi bi-cloud-upload"></i>
+                                            {documentPreviews.businessLicense ? (
+                                                <img src={documentPreviews.businessLicense} alt="Business License preview" className="file-preview-thumb" />
+                                            ) : (
+                                                <i className="bi bi-cloud-upload"></i>
+                                            )}
                                             <span>{documents.businessLicense ? documents.businessLicense.name : 'Choose file...'}</span>
                                         </label>
                                         {documents.businessLicense && (
@@ -690,6 +1056,7 @@ export function PharmacyRegistration() {
                                             </button>
                                         )}
                                     </div>
+                                    <FieldError field="businessLicense" />
                                 </div>
                                 <div className="form-group">
                                     <label>Pharmacy License (GPP) <span className="required">*</span></label>
@@ -703,7 +1070,11 @@ export function PharmacyRegistration() {
                                             className="file-input"
                                         />
                                         <label htmlFor="pharmacyLicense" className="file-upload-label">
-                                            <i className="bi bi-cloud-upload"></i>
+                                            {documentPreviews.pharmacyLicense ? (
+                                                <img src={documentPreviews.pharmacyLicense} alt="Pharmacy License preview" className="file-preview-thumb" />
+                                            ) : (
+                                                <i className="bi bi-cloud-upload"></i>
+                                            )}
                                             <span>{documents.pharmacyLicense ? documents.pharmacyLicense.name : 'Choose file...'}</span>
                                         </label>
                                         {documents.pharmacyLicense && (
@@ -712,6 +1083,7 @@ export function PharmacyRegistration() {
                                             </button>
                                         )}
                                     </div>
+                                    <FieldError field="pharmacyLicense" />
                                 </div>
                             </div>
 
@@ -728,7 +1100,11 @@ export function PharmacyRegistration() {
                                             className="file-input"
                                         />
                                         <label htmlFor="ownerIdCard" className="file-upload-label">
-                                            <i className="bi bi-cloud-upload"></i>
+                                            {documentPreviews.ownerIdCard ? (
+                                                <img src={documentPreviews.ownerIdCard} alt="Owner ID Card preview" className="file-preview-thumb" />
+                                            ) : (
+                                                <i className="bi bi-cloud-upload"></i>
+                                            )}
                                             <span>{documents.ownerIdCard ? documents.ownerIdCard.name : 'Choose file...'}</span>
                                         </label>
                                         {documents.ownerIdCard && (
@@ -737,6 +1113,7 @@ export function PharmacyRegistration() {
                                             </button>
                                         )}
                                     </div>
+                                    <FieldError field="ownerIdCard" />
                                 </div>
                                 <div className="form-group">
                                     <label>Other Documents (Optional)</label>
@@ -759,7 +1136,11 @@ export function PharmacyRegistration() {
                                         <div className="uploaded-files-list">
                                             {documents.otherDocuments.map((file, index) => (
                                                 <div key={index} className="uploaded-file-item">
-                                                    <i className="bi bi-file-earmark"></i>
+                                                    {otherDocumentPreviews[index] ? (
+                                                        <img src={otherDocumentPreviews[index]} alt={`${file.name} preview`} className="file-preview-thumb-sm" />
+                                                    ) : (
+                                                        <i className="bi bi-file-earmark"></i>
+                                                    )}
                                                     <span>{file.name}</span>
                                                     <button type="button" onClick={() => removeFile('otherDocuments', index)}>
                                                         <i className="bi bi-x"></i>
@@ -795,8 +1176,12 @@ export function PharmacyRegistration() {
                                 <label className="terms-checkbox-label">
                                     <input
                                         type="checkbox"
+                                        id="acceptedTermsCheckbox"
                                         checked={acceptedTerms}
-                                        onChange={(e) => setAcceptedTerms(e.target.checked)}
+                                        onChange={(e) => {
+                                            setAcceptedTerms(e.target.checked);
+                                            clearFieldError('acceptedTerms');
+                                        }}
                                         disabled={submitting}
                                     />
                                     <span className="terms-checkmark"></span>
@@ -820,6 +1205,7 @@ export function PharmacyRegistration() {
                                         {' '}of HealthLink platform.
                                     </span>
                                 </label>
+                                <FieldError field="acceptedTerms" />
                             </div>
                         </div>
 
@@ -891,21 +1277,21 @@ export function PharmacyRegistration() {
                 onHide={() => setShowTermsModal(false)}
                 centered
                 size="lg"
-                className="terms-modal"
+                className="pharmacy-terms-modal"
             >
                 <Modal.Header closeButton>
                     <Modal.Title>
                         <i className="bi bi-file-earmark-text"></i> Terms and Conditions
                     </Modal.Title>
                 </Modal.Header>
-                <Modal.Body className="terms-modal-body">
-                    <div className="terms-content">
+                <Modal.Body className="pharmacy-terms-modal-body">
+                    <div className="pharmacy-terms-content">
                         <h4>HealthLink Pharmacy Partner Agreement</h4>
-                        <p className="terms-intro">
+                        <p className="pharmacy-terms-intro">
                             By registering as a pharmacy partner on the HealthLink platform, you agree to the following terms and conditions:
                         </p>
 
-                        <div className="terms-section-item">
+                        <div className="pharmacy-terms-section-item">
                             <h5><i className="bi bi-1-circle"></i> Legal Compliance</h5>
                             <ul>
                                 <li>You confirm that your pharmacy is legally registered and licensed to operate.</li>
@@ -915,7 +1301,7 @@ export function PharmacyRegistration() {
                             </ul>
                         </div>
 
-                        <div className="terms-section-item">
+                        <div className="pharmacy-terms-section-item">
                             <h5><i className="bi bi-2-circle"></i> Product Quality and Safety</h5>
                             <ul>
                                 <li>You guarantee that all medications sold are authentic and sourced from authorized distributors.</li>
@@ -925,7 +1311,7 @@ export function PharmacyRegistration() {
                             </ul>
                         </div>
 
-                        <div className="terms-section-item">
+                        <div className="pharmacy-terms-section-item">
                             <h5><i className="bi bi-3-circle"></i> Prescription Handling</h5>
                             <ul>
                                 <li>You will verify all prescriptions before dispensing prescription medications.</li>
@@ -935,7 +1321,7 @@ export function PharmacyRegistration() {
                             </ul>
                         </div>
 
-                        <div className="terms-section-item">
+                        <div className="pharmacy-terms-section-item">
                             <h5><i className="bi bi-4-circle"></i> Platform Usage</h5>
                             <ul>
                                 <li>You will maintain accurate inventory and pricing information.</li>
@@ -945,7 +1331,7 @@ export function PharmacyRegistration() {
                             </ul>
                         </div>
 
-                        <div className="terms-section-item">
+                        <div className="pharmacy-terms-section-item">
                             <h5><i className="bi bi-5-circle"></i> Data Privacy</h5>
                             <ul>
                                 <li>You will protect all customer and patient data in compliance with privacy laws.</li>
@@ -954,7 +1340,7 @@ export function PharmacyRegistration() {
                             </ul>
                         </div>
 
-                        <div className="terms-section-item">
+                        <div className="pharmacy-terms-section-item">
                             <h5><i className="bi bi-6-circle"></i> Account Termination</h5>
                             <ul>
                                 <li>HealthLink reserves the right to suspend accounts that violate these terms.</li>
@@ -963,7 +1349,7 @@ export function PharmacyRegistration() {
                             </ul>
                         </div>
 
-                        <div className="terms-footer-note">
+                        <div className="pharmacy-terms-footer-note">
                             <i className="bi bi-info-circle"></i>
                             <p>
                                 By accepting these terms, you acknowledge that you have read, understood, and agree to be bound by this agreement.

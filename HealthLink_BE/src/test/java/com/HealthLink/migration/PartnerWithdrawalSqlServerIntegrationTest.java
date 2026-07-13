@@ -55,9 +55,11 @@ class PartnerWithdrawalSqlServerIntegrationTest {
                 executeMigration(statement, "migration-v17-add-partner-withdrawal-credentials.sql");
                 executeMigration(statement, "migration-v18-add-withdrawal-pin-token-type.sql");
                 executeMigration(statement, "migration-v19-add-email-verification-token-failed-attempts.sql");
+                executeMigration(statement, "migration-v20-expand-email-verification-token-types.sql");
                 executeMigration(statement, "migration-v17-add-partner-withdrawal-credentials.sql");
                 executeMigration(statement, "migration-v18-add-withdrawal-pin-token-type.sql");
                 executeMigration(statement, "migration-v19-add-email-verification-token-failed-attempts.sql");
+                executeMigration(statement, "migration-v20-expand-email-verification-token-types.sql");
 
                 statement.execute("""
                         INSERT INTO dbo.EmailVerificationTokens
@@ -65,7 +67,9 @@ class PartnerWithdrawalSqlServerIntegrationTest {
                         VALUES
                             ('email-token', 'partner-1', 'partner@test.com', DATEADD(MINUTE, 5, SYSUTCDATETIME()), 0, 'EMAIL_VERIFICATION', SYSUTCDATETIME()),
                             ('password-token', 'partner-1', 'partner@test.com', DATEADD(MINUTE, 5, SYSUTCDATETIME()), 0, 'PASSWORD_RESET', SYSUTCDATETIME()),
-                            ('pin-token', 'partner-1', 'partner@test.com', DATEADD(MINUTE, 5, SYSUTCDATETIME()), 0, 'WITHDRAWAL_PIN', SYSUTCDATETIME());
+                            ('pin-token', 'partner-1', 'partner@test.com', DATEADD(MINUTE, 5, SYSUTCDATETIME()), 0, 'WITHDRAWAL_PIN', SYSUTCDATETIME()),
+                            ('paypal-confirm-token', 'partner-1', 'partner@test.com', DATEADD(MINUTE, 5, SYSUTCDATETIME()), 0, 'PAYPAL_EMAIL_CONFIRM', SYSUTCDATETIME()),
+                            ('paypal-otp-token', 'partner-1', 'partner@test.com', DATEADD(MINUTE, 5, SYSUTCDATETIME()), 0, 'PAYPAL_EMAIL_OTP', SYSUTCDATETIME());
                         INSERT INTO dbo.PartnerWithdrawalCredentials (UserId, PinHash)
                         VALUES ('partner-1', 'bcrypt-hash');
                         """);
@@ -73,10 +77,11 @@ class PartnerWithdrawalSqlServerIntegrationTest {
                 try (ResultSet result = statement.executeQuery("""
                         SELECT COUNT(*)
                         FROM dbo.EmailVerificationTokens
-                        WHERE Type IN ('EMAIL_VERIFICATION', 'PASSWORD_RESET', 'WITHDRAWAL_PIN')
+                        WHERE Type IN ('EMAIL_VERIFICATION', 'PASSWORD_RESET', 'WITHDRAWAL_PIN',
+                                       'PAYPAL_EMAIL_CONFIRM', 'PAYPAL_EMAIL_OTP')
                         """)) {
                     assertThat(result.next()).isTrue();
-                    assertThat(result.getInt(1)).isEqualTo(3);
+                    assertThat(result.getInt(1)).isEqualTo(5);
                 }
 
                 try (ResultSet result = statement.executeQuery("""
@@ -98,7 +103,7 @@ class PartnerWithdrawalSqlServerIntegrationTest {
                         WHERE FailedAttempts = 0
                         """)) {
                     assertThat(result.next()).isTrue();
-                    assertThat(result.getInt(1)).isEqualTo(3);
+                    assertThat(result.getInt(1)).isEqualTo(5);
                 }
 
                 try (ResultSet result = statement.executeQuery("""
@@ -110,6 +115,19 @@ class PartnerWithdrawalSqlServerIntegrationTest {
                     assertThat(result.getString(1)).isEqualToIgnoringCase("varchar");
                     assertThat(result.getInt(2)).isEqualTo(64);
                     assertThat(result.getString(3)).isEqualToIgnoringCase("Latin1_General_100_CI_AS");
+                }
+
+                try (ResultSet result = statement.executeQuery("""
+                        SELECT is_disabled, definition
+                        FROM sys.check_constraints
+                        WHERE parent_object_id = OBJECT_ID('dbo.EmailVerificationTokens')
+                          AND name = 'CK_EmailVerificationTokens_Type'
+                        """)) {
+                    assertThat(result.next()).isTrue();
+                    assertThat(result.getBoolean(1)).isFalse();
+                    assertThat(result.getString(2))
+                            .contains("EMAIL_VERIFICATION", "PASSWORD_RESET", "WITHDRAWAL_PIN",
+                                    "PAYPAL_EMAIL_CONFIRM", "PAYPAL_EMAIL_OTP");
                 }
 
                 try (ResultSet result = statement.executeQuery("""

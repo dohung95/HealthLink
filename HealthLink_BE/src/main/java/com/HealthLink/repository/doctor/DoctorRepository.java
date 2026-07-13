@@ -14,6 +14,8 @@ import java.util.Optional;
 @Repository
 public interface DoctorRepository extends JpaRepository<Doctor, String> {
 
+    boolean existsByPaypalEmailIgnoreCase(String paypalEmail);
+
     /**
      * Tìm bác sĩ theo filter chuyên khoa và/hoặc tên. Nếu tham số null thì bỏ
      * qua điều kiện đó.

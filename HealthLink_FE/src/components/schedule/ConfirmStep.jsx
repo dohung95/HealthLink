@@ -92,7 +92,9 @@ const ConfirmStep = ({
         rows.push(['Total', formatCurrency(onlineDoctorFee + manualFee)]);
     }
 
-    const doctorFee = Number(selectedDoctor?.consultationFee || 0);
+    const doctorFee = consultationType === 'HomeVisit'
+        ? Number(selectedDoctor?.homeVisitConsultationFee ?? selectedDoctor?.consultationFee ?? 0)
+        : Number(selectedDoctor?.consultationFee || 0);
     const homeVisitBaseFee = Number(homeVisitEstimate?.homeVisitFee || 0);
     const travelFee = Number(homeVisitEstimate?.travelFee || 0);
     const homeVisitTotal = Number(homeVisitEstimate?.homeVisitTotal || 0);

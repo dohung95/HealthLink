@@ -270,7 +270,7 @@ class FinanceServiceImplTest {
                 .doctor(doctor)
                 .appointmentTime(LocalDateTime.now().plusDays(1))
                 .consultationType("HomeVisit")
-                .fee(new BigDecimal("200.00"))
+                .fee(new BigDecimal("250.00"))
                 .build();
 
         AppointmentPayPalCaptureRequest request = new AppointmentPayPalCaptureRequest();
@@ -292,7 +292,7 @@ class FinanceServiceImplTest {
                                 "captures", List.of(Map.of(
                                         "amount", Map.of(
                                                 "currency_code", "USD",
-                                                "value", "200.00"
+                                                "value", "250.00"
                                         )
                                 ))
                         )
@@ -344,6 +344,7 @@ class FinanceServiceImplTest {
         var response = financeService.captureAppointmentPayPalPayment(request);
 
         assertThat(response.getAppointmentId()).isEqualTo(44);
+        assertThat(createdAppointment.getFee()).isEqualByComparingTo("250.00");
         assertThat(createdAppointment.getFollowUpSourceAppointmentId()).isEqualTo(12);
         assertThat(sourceConsultation.getFollowUpAppointmentId()).isEqualTo(44);
         verify(consultationRepository).save(sourceConsultation);
@@ -722,7 +723,7 @@ class FinanceServiceImplTest {
         var response = financeService.createFollowUpPayPalOrder(52);
 
         assertThat(response.get("orderId")).isEqualTo("paypal-order-52");
-        assertThat(response.get("amount")).isEqualTo(new BigDecimal("120.00"));
+        assertThat(response.get("amount")).isEqualTo(new BigDecimal("170.00"));
         assertThat(consultation.getHomeVisitLatitude()).isEqualTo(10.762622);
         assertThat(consultation.getHomeVisitLongitude()).isEqualTo(106.660172);
         verify(homeVisitLocationService).estimate("doctor-1", 10.762622, 106.660172);

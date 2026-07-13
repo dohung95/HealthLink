@@ -51,4 +51,9 @@ public interface AuthService {
      * Xác nhận email sau đăng ký thông qua token trong link email.
      */
     void confirmEmail(String token);
+
+    /**
+     * Xác nhận PayPal email sau khi đăng ký được duyệt, thông qua token trong link email.
+     */
+    void confirmPaypalEmail(String token);
 }

@@ -233,4 +233,15 @@ public class HomeVisitController {
     ) {
         return ResponseEntity.ok(homeVisitDoctorSearchService.search(request));
     }
+
+    @GetMapping("/appointments/{appointmentId}/reschedule-slots")
+    public ResponseEntity<List<HomeVisitSlotResponse>>
+            getHomeVisitRescheduleSlots(
+                    @PathVariable Integer appointmentId
+            ) {
+        return ResponseEntity.ok(
+                homeVisitSessionService
+                        .getAvailableRescheduleSlots(appointmentId)
+        );
+    }
 }

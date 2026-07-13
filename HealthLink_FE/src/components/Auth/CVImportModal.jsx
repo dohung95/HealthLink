@@ -189,7 +189,13 @@ const CVImportModal = ({ show, onHide, onImport, type = 'doctor' }) => {
     );
 
     return (
-        <Modal show={show} onHide={handleClose} size="lg" centered className="cv-import-modal">
+        <Modal
+            show={show}
+            onHide={handleClose}
+            size="lg"
+            centered
+            className={`cv-import-modal${type === 'pharmacy' ? ' cv-import-modal-pharmacy' : ''}`}
+        >
             <Modal.Header closeButton className="cv-modal-header">
                 <Modal.Title>
                     <i className="bi bi-file-text"></i>

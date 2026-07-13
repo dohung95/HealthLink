@@ -43,6 +43,10 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 import com.HealthLink.dto.response.HomeVisitEstimateResponse;
+import com.HealthLink.entity.HomeVisitBooking;
+import com.HealthLink.repository.appointment.HomeVisitBookingRepository;
+import com.HealthLink.entity.enums.DoctorScheduleStatus;
+import java.time.Duration;
 import com.HealthLink.service.homevisit.HomeVisitLocationService;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -66,6 +70,7 @@ public class AppointmentServiceImpl implements AppointmentService {
     private static final DateTimeFormatter NOTIFICATION_TIME_FORMATTER
             = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
 
+    private final HomeVisitBookingRepository homeVisitBookingRepository;
     private final AppointmentRepository appointmentRepository;
     private final PatientRepository patientRepository;
     private final DoctorRepository doctorRepository;
@@ -227,6 +232,7 @@ public class AppointmentServiceImpl implements AppointmentService {
                 )
                 .fee(homeVisitEstimate != null
                         ? doctor.getConsultationFee()
+                                .multiply(BigDecimal.valueOf(1.5))
                                 .add(homeVisitEstimate.getTotalFee() != null
                                         ? homeVisitEstimate.getTotalFee()
                                         : BigDecimal.ZERO)
@@ -368,6 +374,68 @@ public class AppointmentServiceImpl implements AppointmentService {
                 .bookingWindowDays(maxDaysAhead)
                 .slots(slots)
                 .build();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<LocalDate> getOnlineRescheduleDates(
+            Integer appointmentId
+    ) {
+        Appointment appointment = appointmentRepository
+                .findById(appointmentId)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                "Not found appointment with ID: "
+                + appointmentId
+        ));
+
+        String consultationType
+                = normalizeConsultationTypeForBooking(
+                        appointment.getConsultationType()
+                );
+
+        if (TYPE_HOME_VISIT.equalsIgnoreCase(
+                consultationType
+        )) {
+            throw new BusinessException(
+                    "This endpoint only supports Online appointments"
+            );
+        }
+
+        String doctorId
+                = appointment.getDoctor().getDoctorId();
+
+        LocalDate today = LocalDate.now();
+        List<LocalDate> availableDates
+                = new ArrayList<>();
+
+        for (int index = 0;
+                index < maxDaysAhead;
+                index++) {
+
+            LocalDate candidateDate
+                    = today.plusDays(index);
+
+            AvailableSlotsResponse response
+                    = getAvailableSlots(
+                            doctorId,
+                            candidateDate,
+                            consultationType
+                    );
+
+            boolean hasAvailableSlot
+                    = response.getSlots() != null
+                    && response.getSlots()
+                            .stream()
+                            .anyMatch(
+                                    AvailableSlotResponse::isSelectable
+                            );
+
+            if (hasAvailableSlot) {
+                availableDates.add(candidateDate);
+            }
+        }
+
+        return availableDates;
     }
 
     /**
@@ -772,6 +840,18 @@ public class AppointmentServiceImpl implements AppointmentService {
         }
 
         Doctor doctor = appointment.getDoctor();
+
+        if ("HomeVisit".equalsIgnoreCase(
+                normalizeConsultationTypeForBooking(
+                        appointment.getConsultationType()
+                )
+        )) {
+            return rescheduleHomeVisitAppointment(
+                    appointment,
+                    newTime
+            );
+        }
+
         int newDayOfWeek = newTime.getDayOfWeek().getValue() % 7;
         LocalTime newRequestedTime = newTime.toLocalTime();
 
@@ -817,6 +897,124 @@ public class AppointmentServiceImpl implements AppointmentService {
 
         Appointment saved = appointmentRepository.save(appointment);
         notifyDoctorAboutRescheduledAppointmentAfterCommit(saved);
+        return toResponse(saved);
+    }
+
+    private AppointmentResponse rescheduleHomeVisitAppointment(
+            Appointment appointment,
+            LocalDateTime newTime
+    ) {
+        if (appointment.getEndTime() == null) {
+            throw new BusinessException(
+                    "HomeVisit appointment end time is missing"
+            );
+        }
+
+        long durationMinutes = Duration.between(
+                appointment.getAppointmentTime(),
+                appointment.getEndTime()
+        ).toMinutes();
+
+        if (durationMinutes <= 0) {
+            throw new BusinessException(
+                    "Invalid HomeVisit duration"
+            );
+        }
+
+        LocalDateTime newEndTime
+                = newTime.plusMinutes(durationMinutes);
+
+        Doctor doctor = appointment.getDoctor();
+
+        int dayOfWeek
+                = newTime.getDayOfWeek().getValue() % 7;
+
+        assertNotDayOff(
+                doctor.getDoctorId(),
+                newTime.toLocalDate()
+        );
+
+        List<DoctorSchedule> schedules
+                = scheduleRepository
+                        .findByDoctor_DoctorIdAndDayOfWeekAndAvailableTrueAndScheduleStatus(
+                                doctor.getDoctorId(),
+                                dayOfWeek,
+                                DoctorScheduleStatus.APPROVED
+                        );
+
+        DoctorSchedule matchedSchedule = schedules.stream()
+                .filter(s -> isHomeVisitScheduleType(
+                s.getConsultationType()
+        ))
+                .filter(s -> !newTime.toLocalTime()
+                .isBefore(s.getStartTime()))
+                .filter(s -> !newEndTime.toLocalTime()
+                .isAfter(s.getEndTime()))
+                .findFirst()
+                .orElseThrow(() -> new BusinessException(
+                "The selected HomeVisit time does not fit "
+                + "inside the doctor's working schedule"
+        ));
+
+        boolean appointmentConflict
+                = appointmentRepository
+                        .existsDoctorAppointmentOverlapExcludingAppointment(
+                                doctor.getDoctorId(),
+                                STATUS_CANCELLED,
+                                newTime,
+                                newEndTime,
+                                appointment.getAppointmentId()
+                        );
+
+        if (appointmentConflict) {
+            throw new BusinessException(
+                    "The selected HomeVisit slot is no longer available"
+            );
+        }
+
+        boolean homeVisitConflict
+                = homeVisitBookingRepository
+                        .existsOverlappingBookingExcludingAppointment(
+                                doctor.getDoctorId(),
+                                newTime.toLocalDate(),
+                                newTime.toLocalTime(),
+                                newEndTime.toLocalTime(),
+                                appointment.getAppointmentId()
+                        );
+
+        if (homeVisitConflict) {
+            throw new BusinessException(
+                    "The selected HomeVisit slot is already booked"
+            );
+        }
+
+        HomeVisitBooking booking
+                = homeVisitBookingRepository
+                        .findByAppointmentId(
+                                appointment.getAppointmentId()
+                        )
+                        .orElseThrow(() -> new BusinessException(
+                        "HomeVisit booking record was not found"
+                ));
+
+        appointment.setRescheduledFrom(
+                appointment.getAppointmentId()
+        );
+        appointment.setAppointmentTime(newTime);
+        appointment.setEndTime(newEndTime);
+
+        booking.setScheduleId(matchedSchedule.getScheduleId());
+        booking.setBookingDate(newTime.toLocalDate());
+        booking.setStartTime(newTime.toLocalTime());
+        booking.setEndTime(newEndTime.toLocalTime());
+
+        homeVisitBookingRepository.save(booking);
+
+        Appointment saved
+                = appointmentRepository.save(appointment);
+
+        notifyDoctorAboutRescheduledAppointmentAfterCommit(saved);
+
         return toResponse(saved);
     }
 

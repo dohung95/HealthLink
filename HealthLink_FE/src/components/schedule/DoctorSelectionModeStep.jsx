@@ -34,7 +34,7 @@ const DoctorSelectionModeStep = ({
 
                     {recommendedDoctor && mode === 'AUTO_ASSIGNED' && (
                         <small>
-                            Recommended: Dr. {recommendedDoctor.doctorName}
+                            Recommended: {recommendedDoctor.doctorName}
                         </small>
                     )}
                 </button>

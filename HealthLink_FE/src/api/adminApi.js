@@ -98,6 +98,16 @@ export const doctorsApi = {
     return response.data;
   },
 
+  requestPaypalEmailChange: async (id, newPaypalEmail, reason) => {
+    const response = await adminApi.put(`/admindoctors/${id}/paypal-email/request`, { newPaypalEmail, reason });
+    return response.data;
+  },
+
+  verifyPaypalEmailChange: async (id, otp, reason) => {
+    const response = await adminApi.put(`/admindoctors/${id}/paypal-email/verify`, { otp, reason });
+    return response.data;
+  },
+
   /**
    * Lấy danh sách bác sĩ có lịch làm việc vào ngày cụ thể.
    * @param {string} date - Ngày cần kiểm tra (format: yyyy-MM-dd)
@@ -155,6 +165,16 @@ export const pharmaciesApi = {
     return response.data;
   },
 
+  requestPaypalEmailChange: async (id, newPaypalEmail, reason) => {
+    const response = await adminApi.put(`/adminpharmacies/${id}/paypal-email/request`, { newPaypalEmail, reason });
+    return response.data;
+  },
+
+  verifyPaypalEmailChange: async (id, otp, reason) => {
+    const response = await adminApi.put(`/adminpharmacies/${id}/paypal-email/verify`, { otp, reason });
+    return response.data;
+  },
+
   delete: async (id) => {
     const response = await adminApi.delete(`/adminpharmacies/${id}`);
     return response.data;
@@ -170,9 +190,12 @@ export const appointmentsApi = {
   },
 
   getAll: async (params = {}) => {
-    const { pageNumber = 1, pageSize = 10, searchTerm = '', date = null, status = '', department = '' } = params;
+    const {
+      pageNumber = 1, pageSize = 10, searchTerm = '', date = null,
+      startDate = null, endDate = null, status = '', department = ''
+    } = params;
     const response = await adminApi.get('/adminappointments', {
-      params: { pageNumber, pageSize, searchTerm, date, status, department }
+      params: { pageNumber, pageSize, searchTerm, date, startDate, endDate, status, department }
     });
     return response.data;
   },

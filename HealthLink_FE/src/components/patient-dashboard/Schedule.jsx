@@ -70,11 +70,13 @@ const Schedule = () => {
   const [recommendedDoctor, setRecommendedDoctor] = useState(null);
   const [manualSelectionFee, setManualSelectionFee] = useState(0);
   const [loadingRecommendedDoctor, setLoadingRecommendedDoctor] = useState(false);
-  const [wantsManualDoctor, setWantsManualDoctor] = useState(false);
+
 
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [slots, setSlots] = useState([]);
   const [selectedSlot, setSelectedSlot] = useState(null);
+  const [autoFindingFirstSlot, setAutoFindingFirstSlot] = useState(false);
+  const [firstSlotSearchKey, setFirstSlotSearchKey] = useState('');
   const [doctorSchedules, setDoctorSchedules] = useState([]);
 
   const [symptoms, setSymptoms] = useState('');
@@ -247,6 +249,8 @@ const Schedule = () => {
   }, [selectedDoctorId]);
 
   useEffect(() => {
+    if (autoFindingFirstSlot) return;
+
     if (!selectedDoctorId || !date || !consultationType) {
       setSlots([]);
       setSelectedSlot(null);
@@ -276,7 +280,7 @@ const Schedule = () => {
     }
 
     fetchSlots();
-  }, [selectedDoctorId, date, consultationType, isHomeVisit]);
+  }, [selectedDoctorId, date, consultationType, isHomeVisit, autoFindingFirstSlot]);
 
   const specialties = useMemo(() => {
     return [...new Set(doctors.map((doctor) => doctor.specialtyName))]
@@ -419,6 +423,60 @@ const Schedule = () => {
     setSelectedSlot(null);
   };
 
+  const hasSelectableSlots = (slotList = [], targetDate = null) => {
+  const now = new Date();
+  return slotList.some((slot) => {
+    const isAvailable =
+      slot.selectable === true ||
+      String(slot.status || '').toUpperCase() === 'AVAILABLE';
+    if (!isAvailable) return false;
+    // Nếu có targetDate thì kiểm tra slot bị quá giờ
+    if (targetDate) {
+      const slotDateTime = new Date(`${targetDate}T${slot.startTime}`);
+      if (slotDateTime < now) return false;
+    }
+    return true;
+  });
+};
+
+  const loadSlotsForDate = async (targetDate) => {
+    if (!selectedDoctorId || !targetDate) return [];
+
+    const data = await appointmentService.getAvailableSlots(
+      selectedDoctorId,
+      targetDate,
+      consultationType || 'Online'
+    );
+
+    return data?.slots || [];
+  };
+
+  const findFirstDateWithSlots = async (startDate) => {
+    const baseDate = new Date(`${startDate}T00:00:00`);
+    const max = new Date(`${maxDate}T00:00:00`);
+
+    for (
+      let current = new Date(baseDate);
+      current <= max;
+      current.setDate(current.getDate() + 1)
+    ) {
+      const targetDate = current.toISOString().split('T')[0];
+      const nextSlots = await loadSlotsForDate(targetDate);
+
+      if (hasSelectableSlots(nextSlots, targetDate)) {
+        return {
+          date: targetDate,
+          slots: nextSlots,
+        };
+      }
+    }
+
+    return {
+      date: startDate,
+      slots: [],
+    };
+  };
+
   const handleChangeDate = async (nextDate) => {
     if (nextDate === date) return;
 
@@ -456,15 +514,26 @@ const Schedule = () => {
       return;
     }
 
-    if (currentStepKey === 'consultation' && !consultationType) {
-      toast.warning('Please select a visit type');
-      return;
+    if (currentStepKey === 'consultation' && consultationType === 'Online') {
+      await loadManualSelectionFee();
     }
 
     if (currentStepKey === 'doctor-selection-mode') {
       if (!doctorSelectionMode) {
         toast.warning('Please choose doctor selection option.');
         return;
+      }
+
+      if (
+        doctorSelectionMode === 'MANUAL_SELECTED' &&
+        Number(manualSelectionFee || 0) <= 0
+      ) {
+        const fee = await loadManualSelectionFee();
+
+        if (Number(fee || 0) <= 0) {
+          toast.error('Can not load manual selection fee.');
+          return;
+        }
       }
 
       if (doctorSelectionMode === 'AUTO_ASSIGNED' && !selectedDoctorId) {
@@ -514,21 +583,6 @@ const Schedule = () => {
     setStep((prev) => Math.min(prev + 1, stepConfig.length));
   };
 
-  const handleManualDoctorToggle = (checked) => {
-    setWantsManualDoctor(checked);
-
-    if (checked) {
-      setDoctorSelectionMode('MANUAL_SELECTED');
-      setSelectedDoctorId('');
-    } else {
-      setDoctorSelectionMode('AUTO_ASSIGNED');
-      setSelectedDoctorId(recommendedDoctor?.doctorId || '');
-    }
-
-    setSelectedSlot(null);
-    setSlots([]);
-  };
-
   const handleBack = () => {
     setStep((prev) => Math.max(prev - 1, 1));
   };
@@ -559,6 +613,8 @@ const Schedule = () => {
       clearSelectedSlotLocally(slotToRelease);
     }
 
+    setFirstSlotSearchKey('');
+    setDate(new Date().toISOString().split('T')[0]);
     handleBack();
   };
 
@@ -570,6 +626,8 @@ const Schedule = () => {
       clearSelectedSlotLocally(slotToRelease);
     }
 
+    setFirstSlotSearchKey('');
+    setDate(new Date().toISOString().split('T')[0]);
     handleBack();
   };
 
@@ -592,8 +650,29 @@ const Schedule = () => {
       setRecommendedDoctor(result);
       setManualSelectionFee(Number(result.manualSelectionFee || 0));
       setSelectedDoctorId(result.doctorId);
+      setFirstSlotSearchKey('');
 
       return result;
+    } finally {
+      setLoadingRecommendedDoctor(false);
+    }
+  };
+
+  const loadManualSelectionFee = async () => {
+    if (!selectedSpecialty || consultationType !== 'Online') return 0;
+
+    setLoadingRecommendedDoctor(true);
+
+    try {
+      const result = await appointmentService.recommendDoctor({
+        specialty: selectedSpecialty,
+        consultationType: 'Online',
+      });
+
+      const fee = Number(result.manualSelectionFee || 0);
+      setManualSelectionFee(fee);
+
+      return fee;
     } finally {
       setLoadingRecommendedDoctor(false);
     }
@@ -611,6 +690,8 @@ const Schedule = () => {
 
     setRecommendedDoctor(null);
     setSelectedDoctorId('');
+
+    await loadManualSelectionFee();
   };
 
   const handleSchedule = async () => {
@@ -694,7 +775,11 @@ const Schedule = () => {
       };
 
       const doctorFee = isHomeVisit
-        ? Number(selectedHomeVisitDoctor?.consultationFee || 0)
+        ? Number(
+          selectedHomeVisitDoctor?.homeVisitConsultationFee ??
+          selectedHomeVisitDoctor?.consultationFee ??
+          0
+        )
         : Number(selectedDoctor?.consultationFee ?? selectedDoctor?.fee ?? 0);
 
       const homeVisitTravelTotal = isHomeVisit
@@ -815,6 +900,53 @@ const Schedule = () => {
     }
   };
 
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadInitialAvailableSlots = async () => {
+      if (currentStepKey !== 'datetime') return;
+      if (!selectedDoctorId || !consultationType) return;
+      if (selectedSlot) return;
+
+      const searchKey = `${selectedDoctorId}-${consultationType}`;
+      if (firstSlotSearchKey === searchKey) return;
+
+      setAutoFindingFirstSlot(true);
+      setLoadingSlots(true);
+
+      try {
+        const today = new Date().toISOString().split('T')[0];
+        const result = await findFirstDateWithSlots(today);
+
+        if (cancelled) return;
+
+        setDate(result.date);
+        setSlots(result.slots);
+        setSelectedSlot(null);
+        setFirstSlotSearchKey(searchKey);
+      } catch (error) {
+        console.error('Failed to load first available slot date', error);
+        setSlots([]);
+      } finally {
+        if (!cancelled) {
+          setAutoFindingFirstSlot(false);
+          setLoadingSlots(false);
+        }
+      }
+    };
+
+    loadInitialAvailableSlots();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    currentStepKey,
+    selectedDoctorId,
+    consultationType,
+    firstSlotSearchKey,
+  ]);
+
   if (!isAuthenticated) {
     return (
       <div className="schedule-auth-wall">
@@ -875,6 +1007,7 @@ const Schedule = () => {
                     setSelectedDoctorId(doctorId);
                     setSelectedSlot(null);
                     setSlots([]);
+                    setFirstSlotSearchKey('');
                   }}
                   onBack={handleBack}
                   onNext={handleNext}
@@ -888,6 +1021,7 @@ const Schedule = () => {
                     setConsultationType(type);
                     setSelectedSlot(null);
                     setSlots([]);
+                    setFirstSlotSearchKey('');
                     setDoctorSelectionMode('');
                     setRecommendedDoctor(null);
                     setManualSelectionFee(0);
@@ -959,6 +1093,7 @@ const Schedule = () => {
                     setSelectedHomeVisitDoctor(doctor);
                     setSelectedSlot(null);
                     setSlots([]);
+                    setFirstSlotSearchKey('');
                     setSessionDraftId(null);
                     setHomeVisitInfo((prev) => ({
                       ...prev,

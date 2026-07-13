@@ -92,6 +92,14 @@ public class EmailService {
         sendHtmlEmail(toEmail, subject, content);
     }
 
+    public void sendPaypalEmailConfirmation(String toEmail, String recipientName, String confirmToken) {
+        log.info("sendPaypalEmailConfirmation called - to: {}", toEmail);
+        String subject = appName + " - Confirm Your PayPal Payout Email";
+        String confirmLink = frontendUrl + "/confirm-paypal-email?token=" + confirmToken;
+        String content = buildPaypalEmailConfirmationContent(recipientName, confirmLink);
+        sendHtmlEmail(toEmail, subject, content);
+    }
+
     public void sendAppointmentReminderEmail(String toEmail, String recipientName,
                                               String doctorName, String appointmentTime,
                                               String consultationType, int minutesBeforeStart) {
@@ -153,6 +161,15 @@ public class EmailService {
     private String buildApprovalEmailContent(String recipientName, String registrationType, String email, String password) {
         String roleDisplay = "DOCTOR".equals(registrationType) ? "Doctor" : "Pharmacy Partner";
 
+        String doctorScheduleReminder = "DOCTOR".equals(registrationType)
+                ? """
+                    <div class="warning-box">
+                        <span>&#128197;</span>
+                        <span><strong>Set up your work schedule now:</strong> your account has no schedule yet, so patients cannot find or book you (Online or Home Visit) until you add one. Please log in and go to <strong>Schedule</strong> to set your working hours right away.</span>
+                    </div>
+                    """
+                : "";
+
         // Note: Use %% to escape % in CSS (linear-gradient percentages)
         return """
             <!DOCTYPE html>
@@ -213,6 +230,7 @@ public class EmailService {
                             <span>&#9888;</span>
                             <span><strong>Important:</strong> For security reasons, please change your password immediately after your first login.</span>
                         </div>
+                        %s
                         <a href="%s/login" class="cta-button">Login to Your Account</a>
                     </div>
                     <div class="footer">
@@ -223,7 +241,7 @@ public class EmailService {
                 </div>
             </body>
             </html>
-            """.formatted(appName, recipientName, roleDisplay, email, password, frontendUrl, appName, appName);
+            """.formatted(appName, recipientName, roleDisplay, email, password, doctorScheduleReminder, frontendUrl, appName, appName);
     }
 
     // build email khi bị từ chối
@@ -581,6 +599,60 @@ public class EmailService {
                         <div class="note">
                             ⚠️ This link will expire in <strong>24 hours</strong>.
                             If you did not create an account, please ignore this email.
+                        </div>
+                        <p>Best regards,<br><strong>HealthLink Team</strong></p>
+                    </div>
+                    <div class="footer">
+                        <p>&copy; 2026 HealthLink. All rights reserved.</p>
+                    </div>
+                </div>
+            </body>
+            </html>
+            """, recipientName, confirmLink, confirmLink);
+    }
+
+    private String buildPaypalEmailConfirmationContent(String recipientName, String confirmLink) {
+        return String.format("""
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <meta charset="UTF-8">
+                <style>
+                    body { font-family: 'Segoe UI', Arial, sans-serif; background: #f4f7fb; margin: 0; padding: 0; }
+                    .wrapper { max-width: 600px; margin: 40px auto; background: #fff;
+                               border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); overflow: hidden; }
+                    .header { background: linear-gradient(135deg, #0070ba, #1546a0); padding: 32px 24px; text-align: center; }
+                    .header h1 { color: #fff; margin: 0; font-size: 24px; }
+                    .body { padding: 32px 24px; color: #333; line-height: 1.7; }
+                    .body h2 { color: #1a1a2e; font-size: 20px; margin-top: 0; }
+                    .btn { display: inline-block; margin: 24px 0; padding: 14px 32px;
+                           background: linear-gradient(135deg, #0070ba, #1546a0);
+                           color: #fff !important; text-decoration: none; border-radius: 8px;
+                           font-size: 16px; font-weight: 600; }
+                    .note { background: #fff8e1; border-left: 4px solid #ffc107;
+                            padding: 12px 16px; border-radius: 4px; font-size: 13px; color: #666; margin-top: 20px; }
+                    .footer { background: #f4f7fb; text-align: center; padding: 16px;
+                              font-size: 12px; color: #999; }
+                </style>
+            </head>
+            <body>
+                <div class="wrapper">
+                    <div class="header">
+                        <h1>💳 HealthLink</h1>
+                    </div>
+                    <div class="body">
+                        <h2>Hello, %s! 👋</h2>
+                        <p>This is the PayPal email you submitted during registration on <strong>HealthLink</strong>.</p>
+                        <p>Please click the button below to confirm you own this PayPal address so it can be used to receive your payouts:</p>
+                        <div style="text-align: center;">
+                            <a href="%s" class="btn">✅ Confirm My PayPal Email</a>
+                        </div>
+                        <p>Or copy and paste this link into your browser:</p>
+                        <p style="word-break: break-all; font-size: 13px; color: #555;">%s</p>
+                        <div class="note">
+                            ⚠️ This link will expire in <strong>24 hours</strong>.
+                            Until confirmed, this email will not appear in your profile and payouts will not be available.
+                            If you did not request this, please ignore this email.
                         </div>
                         <p>Best regards,<br><strong>HealthLink Team</strong></p>
                     </div>

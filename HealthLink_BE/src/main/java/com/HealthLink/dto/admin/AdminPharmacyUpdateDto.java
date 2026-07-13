@@ -75,8 +75,8 @@ public class AdminPharmacyUpdateDto {
     @JsonProperty("BankName")
     private String bankName;
 
-    @JsonProperty("PaypalEmail")
-    private String paypalEmail;
+    // PaypalEmail intentionally removed — only changeable via the OTP-gated
+    // AdminPharmacyService.requestPaypalEmailChange/verifyPaypalEmailChange flow.
 
     @JsonProperty("Status")
     private String status;

@@ -1,7 +1,6 @@
 part of '../booking_screen.dart';
 
 extension _BookingSharedWidgets on _BookingScreenState {
-
   Widget _authWall(ColorScheme colors) => Scaffold(
     backgroundColor: colors.surface,
     body: Center(
@@ -134,21 +133,24 @@ extension _BookingSharedWidgets on _BookingScreenState {
                   onPressed: _submitting
                       ? null
                       : (_step == _getSteps(context).length - 1
-                      ? _submit
-                      : _next),
+                            ? _submit
+                            : _next),
                   child: _submitting
                       ? const SizedBox(
-                    width: 18,
-                    height: 18,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
                       : Text(
-                    _step == _getSteps(context).length - 1
-                        ? AppLocalizations.of(
-                      context,
-                    )!.bookingBtnPayConfirm
-                        : AppLocalizations.of(context)!.btnNext,
-                  ),
+                          _step == _getSteps(context).length - 1
+                              ? AppLocalizations.of(
+                                  context,
+                                )!.bookingBtnPayConfirm
+                              : (_currentStepKey ==
+                                        BookingStepKey.homeVisitLocation
+                                    ? 'Find available doctors'
+                                    : AppLocalizations.of(context)!.btnNext),
+                        ),
                 ),
               ),
             ],
@@ -335,4 +337,21 @@ extension _BookingSharedWidgets on _BookingScreenState {
       );
   }
 
+  Widget _requiredLabel(String label) {
+    final colors = Theme.of(context).colorScheme;
+    final cleanLabel = label.replaceAll(' *', '').replaceAll('*', '');
+
+    return Text.rich(
+      TextSpan(
+        text: cleanLabel,
+        style: TextStyle(color: colors.onSurfaceVariant),
+        children: [
+          TextSpan(
+            text: ' *',
+            style: TextStyle(color: colors.error, fontWeight: FontWeight.w900),
+          ),
+        ],
+      ),
+    );
+  }
 }

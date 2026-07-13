@@ -38,5 +38,8 @@ public class AdminDoctorDto {
     private Double latitude;
     private Double longitude;
     private Set<String> services;
+    private BigDecimal totalEarnings;
+    private BigDecimal pendingSettlement;
+    private String paypalEmail;
     private LocalDateTime createdAt;
 }

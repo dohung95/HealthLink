@@ -505,18 +505,15 @@ const HomeVisitStep = ({
             >
               Use my current location
             </button>
-            <button type="button" className="btn-outline-soft" onClick={handleEstimateFee} disabled={estimating}>
-              {estimating ? 'Searching...' : 'Find available doctors'}
-            </button>
           </div>
 
           <div className="home-visit-map">
             <MapContainer
               center={[
-                homeVisitInfo.visitLatitude || 10.7769,
-                homeVisitInfo.visitLongitude || 106.7009,
+                homeVisitInfo.visitLatitude || 13.5,
+                homeVisitInfo.visitLongitude || 106.0,
               ]}
-              zoom={13}
+              zoom={homeVisitInfo.visitLatitude && homeVisitInfo.visitLongitude ? 13 : 4}
               style={{ height: '300px', width: '100%' }}
             >
               <TileLayer
@@ -579,13 +576,14 @@ const HomeVisitStep = ({
 
       <div className="schedule-actions">
         <button type="button" className="btn-outline-soft" onClick={onBack}>Back</button>
+
         <button
           type="button"
           className="btn-primary-soft"
           onClick={handleEstimateFee}
           disabled={estimating}
         >
-          {estimating ? 'Searching...' : 'Next'}
+          {estimating ? 'Searching...' : 'Find available doctors'}
         </button>
       </div>
     </div>

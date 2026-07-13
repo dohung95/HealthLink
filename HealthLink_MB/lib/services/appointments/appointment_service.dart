@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 import '../../config/api_config.dart';
+import '../../models/booking/home_visit_session_slot.dart';
 
 class AppointmentService {
   AppointmentService({required this.accessToken});
@@ -35,31 +36,21 @@ class AppointmentService {
     int size = 5,
     String status = 'ALL',
   }) async {
-    final uri = Uri.parse(
-      ApiConfig.patientAppointmentsPage(patientId),
-    ).replace(
-      queryParameters: {
-        'page': '$page',
-        'size': '$size',
-        'status': status,
-      },
+    final uri = Uri.parse(ApiConfig.patientAppointmentsPage(patientId)).replace(
+      queryParameters: {'page': '$page', 'size': '$size', 'status': status},
     );
 
     final response = await http
         .get(uri, headers: _headers)
         .timeout(
-      ApiConfig.receiveTimeout,
-      onTimeout: () {
-        throw Exception(
-          'connection refused, please try again later',
+          ApiConfig.receiveTimeout,
+          onTimeout: () {
+            throw Exception('connection refused, please try again later');
+          },
         );
-      },
-    );
 
     if (response.statusCode != 200) {
-      throw Exception(
-        parseError(response, 'Unable to load appointments.'),
-      );
+      throw Exception(parseError(response, 'Unable to load appointments.'));
     }
 
     final data = jsonDecode(response.body);
@@ -88,13 +79,13 @@ class AppointmentService {
   }) async {
     final response = await http
         .put(
-      Uri.parse(ApiConfig.cancelAppointment(appointmentId)),
-      headers: _headers,
-      body: jsonEncode({
-        'cancelReason': cancelReason,
-        'cancelledBy': 'Patient',
-      }),
-    )
+          Uri.parse(ApiConfig.cancelAppointment(appointmentId)),
+          headers: _headers,
+          body: jsonEncode({
+            'cancelReason': cancelReason,
+            'cancelledBy': 'Patient',
+          }),
+        )
         .timeout(ApiConfig.connectTimeout);
 
     if (response.statusCode != 200) {
@@ -108,17 +99,73 @@ class AppointmentService {
   }) async {
     final response = await http
         .put(
-      Uri.parse(ApiConfig.rescheduleAppointment(appointmentId)),
-      headers: _headers,
-      body: jsonEncode({
-        'newAppointmentTime': newAppointmentTime,
-      }),
-    )
+          Uri.parse(ApiConfig.rescheduleAppointment(appointmentId)),
+          headers: _headers,
+          body: jsonEncode({'newAppointmentTime': newAppointmentTime}),
+        )
         .timeout(ApiConfig.connectTimeout);
 
     if (response.statusCode != 200) {
-      throw Exception(parseError(response, 'Failed to reschedule appointment.'));
+      throw Exception(
+        parseError(response, 'Failed to reschedule appointment.'),
+      );
     }
+  }
+
+  Future<List<String>> getOnlineRescheduleDates({
+    required int appointmentId,
+  }) async {
+    final response = await http
+        .get(
+          Uri.parse(ApiConfig.onlineRescheduleDates(appointmentId)),
+          headers: _headers,
+        )
+        .timeout(ApiConfig.connectTimeout);
+
+    if (response.statusCode != 200) {
+      throw Exception(
+        parseError(response, 'Unable to load Online reschedule dates.'),
+      );
+    }
+
+    final data = jsonDecode(response.body);
+
+    if (data is! List) {
+      return [];
+    }
+
+    return data
+        .map((item) => item.toString())
+        .where((item) => item.isNotEmpty)
+        .toList();
+  }
+
+  Future<List<HomeVisitSessionSlot>> getHomeVisitRescheduleSlots({
+    required int appointmentId,
+  }) async {
+    final response = await http
+        .get(
+          Uri.parse(ApiConfig.homeVisitRescheduleSlots(appointmentId)),
+          headers: _headers,
+        )
+        .timeout(ApiConfig.connectTimeout);
+
+    if (response.statusCode != 200) {
+      throw Exception(
+        parseError(response, 'Unable to load HomeVisit reschedule slots.'),
+      );
+    }
+
+    final data = jsonDecode(response.body);
+
+    if (data is! List) {
+      return [];
+    }
+
+    return data
+        .whereType<Map<String, dynamic>>()
+        .map(HomeVisitSessionSlot.fromJson)
+        .toList();
   }
 }
 
@@ -160,28 +207,47 @@ class PatientAppointment {
     required this.status,
     required this.appointmentTime,
     this.consultationEndTime,
+    this.visitAddress = '',
+    this.visitCity = '',
+    this.contactPhone = '',
+    this.reasonForHomeVisit = '',
+    this.specialNotes = '',
+    this.isForSelf,
+    this.receiverName = '',
+    this.receiverAge,
+    this.receiverGender = '',
+    this.receiverRelationship = '',
+    this.receiverPhone = '',
   });
 
   factory PatientAppointment.fromJson(Map<String, dynamic> json) {
     return PatientAppointment(
-      appointmentId: _toInt(
-        json['appointmentId'] ?? json['appointmentID'],
-        0,
-      ),
+      appointmentId: _toInt(json['appointmentId'] ?? json['appointmentID'], 0),
       patientId: (json['patientId'] ?? json['patientID'] ?? '').toString(),
       patientName: (json['patientName'] ?? 'Unknown Patient').toString(),
       doctorId: (json['doctorId'] ?? json['doctorID'] ?? '').toString(),
       doctorName: (json['doctorName'] ?? 'Unknown Doctor').toString(),
-      specialtyName: (json['specialtyName'] ?? json['specialty'] ?? '').toString(),
+      specialtyName: (json['specialtyName'] ?? json['specialty'] ?? '')
+          .toString(),
       consultationType: (json['consultationType'] ?? '').toString(),
       status: (json['status'] ?? 'Unknown').toString(),
-      appointmentTime: DateTime.tryParse(
-        (json['appointmentTime'] ?? '').toString(),
-      ) ??
+      appointmentTime:
+          DateTime.tryParse((json['appointmentTime'] ?? '').toString()) ??
           DateTime.now(),
       consultationEndTime: DateTime.tryParse(
         (json['consultationEndTime'] ?? json['endTime'] ?? '').toString(),
       ),
+      visitAddress: (json['visitAddress'] ?? '').toString(),
+      visitCity: (json['visitCity'] ?? '').toString(),
+      contactPhone: (json['contactPhone'] ?? '').toString(),
+      reasonForHomeVisit: (json['reasonForHomeVisit'] ?? '').toString(),
+      specialNotes: (json['specialNotes'] ?? '').toString(),
+      isForSelf: _toBool(json['isForSelf']),
+      receiverName: (json['receiverName'] ?? '').toString(),
+      receiverAge: _toNullableInt(json['receiverAge']),
+      receiverGender: (json['receiverGender'] ?? '').toString(),
+      receiverRelationship: (json['receiverRelationship'] ?? '').toString(),
+      receiverPhone: (json['receiverPhone'] ?? '').toString(),
     );
   }
 
@@ -195,6 +261,17 @@ class PatientAppointment {
   final String status;
   final DateTime appointmentTime;
   final DateTime? consultationEndTime;
+  final String? visitAddress;
+  final String? visitCity;
+  final String? contactPhone;
+  final String? reasonForHomeVisit;
+  final String? specialNotes;
+  final bool? isForSelf;
+  final String? receiverName;
+  final int? receiverAge;
+  final String? receiverGender;
+  final String? receiverRelationship;
+  final String? receiverPhone;
 
   String get normalizedStatus => status.trim().toLowerCase();
 
@@ -222,8 +299,63 @@ class PatientAppointment {
     return value.contains('home');
   }
 
+  String get homeVisitReceiverName {
+    final value = (receiverName ?? '').trim();
+    return value.isNotEmpty ? value : patientName;
+  }
+
+  String get homeVisitForText {
+    if (isForSelf == false) {
+      final relation = (receiverRelationship ?? '').trim();
+      return relation.isNotEmpty ? 'For $relation' : 'For someone else';
+    }
+
+    return 'For myself';
+  }
+
+  String get homeVisitAgeGenderText {
+    final parts = <String>[];
+
+    if (receiverAge != null && receiverAge! > 0) {
+      parts.add('$receiverAge years old');
+    }
+
+    final gender = (receiverGender ?? '').trim();
+    if (gender.isNotEmpty) {
+      parts.add(gender);
+    }
+
+    return parts.join(' · ');
+  }
+
+  String get homeVisitPhone {
+    final receiver = (receiverPhone ?? '').trim();
+    if (receiver.isNotEmpty) return receiver;
+
+    return (contactPhone ?? '').trim();
+  }
+
+  String get homeVisitRecipientPhone {
+    return (receiverPhone ?? '').trim();
+  }
+
+  String get homeVisitContactPhone {
+    return (contactPhone ?? '').trim();
+  }
+
+  String get homeVisitFullAddress {
+    final address = (visitAddress ?? '').trim();
+    final city = (visitCity ?? '').trim();
+
+    return [
+      if (address.isNotEmpty) address,
+      if (city.isNotEmpty) city,
+    ].join(', ');
+  }
+
   DateTime get effectiveEndTime {
-    return consultationEndTime ?? appointmentTime.add(const Duration(minutes: 30));
+    return consultationEndTime ??
+        appointmentTime.add(const Duration(minutes: 30));
   }
 
   bool isExpired(DateTime now) {
@@ -243,11 +375,13 @@ class PatientAppointment {
   bool isJoinable(DateTime now) {
     if (isHomeVisit) return false;
     final s = status.trim().toLowerCase();
-    return s == 'in_consultation' || s == 'inconsultation' || s == 'in_progress';
-//     return isActive &&
-//         !isExpired(now) &&
-//         !now.isBefore(appointmentTime) &&
-//         now.isBefore(effectiveEndTime);
+    return s == 'in_consultation' ||
+        s == 'inconsultation' ||
+        s == 'in_progress';
+    //     return isActive &&
+    //         !isExpired(now) &&
+    //         !now.isBefore(appointmentTime) &&
+    //         now.isBefore(effectiveEndTime);
   }
 
   bool canCancel(DateTime now) {
@@ -256,7 +390,9 @@ class PatientAppointment {
 
   bool canReschedule(DateTime now) {
     final twoHoursFromNow = now.add(const Duration(hours: 2));
-    return isActive && !isExpired(now) && appointmentTime.isAfter(twoHoursFromNow);
+    return isActive &&
+        !isExpired(now) &&
+        appointmentTime.isAfter(twoHoursFromNow);
   }
 }
 
@@ -264,4 +400,23 @@ int _toInt(dynamic value, int fallback) {
   if (value is int) return value;
   if (value is num) return value.toInt();
   return int.tryParse(value?.toString() ?? '') ?? fallback;
+}
+
+int? _toNullableInt(dynamic value) {
+  if (value == null) return null;
+  if (value is int) return value;
+  if (value is num) return value.toInt();
+  return int.tryParse(value.toString());
+}
+
+bool? _toBool(dynamic value) {
+  if (value == null) return null;
+  if (value is bool) return value;
+
+  final text = value.toString().trim().toLowerCase();
+
+  if (text == 'true' || text == '1') return true;
+  if (text == 'false' || text == '0') return false;
+
+  return null;
 }

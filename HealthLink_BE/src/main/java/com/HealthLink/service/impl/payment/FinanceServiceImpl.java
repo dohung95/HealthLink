@@ -50,6 +50,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
@@ -122,6 +123,11 @@ public class FinanceServiceImpl implements FinanceService {
     private static final String PHARMACY_ORDER_CONFIRMED = "CONFIRMED";
     private static final String PHARMACY_ORDER_PREPARING = "PREPARING";
     private static final String PHARMACY_ORDER_COMPLETED = "COMPLETED";
+    // Phí phụ trội khi patient tự chọn bác sĩ (MANUAL_SELECTED) — lấy từ config server,
+    // KHÔNG tin giá trị manualSelectionFee do client gửi lên (tránh thao túng giá).
+    @Value("${booking.manual-doctor-selection-fee:10.00}")
+    private BigDecimal manualDoctorSelectionFee;
+
     // ── Các phụ thuộc ───────────────────────────────────────────────────────
     private final PayPalConfig payPalConfig;
 
@@ -208,7 +214,7 @@ public class FinanceServiceImpl implements FinanceService {
 
         if (!TYPE_HOME_VISIT.equalsIgnoreCase(request.getConsultationType())
                 && "MANUAL_SELECTED".equalsIgnoreCase(request.getDoctorSelectionMode())) {
-            amount = amount.add(resolveManualSelectionFee(request.getManualSelectionFee()));
+            amount = amount.add(resolveManualSelectionFee());
         }
         String currency = request.getCurrency() != null ? request.getCurrency() : "USD";
         String amountStr = amount.setScale(2, RoundingMode.HALF_UP).toPlainString();
@@ -423,7 +429,7 @@ public class FinanceServiceImpl implements FinanceService {
 
         if (!TYPE_HOME_VISIT.equalsIgnoreCase(request.getConsultationType())
                 && "MANUAL_SELECTED".equalsIgnoreCase(request.getDoctorSelectionMode())) {
-            expectedAmount = expectedAmount.add(resolveManualSelectionFee(request.getManualSelectionFee()));
+            expectedAmount = expectedAmount.add(resolveManualSelectionFee());
         }
 
         if (paymentRepository.findByTransactionId(request.getOrderId()).isPresent()) {
@@ -496,6 +502,11 @@ public class FinanceServiceImpl implements FinanceService {
             LocalDateTime paidAt = LocalDateTime.now();
             appointment.setStatus(APPT_SCHEDULED);
             appointment.setConfirmedAt(paidAt);
+            // appointment.fee (từ AppointmentServiceImpl.createAppointment) chưa gồm
+            // manualSelectionFee/home-visit servicesTotal — ghi đè bằng tổng bill đầy đủ
+            // đã tính ở expectedAmount, để hoa hồng bác sĩ (đọc từ invoice.consultationFee)
+            // và các màn hình hiển thị "Fee" khác đều tính đúng trên tổng bill thật.
+            appointment.setFee(expectedAmount.setScale(2, RoundingMode.HALF_UP));
             if (sourceConsultation != null) {
                 appointment.setFollowUpSourceAppointmentId(sourceConsultation.getAppointment().getAppointmentId());
             }
@@ -509,10 +520,7 @@ public class FinanceServiceImpl implements FinanceService {
 
             notifyDoctorAboutNewAppointmentAfterCommit(appointment);
 
-            BigDecimal consultationFee = appointment.getFee() != null
-                    ? appointment.getFee()
-                    : resolveDoctorConsultationFee(doctor);
-            consultationFee = consultationFee.setScale(2, RoundingMode.HALF_UP);
+            BigDecimal consultationFee = appointment.getFee();
 
             BigDecimal invoiceAmount = expectedAmount.setScale(2, RoundingMode.HALF_UP);
 
@@ -1612,12 +1620,13 @@ public class FinanceServiceImpl implements FinanceService {
         return consultationFee.setScale(2, RoundingMode.HALF_UP);
     }
 
-    private BigDecimal resolveManualSelectionFee(BigDecimal fee) {
-        if (fee == null || fee.compareTo(BigDecimal.ZERO) < 0) {
-            return BigDecimal.ZERO;
-        }
-
-        return fee.setScale(2, RoundingMode.HALF_UP);
+    /**
+     * Trả về phí tự chọn bác sĩ theo cấu hình server (booking.manual-doctor-selection-fee).
+     * Không dùng giá trị manualSelectionFee do client gửi lên nữa — trước đây tin thẳng
+     * giá trị đó nên client có thể gửi 0 để né phí.
+     */
+    private BigDecimal resolveManualSelectionFee() {
+        return manualDoctorSelectionFee.setScale(2, RoundingMode.HALF_UP);
     }
 
     private BigDecimal resolveAppointmentCheckoutAmount(
@@ -1640,7 +1649,10 @@ public class FinanceServiceImpl implements FinanceService {
                 throw new BadRequestException(estimate.getMessage());
             }
 
-            BigDecimal consultationFee = resolveDoctorConsultationFee(doctor);
+            // Home visit: phí khám tính x1.5 (consultationFee x1.5) so với Online,
+            // cộng thêm phí di chuyển theo khoảng cách và dịch vụ phụ đã chọn.
+            BigDecimal consultationFee = resolveDoctorConsultationFee(doctor)
+                    .multiply(BigDecimal.valueOf(1.5));
 
             BigDecimal homeVisitTravelTotal = estimate.getTotalFee() != null
                     ? estimate.getTotalFee()

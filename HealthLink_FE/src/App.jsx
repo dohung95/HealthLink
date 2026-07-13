@@ -33,6 +33,7 @@ import ReviewManagement from './components/Admin/View/ReviewManagement';
 import Sign_in from './components/Auth/Sign_in';
 import Sign_up from './components/Auth/Sign_up';
 import ConfirmEmail from './components/Auth/ConfirmEmail';
+import ConfirmPaypalEmail from './components/Auth/ConfirmPaypalEmail';
 import RegistrationChoice from './components/Auth/RegistrationChoice';
 import DoctorRegistration from './components/Auth/DoctorRegistration';
 import PharmacyRegistration from './components/Auth/PharmacyRegistration';
@@ -119,6 +120,7 @@ function AppContent() {
   const isPharmacyChatPage = location.pathname === '/pharmacy-page/chat';
   const isSchedulePage = location.pathname === '/schedule' || location.pathname.startsWith('/book/');
   const isResetPasswordPage = location.pathname === '/reset-password';
+  const isRegistrationFormPage = location.pathname === '/register/doctor' || location.pathname === '/register/pharmacy';
 
   // list trang bị chặn sau khi login
   const publicPaths = [
@@ -138,6 +140,7 @@ function AppContent() {
   const allValidPaths = [
     ...publicPaths,
     '/confirm-email',
+    '/confirm-paypal-email',
     '/forgot-password',
     '/reset-password',
     '/video-calling',
@@ -166,12 +169,13 @@ function AppContent() {
 
   const isAuthPage = [
     '/confirm-email',
+    '/confirm-paypal-email',
     '/forgot-password',
     '/reset-password'
   ].includes(location.pathname);
 
-  // Don't show navbar/footer on video call, doctor page, admin page, login page, or 404 page
-  const hideLayout = isVideoCallPage || isDoctorPage || isAdminPage || isPatientDashboard || isPharmacyDashboard || isSchedulePage || isAuthPage || is404Page;
+  // Don't show navbar/footer on video call, doctor page, admin page, login page, registration form pages, or 404 page
+  const hideLayout = isVideoCallPage || isDoctorPage || isAdminPage || isPatientDashboard || isPharmacyDashboard || isSchedulePage || isAuthPage || isRegistrationFormPage || is404Page;
 
   useEffect(() => {
     const openMedicineReminder = (event) => {
@@ -252,6 +256,7 @@ function AppContent() {
             <Route path="/login" element={<Sign_in />} />
             <Route path="/register" element={<Sign_up />} />
             <Route path="/confirm-email" element={<ConfirmEmail />} />
+            <Route path="/confirm-paypal-email" element={<ConfirmPaypalEmail />} />
             <Route path="/forgot-password" element={<ForgotPassword />} />
             <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/register-as" element={<RegistrationChoice />} />
