@@ -6,6 +6,7 @@ import '../../providers/pharmacy/pharmacy_request_provider.dart';
 import '../../models/pharmacy/pharmacy_consultation_request.dart';
 import '../../widgets/pharmacy/request_status_chip.dart';
 import '../chat/chat_list_screen.dart' show MessagesScreen;
+import 'pharmacy_quote_editor_screen.dart';
 
 class PharmacyRequestDetailScreen extends StatefulWidget {
   final String requestId;
@@ -55,143 +56,15 @@ class _PharmacyRequestDetailScreenState
   }
 
   void _showCreateOrderDialog() {
-    final provider = context.read<PharmacyRequestProvider>();
-    final prescriptions = provider.prescriptions;
-    final selectedItems = <Map<String, dynamic>>[];
-
-    showDialog(
-      context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setDialogState) => AlertDialog(
-          title: const Text('Create Order from Request'),
-          content: SizedBox(
-            width: double.maxFinite,
-            child: prescriptions.isEmpty
-                ? const Text(
-                    'No attached prescriptions. Add items manually from the order.')
-                : Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Text(
-                          'Select items to include in the order:'),
-                      const SizedBox(height: 8),
-                      Expanded(
-                        child: ListView.builder(
-                          shrinkWrap: true,
-                          itemCount: prescriptions.length,
-                          itemBuilder: (_, i) {
-                            final rx = prescriptions[i];
-                            final rxItems = rx['items']
-                                    as List<dynamic>? ??
-                                [];
-                            return ExpansionTile(
-                              title: Text(
-                                  'Rx: ${rx['prescriptionNumber'] ?? rx['prescriptionHeaderId'] ?? ''}'),
-                              children: rxItems.map((item) {
-                                final itemMap =
-                                    item as Map<String, dynamic>;
-                                final itemKey =
-                                    '${rx['prescriptionHeaderId']}_${itemMap['prescriptionItemId']}';
-                                return StatefulBuilder(
-                                  builder: (ctx, setItemState) =>
-                                      CheckboxListTile(
-                                    title: Text(itemMap[
-                                                'medicationName']
-                                            ?.toString() ??
-                                        ''),
-                                    subtitle: Text(
-                                        'Qty: ${itemMap['quantity']}'),
-                                    value: selectedItems.any(
-                                        (s) => s['_key'] == itemKey),
-                                    onChanged: (checked) {
-                                      setItemState(() {
-                                        if (checked == true) {
-                                          selectedItems.add({
-                                            '_key': itemKey,
-                                            'medicineId':
-                                                itemMap['medicineId'],
-                                            'quantity':
-                                                itemMap['quantity'] ?? 1,
-                                            'unitPrice': 0,
-                                            'totalSupplyDays':
-                                                itemMap['totalSupplyDays'] ??
-                                                    30,
-                                            'medicationName':
-                                                itemMap['medicationName'],
-                                            'sourcePrescriptionHeaderId':
-                                                rx['prescriptionHeaderId'],
-                                            'sourcePrescriptionItemId':
-                                                itemMap[
-                                                    'prescriptionItemId'],
-                                          });
-                                        } else {
-                                          selectedItems
-                                              .removeWhere((s) =>
-                                                  s['_key'] == itemKey);
-                                        }
-                                      });
-                                    },
-                                  ),
-                                );
-                              }).toList(),
-                            );
-                          },
-                        ),
-                      ),
-                    ],
-                  ),
-          ),
-          actions: [
-            TextButton(
-                onPressed: () => Navigator.pop(ctx),
-                child: const Text('Cancel')),
-            FilledButton(
-              onPressed: () {
-                Navigator.pop(ctx);
-                _submitCreateOrder(selectedItems);
-              },
-              child: const Text('Create Order'),
-            ),
-          ],
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => PharmacyQuoteEditorScreen(
+          mode: QuoteEditorMode.createFromRequest,
+          requestId: widget.requestId,
         ),
       ),
     );
-  }
-
-  Future<void> _submitCreateOrder(
-      List<Map<String, dynamic>> items) async {
-    // Remove the _key helper before sending
-    final cleanedItems = items
-        .map((item) =>
-            Map<String, dynamic>.from(item)..remove('_key'))
-        .toList();
-
-    if (cleanedItems.isEmpty) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-              content: Text('Select at least one item')),
-        );
-      }
-      return;
-    }
-
-    final auth = context.read<AuthProvider>();
-    if (auth.accessToken == null) return;
-
-    final success = await context
-        .read<PharmacyRequestProvider>()
-        .createOrderFromRequest(
-          auth.accessToken!,
-          widget.requestId,
-          cleanedItems,
-        );
-
-    if (success && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Order created successfully')),
-      );
-    }
   }
 
   @override

@@ -3,10 +3,10 @@ import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/pharmacy/pharmacy_order_provider.dart';
-import '../../providers/pharmacy/pharmacy_request_provider.dart';
 import '../../models/pharmacy/pharmacy_order.dart';
 import '../../widgets/pharmacy/order_status_chip.dart';
 import '../chat/chat_list_screen.dart' show MessagesScreen;
+import 'pharmacy_quote_editor_screen.dart';
 
 class PharmacyOrderDetailScreen extends StatefulWidget {
   final String orderId;
@@ -409,7 +409,7 @@ class _PharmacyOrderDetailScreenState
             height: 12,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: dt != null ? c : theme.colorScheme.surfaceVariant,
+              color: dt != null ? c : theme.colorScheme.surfaceContainerHighest,
             ),
           ),
           const SizedBox(width: 12),
@@ -423,101 +423,16 @@ class _PharmacyOrderDetailScreenState
     );
   }
 
-  Future<void> _showQuoteDialog(PharmacyOrder order) async {
-    final controllers = order.items.map((item) {
-      return TextEditingController(
-          text: item.unitPrice?.toStringAsFixed(2) ?? '0.00');
-    }).toList();
-    final deliveryController = TextEditingController(
-      text: order.deliveryFee?.toStringAsFixed(2) ?? '0.00',
-    );
-
-    final saved = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Edit Quote'),
-        content: SizedBox(
-          width: double.maxFinite,
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                ...order.items.asMap().entries.map((entry) {
-                  final i = entry.key;
-                  final item = entry.value;
-                  return Padding(
-                    padding: const EdgeInsets.only(bottom: 12),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(item.medicationName,
-                            style: const TextStyle(
-                                fontWeight: FontWeight.w500)),
-                        Text('Qty: ${item.quantity}',
-                            style: const TextStyle(fontSize: 12)),
-                        TextField(
-                          controller: controllers[i],
-                          decoration: const InputDecoration(
-                            labelText: 'Unit Price',
-                            prefixText: '\$',
-                            isDense: true,
-                          ),
-                          keyboardType: TextInputType.number,
-                        ),
-                      ],
-                    ),
-                  );
-                }),
-                const Divider(),
-                TextField(
-                  controller: deliveryController,
-                  decoration: const InputDecoration(
-                    labelText: 'Delivery Fee',
-                    prefixText: '\$',
-                    isDense: true,
-                  ),
-                  keyboardType: TextInputType.number,
-                ),
-              ],
-            ),
-          ),
+  void _showQuoteDialog(PharmacyOrder order) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => PharmacyQuoteEditorScreen(
+          mode: QuoteEditorMode.updateQuote,
+          orderId: widget.orderId,
         ),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Cancel')),
-          FilledButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Save Quote'),
-          ),
-        ],
       ),
     );
-
-    if (saved == true && mounted) {
-      final items = order.items.asMap().entries.map((entry) {
-        final i = entry.key;
-        final item = entry.value;
-        return {
-          'medicineId': item.medicineId,
-          'quantity': item.quantity,
-          'unitPrice': double.tryParse(controllers[i].text) ?? 0,
-          'totalSupplyDays': item.totalSupplyDays ?? 1,
-          'medicationName': item.medicationName,
-        };
-      }).toList();
-
-      final auth = context.read<AuthProvider>();
-      if (auth.accessToken != null) {
-        await context.read<PharmacyOrderProvider>().updateQuote(
-              auth.accessToken!,
-              widget.orderId,
-              items,
-              deliveryFee: double.tryParse(deliveryController.text),
-            );
-      }
-    }
   }
 }
 
