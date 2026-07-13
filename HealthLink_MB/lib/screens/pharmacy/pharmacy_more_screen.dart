@@ -3,6 +3,8 @@ import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
 import '../chat/chat_list_screen.dart';
 import 'pharmacy_profile_screen.dart';
+import 'pharmacy_wallet_screen.dart';
+import 'pharmacy_security_screen.dart';
 
 class PharmacyMoreScreen extends StatelessWidget {
   const PharmacyMoreScreen({super.key});
@@ -15,13 +17,36 @@ class PharmacyMoreScreen extends StatelessWidget {
       children: [
         _sectionHeader(theme, 'Account'),
         ListTile(
+          leading: const Icon(Icons.wallet_outlined),
+          title: const Text('Wallet'),
+          trailing: const Icon(Icons.chevron_right),
+          onTap: () => Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => const PharmacyWalletScreen(),
+            ),
+          ),
+        ),
+        ListTile(
           leading: const Icon(Icons.person_outline),
-          title: const Text('Profile & Security'),
+          title: const Text('Profile'),
           trailing: const Icon(Icons.chevron_right),
           onTap: () => Navigator.push(
             context,
             MaterialPageRoute(
               builder: (_) => const PharmacyProfileScreen(),
+            ),
+          ),
+        ),
+        ListTile(
+          leading: const Icon(Icons.security_outlined),
+          title: const Text('Security'),
+          subtitle: const Text('PIN & Password'),
+          trailing: const Icon(Icons.chevron_right),
+          onTap: () => Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => const PharmacySecurityScreen(),
             ),
           ),
         ),
