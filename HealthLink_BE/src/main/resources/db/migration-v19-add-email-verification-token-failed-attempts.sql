@@ -4,17 +4,17 @@ BEGIN TRANSACTION;
 IF OBJECT_ID('dbo.EmailVerificationTokens', 'U') IS NULL
     THROW 50004, 'dbo.EmailVerificationTokens was not found.', 1;
 
+DECLARE @sql NVARCHAR(MAX);
+
 IF COL_LENGTH('dbo.EmailVerificationTokens', 'FailedAttempts') IS NULL
 BEGIN
-    ALTER TABLE dbo.EmailVerificationTokens
-        ADD FailedAttempts INT NOT NULL
-            CONSTRAINT DF_EmailVerificationTokens_FailedAttempts DEFAULT 0 WITH VALUES;
+    SET @sql = N'ALTER TABLE dbo.EmailVerificationTokens ADD FailedAttempts INT NOT NULL CONSTRAINT DF_EmailVerificationTokens_FailedAttempts DEFAULT 0 WITH VALUES;';
+    EXEC sys.sp_executesql @sql;
 END
 ELSE
 BEGIN
-    UPDATE dbo.EmailVerificationTokens
-    SET FailedAttempts = 0
-    WHERE FailedAttempts IS NULL;
+    SET @sql = N'UPDATE dbo.EmailVerificationTokens SET FailedAttempts = 0 WHERE FailedAttempts IS NULL;';
+    EXEC sys.sp_executesql @sql;
 
     IF EXISTS (
         SELECT 1
@@ -23,7 +23,10 @@ BEGIN
           AND name = 'FailedAttempts'
           AND is_nullable = 1
     )
-        ALTER TABLE dbo.EmailVerificationTokens ALTER COLUMN FailedAttempts INT NOT NULL;
+    BEGIN
+        SET @sql = N'ALTER TABLE dbo.EmailVerificationTokens ALTER COLUMN FailedAttempts INT NOT NULL;';
+        EXEC sys.sp_executesql @sql;
+    END;
 
     IF NOT EXISTS (
         SELECT 1
@@ -32,8 +35,10 @@ BEGIN
         WHERE dc.parent_object_id = OBJECT_ID('dbo.EmailVerificationTokens')
           AND c.name = 'FailedAttempts'
     )
-        ALTER TABLE dbo.EmailVerificationTokens
-            ADD CONSTRAINT DF_EmailVerificationTokens_FailedAttempts DEFAULT 0 FOR FailedAttempts;
+    BEGIN
+        SET @sql = N'ALTER TABLE dbo.EmailVerificationTokens ADD CONSTRAINT DF_EmailVerificationTokens_FailedAttempts DEFAULT 0 FOR FailedAttempts;';
+        EXEC sys.sp_executesql @sql;
+    END;
 END;
 
 COMMIT TRANSACTION;
