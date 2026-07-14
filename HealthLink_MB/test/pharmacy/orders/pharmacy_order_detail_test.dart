@@ -22,6 +22,7 @@ PharmacyOrder _sampleOrder({
   String status = 'PENDING',
   String deliveryType = 'PICKUP',
   String paymentStatus = 'PAID',
+  bool? requiresPatientConfirmation,
 }) {
   return PharmacyOrder(
     orderId: id,
@@ -33,6 +34,7 @@ PharmacyOrder _sampleOrder({
     status: status,
     deliveryType: deliveryType,
     paymentStatus: paymentStatus,
+    requiresPatientConfirmation: requiresPatientConfirmation,
     medicineAmount: 100,
     deliveryFee: 15,
     totalAmount: 115,
@@ -59,8 +61,9 @@ class _TestAuth extends AuthProvider {
   Map<String, dynamic>? get pharmacyProfile => {'pharmacyId': 'pharm-1'};
 }
 
-class _StaticOrderProvider extends PharmacyOrderProvider {
-  _StaticOrderProvider(this._order)
+/// A provider that returns a static order and records status updates.
+class _RecordingOrderProvider extends PharmacyOrderProvider {
+  _RecordingOrderProvider(this._order)
     : super(
         orderService: PharmacyOrderService(
           client: MockClient((_) async => http.Response('{}', 200)),
@@ -68,15 +71,32 @@ class _StaticOrderProvider extends PharmacyOrderProvider {
       );
 
   final PharmacyOrder _order;
+  final List<String> submittedStatuses = [];
+  bool _recordingLoading = false;
+
+  set recordingLoading(bool v) => _recordingLoading = v;
 
   @override
   PharmacyOrder? get currentOrder => _order;
 
   @override
-  bool get isLoading => false;
+  bool get isLoading => _recordingLoading;
 
   @override
   Future<void> fetchOrderDetail(String token, String orderId) async {}
+
+  @override
+  Future<bool> updateOrderStatus(
+    String token,
+    String orderId,
+    String status, {
+    String? pharmacistNotes,
+    String? estimatedDeliveryTime,
+    String? cancelReason,
+  }) async {
+    submittedStatuses.add(status);
+    return true;
+  }
 }
 
 PharmacyOrder _detailOrder() {
@@ -136,13 +156,53 @@ Widget _detailApp(PharmacyOrder order) {
   );
 }
 
+Widget _detailAppWithProvider(PharmacyOrderProvider provider) {
+  return MaterialApp(
+    home: MultiProvider(
+      providers: [
+        ChangeNotifierProvider<AuthProvider>.value(value: _TestAuth()),
+        ChangeNotifierProvider<PharmacyOrderProvider>.value(value: provider),
+        ChangeNotifierProvider<PharmacyWorkflowProvider>.value(
+          value: PharmacyWorkflowProvider(),
+        ),
+        ChangeNotifierProvider<PharmacyInventoryProvider>.value(
+          value: PharmacyInventoryProvider(),
+        ),
+      ],
+      child: const PharmacyOrderDetailScreen(orderId: '17'),
+    ),
+  );
+}
+
+class _StaticOrderProvider extends PharmacyOrderProvider {
+  _StaticOrderProvider(this._order)
+    : super(
+        orderService: PharmacyOrderService(
+          client: MockClient((_) async => http.Response('{}', 200)),
+        ),
+      );
+
+  final PharmacyOrder _order;
+
+  @override
+  PharmacyOrder? get currentOrder => _order;
+
+  @override
+  bool get isLoading => false;
+
+  @override
+  Future<void> fetchOrderDetail(String token, String orderId) async {}
+}
+
 void main() {
   group('PharmacyOrderDetailScreen tabs', () {
     testWidgets(
       'shows summary labels for fulfillment, payment, fees and contact',
       (tester) async {
+        await tester.binding.setSurfaceSize(const Size(400, 900));
+        addTearDown(() => tester.binding.setSurfaceSize(null));
         await tester.pumpWidget(_detailApp(_detailOrder()));
-        await tester.pump();
+        await tester.pumpAndSettle();
 
         expect(find.text('Summary'), findsOneWidget);
         expect(find.text('Items'), findsOneWidget);
@@ -157,8 +217,10 @@ void main() {
     testWidgets('switches to items with order totals and chat history access', (
       tester,
     ) async {
+      await tester.binding.setSurfaceSize(const Size(400, 900));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
       await tester.pumpWidget(_detailApp(_detailOrder()));
-      await tester.pump();
+      await tester.pumpAndSettle();
 
       await tester.tap(find.text('Items'));
       await tester.pumpAndSettle();
@@ -223,6 +285,223 @@ void main() {
 
       // Scan both tabs for Chat history
       expect(find.text('Chat history'), findsNothing);
+    });
+  });
+
+  group('PharmacyOrderDetailScreen — progression CTA', () {
+    testWidgets('paid preparing order shows fixed Mark ready CTA', (
+      tester,
+    ) async {
+      await tester.pumpWidget(_detailApp(
+        _sampleOrder(status: 'PREPARING', paymentStatus: 'PAID'),
+      ));
+      await tester.pump();
+
+      expect(find.widgetWithText(FilledButton, 'Mark ready'), findsOneWidget);
+    });
+
+    testWidgets('unpaid preparing order hides progression CTA', (
+      tester,
+    ) async {
+      await tester.pumpWidget(_detailApp(
+        _sampleOrder(status: 'PREPARING', paymentStatus: 'PENDING'),
+      ));
+      await tester.pump();
+
+      expect(find.text('Mark ready'), findsNothing);
+    });
+
+    testWidgets('paid ready pickup shows Complete pickup CTA', (
+      tester,
+    ) async {
+      await tester.pumpWidget(_detailApp(
+        _sampleOrder(status: 'READY', deliveryType: 'PICKUP', paymentStatus: 'PAID'),
+      ));
+      await tester.pump();
+
+      expect(
+        find.widgetWithText(FilledButton, 'Complete pickup'),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('paid ready delivery shows Start delivery CTA', (
+      tester,
+    ) async {
+      await tester.pumpWidget(_detailApp(
+        _sampleOrder(status: 'READY', deliveryType: 'DELIVERY', paymentStatus: 'PAID'),
+      ));
+      await tester.pump();
+
+      expect(
+        find.widgetWithText(FilledButton, 'Start delivery'),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('paid shipping delivery shows Mark delivered CTA', (
+      tester,
+    ) async {
+      await tester.pumpWidget(_detailApp(
+        _sampleOrder(status: 'SHIPPING', deliveryType: 'DELIVERY', paymentStatus: 'PAID'),
+      ));
+      await tester.pump();
+
+      expect(
+        find.widgetWithText(FilledButton, 'Mark delivered'),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('paid delivered delivery shows Complete order CTA', (
+      tester,
+    ) async {
+      await tester.pumpWidget(_detailApp(
+        _sampleOrder(status: 'DELIVERED', deliveryType: 'DELIVERY', paymentStatus: 'PAID'),
+      ));
+      await tester.pump();
+
+      expect(
+        find.widgetWithText(FilledButton, 'Complete order'),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('terminal COMPLETED hides progression CTA', (tester) async {
+      await tester.pumpWidget(_detailApp(
+        _sampleOrder(status: 'COMPLETED', paymentStatus: 'PAID'),
+      ));
+      await tester.pump();
+
+      expect(find.byType(FilledButton), findsNothing);
+    });
+
+    testWidgets('confirmation-blocked order hides progression CTA', (
+      tester,
+    ) async {
+      await tester.pumpWidget(_detailApp(
+        _sampleOrder(
+          status: 'PREPARING',
+          paymentStatus: 'PAID',
+          requiresPatientConfirmation: true,
+        ),
+      ));
+      await tester.pump();
+
+      expect(find.text('Mark ready'), findsNothing);
+    });
+  });
+
+  group('PharmacyOrderDetailScreen — confirmation interaction', () {
+    testWidgets('tapping CTA shows confirmation modal with cancel', (
+      tester,
+    ) async {
+      final provider = _RecordingOrderProvider(
+        _sampleOrder(status: 'PREPARING', paymentStatus: 'PAID'),
+      );
+      await tester.pumpWidget(_detailAppWithProvider(provider));
+      await tester.pump();
+
+      // Tap the Mark ready CTA
+      await tester.tap(find.widgetWithText(FilledButton, 'Mark ready'));
+      await tester.pumpAndSettle();
+
+      // Confirm modal appears
+      expect(find.text('Mark order ready?'), findsOneWidget);
+      expect(
+        find.text(
+          'Medicines will be marked as packed and inventory quantities will be deducted.',
+        ),
+        findsOneWidget,
+      );
+
+      // Cancel button dismisses without API call
+      await tester.tap(find.text('Cancel'));
+      await tester.pumpAndSettle();
+
+      expect(provider.submittedStatuses, isEmpty);
+    });
+
+    testWidgets('confirmation confirm submits exactly one status update', (
+      tester,
+    ) async {
+      final provider = _RecordingOrderProvider(
+        _sampleOrder(status: 'PREPARING', paymentStatus: 'PAID'),
+      );
+      await tester.pumpWidget(_detailAppWithProvider(provider));
+      await tester.pump();
+
+      // Open confirmation
+      await tester.tap(find.widgetWithText(FilledButton, 'Mark ready'));
+      await tester.pumpAndSettle();
+
+      // Confirm the action
+      await tester.tap(find.widgetWithText(FilledButton, 'Confirm'));
+      await tester.pumpAndSettle();
+
+      expect(provider.submittedStatuses, ['READY']);
+    });
+
+    testWidgets('CTA is disabled while provider is loading', (tester) async {
+      final provider = _RecordingOrderProvider(
+        _sampleOrder(status: 'PREPARING', paymentStatus: 'PAID'),
+      );
+      provider.recordingLoading = true;
+      await tester.pumpWidget(_detailAppWithProvider(provider));
+      await tester.pump();
+
+      final button = tester.widget<FilledButton>(
+        find.widgetWithText(FilledButton, 'Mark ready'),
+      );
+      expect(button.onPressed, isNull);
+    });
+
+    testWidgets('picking up confirmation then canceling does not update', (
+      tester,
+    ) async {
+      final provider = _RecordingOrderProvider(
+        _sampleOrder(status: 'PREPARING', paymentStatus: 'PAID'),
+      );
+      await tester.pumpWidget(_detailAppWithProvider(provider));
+      await tester.pump();
+
+      // Open and cancel twice
+      for (var i = 0; i < 2; i++) {
+        await tester.tap(find.widgetWithText(FilledButton, 'Mark ready'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Cancel'));
+        await tester.pumpAndSettle();
+      }
+
+      // Confirm once
+      await tester.tap(find.widgetWithText(FilledButton, 'Mark ready'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(FilledButton, 'Confirm'));
+      await tester.pumpAndSettle();
+
+      expect(provider.submittedStatuses, ['READY']);
+    });
+
+    testWidgets('overflow menu only shows Edit Quote not Update Status', (
+      tester,
+    ) async {
+      // A PENDING order with PAID status - should show Edit Quote but not status action
+      final order = _sampleOrder(
+        status: 'PENDING',
+        paymentStatus: 'PAID',
+      );
+      // We need the order to have canEditQuote = true (PENDING status)
+      await tester.pumpWidget(_detailApp(order));
+      await tester.pump();
+
+      // Tap the overflow menu
+      await tester.tap(find.byIcon(Icons.more_vert));
+      await tester.pumpAndSettle();
+
+      // Edit Quote should be visible
+      expect(find.text('Edit Quote'), findsOneWidget);
+      // Update Status should NOT be visible
+      expect(find.text('Update Status'), findsNothing);
     });
   });
 

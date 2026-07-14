@@ -34,17 +34,17 @@ void main() {
           status: 'PREPARING',
           deliveryType: 'PICKUP',
         ),
-        isNull,
+        'READY',
       );
     });
 
-    test('PREPARING -> READY (delivery) returns null (not a transition)', () {
+    test('PREPARING -> READY (delivery)', () {
       expect(
         PharmacyWorkflow.getNextOrderStatus(
           status: 'PREPARING',
           deliveryType: 'DELIVERY',
         ),
-        isNull,
+        'READY',
       );
     });
 
@@ -110,7 +110,7 @@ void main() {
       );
     });
 
-    test('pickup order at PREPARING shows no shipping action', () {
+    test('pickup order at PREPARING goes to READY', () {
       final order = _order(status: 'PREPARING', deliveryType: 'PICKUP');
       expect(PharmacyWorkflow.canProgressOrder(order), true);
       expect(
@@ -118,7 +118,7 @@ void main() {
           status: order.status,
           deliveryType: order.deliveryType!,
         ),
-        isNull,
+        'READY',
       );
     });
   });
@@ -172,6 +172,15 @@ void main() {
       expect(PharmacyWorkflow.canProgressOrder(order), false);
     });
 
+    test('PENDING payment blocks PREPARING progression', () {
+      final order = _order(
+        status: 'PREPARING',
+        deliveryType: 'PICKUP',
+        paymentStatus: 'PENDING',
+      );
+      expect(PharmacyWorkflow.canProgressOrder(order), false);
+    });
+
     test('canProgressOrder true for paid ready pickup', () {
       final order = _order(
         status: 'READY',
@@ -188,6 +197,89 @@ void main() {
         paymentStatus: 'PAID',
       );
       expect(PharmacyWorkflow.canProgressOrder(order), true);
+    });
+  });
+
+  group('nextTransition returns correct transitions', () {
+    test('PREPARING paid -> READY transition', () {
+      final transition = PharmacyWorkflow.nextTransition(
+        _order(status: 'PREPARING', paymentStatus: 'PAID'),
+      );
+      expect(transition, isNotNull);
+      expect(transition!.targetStatus, 'READY');
+      expect(transition.label, 'Mark ready');
+      expect(transition.confirmationTitle, 'Mark order ready?');
+    });
+
+    test('PREPARING unpaid returns null', () {
+      expect(
+        PharmacyWorkflow.nextTransition(
+          _order(status: 'PREPARING', paymentStatus: 'PENDING'),
+        ),
+        isNull,
+      );
+    });
+
+    test('PREPARING with patient confirmation returns null', () {
+      expect(
+        PharmacyWorkflow.nextTransition(
+          _order(
+            status: 'PREPARING',
+            paymentStatus: 'PAID',
+            requiresPatientConfirmation: true,
+          ),
+        ),
+        isNull,
+      );
+    });
+
+    test('READY pickup -> COMPLETED transition', () {
+      final transition = PharmacyWorkflow.nextTransition(
+        _order(status: 'READY', deliveryType: 'PICKUP', paymentStatus: 'PAID'),
+      );
+      expect(transition, isNotNull);
+      expect(transition!.targetStatus, 'COMPLETED');
+      expect(transition.label, 'Complete pickup');
+      expect(transition.confirmationTitle, 'Complete pickup?');
+    });
+
+    test('READY delivery -> SHIPPING transition', () {
+      final transition = PharmacyWorkflow.nextTransition(
+        _order(status: 'READY', deliveryType: 'DELIVERY', paymentStatus: 'PAID'),
+      );
+      expect(transition, isNotNull);
+      expect(transition!.targetStatus, 'SHIPPING');
+      expect(transition.label, 'Start delivery');
+      expect(transition.confirmationTitle, 'Start delivery?');
+    });
+
+    test('SHIPPING delivery -> DELIVERED transition', () {
+      final transition = PharmacyWorkflow.nextTransition(
+        _order(status: 'SHIPPING', deliveryType: 'DELIVERY', paymentStatus: 'PAID'),
+      );
+      expect(transition, isNotNull);
+      expect(transition!.targetStatus, 'DELIVERED');
+      expect(transition.label, 'Mark delivered');
+      expect(transition.confirmationTitle, 'Mark order delivered?');
+    });
+
+    test('DELIVERED delivery -> COMPLETED transition', () {
+      final transition = PharmacyWorkflow.nextTransition(
+        _order(status: 'DELIVERED', deliveryType: 'DELIVERY', paymentStatus: 'PAID'),
+      );
+      expect(transition, isNotNull);
+      expect(transition!.targetStatus, 'COMPLETED');
+      expect(transition.label, 'Complete order');
+      expect(transition.confirmationTitle, 'Complete order?');
+    });
+
+    test('terminal COMPLETED returns null', () {
+      expect(
+        PharmacyWorkflow.nextTransition(
+          _order(status: 'COMPLETED', paymentStatus: 'PAID'),
+        ),
+        isNull,
+      );
     });
   });
 

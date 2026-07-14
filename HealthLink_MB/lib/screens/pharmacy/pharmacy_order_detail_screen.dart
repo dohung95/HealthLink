@@ -54,186 +54,95 @@ class _PharmacyOrderDetailScreenState extends State<PharmacyOrderDetailScreen> {
           newStatus,
           cancelReason: cancelReason,
         );
-    if (success && mounted) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Order $newStatus')));
-      final orderProvider = context.read<PharmacyOrderProvider>();
-      final workflowProvider = context.read<PharmacyWorkflowProvider>();
-      final inventoryProvider = context.read<PharmacyInventoryProvider>();
-      await Future.wait([
-        orderProvider.fetchOrderDetail(auth.accessToken!, widget.orderId),
-        orderProvider.refreshOrders(auth.accessToken!, pharmacyId),
-        workflowProvider.refresh(auth.accessToken!, pharmacyId),
-        if (newStatus == 'READY') inventoryProvider.refresh(auth.accessToken!),
-      ]);
+    if (!mounted) return;
+
+    final orderProvider = context.read<PharmacyOrderProvider>();
+    final workflowProvider = context.read<PharmacyWorkflowProvider>();
+    final inventoryProvider = context.read<PharmacyInventoryProvider>();
+
+    await Future.wait([
+      orderProvider.fetchOrderDetail(auth.accessToken!, widget.orderId),
+      orderProvider.refreshOrders(auth.accessToken!, pharmacyId),
+      workflowProvider.refresh(auth.accessToken!, pharmacyId),
+      if (newStatus == 'READY') inventoryProvider.refresh(auth.accessToken!),
+    ]);
+
+    if (success) {
+      // Success - no snackbar needed, data is refreshed
+    } else if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(orderProvider.error ?? 'Unable to update order status'),
+        ),
+      );
     }
   }
 
-  void _showStatusActionSheet(PharmacyOrder order) {
-    final actions = _getAvailableActions(order);
-    if (actions.isEmpty) return;
-
-    final isPickupCompletion =
-        order.deliveryType == 'PICKUP' && order.status == 'READY';
-    showModalBottomSheet(
+  Future<void> _confirmStatusTransition(
+    PharmacyOrder order,
+    PharmacyOrderTransition transition,
+  ) async {
+    final confirmed = await showDialog<bool>(
       context: context,
-      builder: (ctx) => SafeArea(
-        child: Column(
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        title: Text(transition.confirmationTitle),
+        content: Column(
           mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: Text(
-                'Update Status',
-                style: Theme.of(ctx).textTheme.titleMedium,
+            Text('Order ${order.orderNumber}'),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                const Text('Current: '),
+                Text(
+                  PharmacyWorkflow.workflowLabel(order.status),
+                  style: const TextStyle(fontWeight: FontWeight.w600),
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            Row(
+              children: [
+                const Text('Next: '),
+                Text(
+                  transition.label,
+                  style: const TextStyle(fontWeight: FontWeight.w600),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Text(
+              transition.confirmationMessage,
+              style: Theme.of(ctx).textTheme.bodyMedium?.copyWith(
+                color: Theme.of(ctx).colorScheme.onSurfaceVariant,
               ),
             ),
-            ...actions.map(
-              (action) => ListTile(
-                leading: Icon(action.icon, color: action.color),
-                title: Text(action.label),
-                onTap: () async {
-                  Navigator.pop(ctx);
-                  if (action.value == 'CANCELLED') {
-                    _showCancelDialog();
-                  } else if (isPickupCompletion &&
-                      action.value == 'COMPLETED') {
-                    _showPickupCompleteDialog(order);
-                  } else {
-                    await _updateStatus(action.value);
-                  }
-                },
-              ),
-            ),
-            const SizedBox(height: 8),
           ],
         ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Confirm'),
+          ),
+        ],
       ),
     );
-  }
 
-  List<_StatusAction> _getAvailableActions(PharmacyOrder order) {
-    final workflowActions = _actionsFromWorkItem(order);
-    if (workflowActions != null) return workflowActions;
-    return _fallbackActions(order);
-  }
-
-  List<_StatusAction>? _actionsFromWorkItem(PharmacyOrder order) {
-    final workflowProvider = context.read<PharmacyWorkflowProvider>();
-    final matches = workflowProvider.workItems.where(
-      (item) =>
-          item.sourceId == order.orderId &&
-          (item.sourceType == WorkItemSourceType.pickupOrder ||
-              item.sourceType == WorkItemSourceType.deliveryOrder),
-    );
-    if (matches.isEmpty || matches.first.availableActions.isEmpty) return null;
-
-    final actions = <_StatusAction>[];
-    for (final action in matches.first.availableActions) {
-      switch (action.toUpperCase()) {
-        case 'MARK_READY':
-          actions.add(
-            const _StatusAction(
-              'Mark Ready',
-              'READY',
-              Icons.check_circle_outline,
-              Colors.teal,
-            ),
-          );
-          break;
-        case 'START_SHIPPING':
-          actions.add(
-            const _StatusAction(
-              'Start Shipping',
-              'SHIPPING',
-              Icons.local_shipping,
-              Colors.orange,
-            ),
-          );
-          break;
-        case 'CANCEL':
-          actions.add(
-            const _StatusAction(
-              'Cancel',
-              'CANCELLED',
-              Icons.cancel,
-              Colors.red,
-            ),
-          );
-          break;
-        case 'CONFIRM':
-          actions.add(
-            const _StatusAction(
-              'Confirm',
-              'CONFIRMED',
-              Icons.check_circle,
-              Colors.green,
-            ),
-          );
-          break;
-        case 'DELIVER':
-          actions.add(
-            const _StatusAction(
-              'Mark Delivered',
-              'DELIVERED',
-              Icons.check_circle,
-              Colors.green,
-            ),
-          );
-          break;
-        case 'COMPLETE':
-          actions.add(
-            const _StatusAction(
-              'Mark Complete',
-              'COMPLETED',
-              Icons.task_alt,
-              Colors.green,
-            ),
-          );
-          break;
-      }
+    if (confirmed == true && mounted) {
+      await _updateStatus(transition.targetStatus);
     }
-    return actions.isEmpty ? null : actions;
   }
 
-  List<_StatusAction> _fallbackActions(PharmacyOrder order) {
-    if (!PharmacyWorkflow.canProgressOrder(order)) return [];
-    final next = PharmacyWorkflow.getNextOrderStatus(
-      status: order.status,
-      deliveryType: order.deliveryType ?? 'PICKUP',
-    );
-    switch (next) {
-      case 'COMPLETED':
-        return const [
-          _StatusAction(
-            'Mark Complete',
-            'COMPLETED',
-            Icons.task_alt,
-            Colors.green,
-          ),
-        ];
-      case 'SHIPPING':
-        return const [
-          _StatusAction(
-            'Start Shipping',
-            'SHIPPING',
-            Icons.local_shipping,
-            Colors.orange,
-          ),
-        ];
-      case 'DELIVERED':
-        return const [
-          _StatusAction(
-            'Mark Delivered',
-            'DELIVERED',
-            Icons.check_circle,
-            Colors.green,
-          ),
-        ];
-      default:
-        return [];
-    }
+  bool _canCancel(PharmacyOrder order) {
+    if (order.paymentStatus == 'PAID') return false;
+    if (order.status == 'COMPLETED' || order.status == 'CANCELLED') return false;
+    return true;
   }
 
   void _showCancelDialog() {
@@ -273,32 +182,19 @@ class _PharmacyOrderDetailScreenState extends State<PharmacyOrderDetailScreen> {
     );
   }
 
-  void _showPickupCompleteDialog(PharmacyOrder order) {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Complete Pickup'),
-        content: Text(
-          'Mark order ${order.orderNumber} as picked up?\n\n'
-          'Patient: ${order.patientName}\n'
-          'Items: ${order.items.length}\n'
-          'Total: ${_currency(order.totalAmount)}',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () {
-              Navigator.pop(ctx);
-              _updateStatus('COMPLETED');
-            },
-            child: const Text('Confirm Pickup'),
-          ),
-        ],
-      ),
-    );
+  IconData _transitionIcon(String targetStatus) {
+    switch (targetStatus) {
+      case 'READY':
+        return Icons.inventory_2_outlined;
+      case 'SHIPPING':
+        return Icons.local_shipping_outlined;
+      case 'DELIVERED':
+        return Icons.check_circle_outline;
+      case 'COMPLETED':
+        return Icons.task_alt;
+      default:
+        return Icons.arrow_forward;
+    }
   }
 
   @override
@@ -309,46 +205,64 @@ class _PharmacyOrderDetailScreenState extends State<PharmacyOrderDetailScreen> {
     final canEditQuote =
         order != null &&
         (order.status == 'PENDING' || order.status == 'REVISION_REQUESTED');
-    final hasStatusActions =
-        order != null &&
-        (_actionsFromWorkItem(order) != null ||
-            _fallbackActions(order).isNotEmpty);
+    final transition = order == null
+        ? null
+        : PharmacyWorkflow.nextTransition(order);
+    final canCancel = order != null && _canCancel(order);
+    final hasOverflowMenu = canEditQuote || canCancel;
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('Order Detail'),
         actions: [
-          if (canEditQuote || hasStatusActions)
+          if (hasOverflowMenu)
             PopupMenuButton<String>(
               icon: const Icon(Icons.more_vert),
               onSelected: (value) {
                 if (value == 'quote') {
-                  _showQuoteDialog(order);
-                } else if (value == 'status') {
-                  _showStatusActionSheet(order);
+                  _showQuoteDialog(order!);
+                } else if (value == 'cancel') {
+                  _showCancelDialog();
                 }
               },
               itemBuilder: (_) => [
-                if (hasStatusActions)
-                  const PopupMenuItem(
-                    value: 'status',
-                    child: ListTile(
-                      leading: Icon(Icons.update),
-                      title: Text('Update Status'),
-                    ),
-                  ),
-                if (canEditQuote)
-                  const PopupMenuItem(
+                if (canEditQuote && order != null)
+                  PopupMenuItem(
                     value: 'quote',
-                    child: ListTile(
+                    child: const ListTile(
                       leading: Icon(Icons.edit),
                       title: Text('Edit Quote'),
+                    ),
+                  ),
+                if (canCancel && order != null)
+                  const PopupMenuItem(
+                    value: 'cancel',
+                    child: ListTile(
+                      leading: Icon(Icons.cancel, color: Colors.red),
+                      title: Text('Cancel'),
                     ),
                   ),
               ],
             ),
         ],
       ),
+      bottomNavigationBar: transition == null
+          ? null
+          : SafeArea(
+              minimum: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+              child: FilledButton.icon(
+                onPressed: provider.isLoading
+                    ? null
+                    : () => _confirmStatusTransition(order!, transition),
+                icon: provider.isLoading
+                    ? const SizedBox.square(
+                        dimension: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : Icon(_transitionIcon(transition.targetStatus)),
+                label: Text(transition.label),
+              ),
+            ),
       body: provider.isLoading && order == null
           ? const Center(child: CircularProgressIndicator())
           : order == null
