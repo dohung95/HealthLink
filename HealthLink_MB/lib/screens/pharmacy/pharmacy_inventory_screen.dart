@@ -134,7 +134,11 @@ class _PharmacyInventoryScreenState extends State<PharmacyInventoryScreen> {
       return;
     }
     if (item == null || item.inventoryId == null) {
-      setState(() => _attentionMessage = 'Related item is no longer active');
+      _attentionTimer?.cancel();
+      setState(() {
+        _highlightedId = null;
+        _attentionMessage = 'Related item is no longer active';
+      });
       return;
     }
 

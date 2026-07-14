@@ -289,6 +289,74 @@ void main() {
     expect(find.text('Related item is no longer active'), findsOneWidget);
   });
 
+  testWidgets('newer missing targets clear active highlights', (tester) async {
+    final requestAttention = ValueNotifier<NotificationAttention?>(null);
+    await tester.pumpWidget(
+      _requestsApp(_Workflow([_workItem(requestId: 11)]), requestAttention),
+    );
+    requestAttention.value = _attention(
+      tabIndex: PharmacyNotificationTarget.tabRequests,
+      detailType: 'request',
+      detailId: '11',
+      sequence: 1,
+    );
+    await tester.pump();
+    expect(_card(tester, 'request-11').highlighted, isTrue);
+    requestAttention.value = _attention(
+      tabIndex: PharmacyNotificationTarget.tabRequests,
+      detailType: 'request',
+      detailId: '404',
+      sequence: 2,
+    );
+    await tester.pump();
+    await tester.pump();
+    expect(_card(tester, 'request-11').highlighted, isFalse);
+
+    final orderAttention = ValueNotifier<NotificationAttention?>(null);
+    await tester.pumpWidget(
+      _ordersApp(_Orders([_order(id: 31, status: 'PENDING')]), orderAttention),
+    );
+    orderAttention.value = _attention(
+      tabIndex: PharmacyNotificationTarget.tabOrders,
+      detailType: 'order',
+      detailId: '31',
+      sequence: 1,
+    );
+    await tester.pump();
+    expect(_card(tester, 'order-31').highlighted, isTrue);
+    orderAttention.value = _attention(
+      tabIndex: PharmacyNotificationTarget.tabOrders,
+      detailType: 'order',
+      detailId: '404',
+      sequence: 2,
+    );
+    await tester.pump();
+    await tester.pump();
+    expect(_card(tester, 'order-31').highlighted, isFalse);
+
+    final inventoryAttention = ValueNotifier<NotificationAttention?>(null);
+    await tester.pumpWidget(
+      _inventoryApp(_Inventory([_inventory(41)]), inventoryAttention),
+    );
+    inventoryAttention.value = _attention(
+      tabIndex: PharmacyNotificationTarget.tabInventory,
+      detailType: 'inventory',
+      detailId: '41',
+      sequence: 1,
+    );
+    await tester.pump();
+    expect(_card(tester, 'inventory-41').highlighted, isTrue);
+    inventoryAttention.value = _attention(
+      tabIndex: PharmacyNotificationTarget.tabInventory,
+      detailType: 'inventory',
+      detailId: '404',
+      sequence: 2,
+    );
+    await tester.pump();
+    await tester.pump();
+    expect(_card(tester, 'inventory-41').highlighted, isFalse);
+  });
+
   testWidgets('orders switches from Flow to History before highlighting', (
     tester,
   ) async {

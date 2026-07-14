@@ -106,7 +106,11 @@ class _PharmacyRequestsScreenState extends State<PharmacyRequestsScreen> {
       return;
     }
     if (item == null) {
-      setState(() => _attentionMessage = 'Related item is no longer active');
+      _attentionTimer?.cancel();
+      setState(() {
+        _highlightedId = null;
+        _attentionMessage = 'Related item is no longer active';
+      });
       return;
     }
 
