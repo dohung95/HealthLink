@@ -23,5 +23,5 @@ public interface PharmacyConsultationRequestRepository extends JpaRepository<Pha
 
     Optional<PharmacyConsultationRequest> findByRequestIdAndPatient_PatientId(Integer requestId, String patientId);
 
-    Optional<PharmacyConsultationRequest> findByChatRoomId(String chatRoomId);
+    List<PharmacyConsultationRequest> findAllByChatRoomId(String chatRoomId);
 }

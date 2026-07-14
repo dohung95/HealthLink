@@ -7,6 +7,7 @@ import com.HealthLink.dto.chat.SendMessageRequest;
 import com.HealthLink.entity.Appointment;
 import com.HealthLink.entity.ChatRoom;
 import com.HealthLink.entity.Message;
+import com.HealthLink.entity.PharmacyConsultationRequest;
 import com.HealthLink.entity.User;
 import com.HealthLink.exception.BusinessException;
 import com.HealthLink.exception.ResourceNotFoundException;
@@ -168,13 +169,18 @@ public class ChatServiceImpl implements ChatService {
             throw new IllegalStateException("You cannot send messages because this conversation is blocked.");
         }
 
-        pharmacyConsultationRequestRepository
-            .findByChatRoomId(room.getChatRoomId())
-            .filter(requestEntity -> !PharmacyServiceHelper.canSendPharmacyChat(requestEntity))
-            .ifPresent(requestEntity -> {
-                throw new BusinessException(
+        List<PharmacyConsultationRequest> linkedRequests =
+                pharmacyConsultationRequestRepository
+                        .findAllByChatRoomId(room.getChatRoomId());
+
+        boolean pharmacyRoom = !linkedRequests.isEmpty();
+        boolean hasEditableRequest = linkedRequests.stream()
+                .anyMatch(PharmacyServiceHelper::canSendPharmacyChat);
+
+        if (pharmacyRoom && !hasEditableRequest) {
+            throw new BusinessException(
                     "This pharmacy conversation is now read-only.");
-            });
+        }
 
         // Tạo entity User tạm cho sender (chỉ cần ID để JPA set foreign key)
         User sender = User.builder().id(senderId).build();

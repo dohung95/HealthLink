@@ -17,6 +17,8 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -65,8 +67,8 @@ class ChatServiceImplTest {
 
         when(chatRoomRepository.findById(roomId))
             .thenReturn(Optional.of(chatRoom));
-        when(pharmacyConsultationRequestRepository.findByChatRoomId(roomId))
-            .thenReturn(Optional.empty());
+        when(pharmacyConsultationRequestRepository.findAllByChatRoomId(roomId))
+            .thenReturn(List.of());
         when(userRepository.findById(receiverId))
             .thenReturn(Optional.of(receiver));
         when(messageRepository.save(any()))
@@ -107,8 +109,8 @@ class ChatServiceImplTest {
 
         when(chatRoomRepository.findById(roomId))
             .thenReturn(Optional.of(chatRoom));
-        when(pharmacyConsultationRequestRepository.findByChatRoomId(roomId))
-            .thenReturn(Optional.of(request));
+        when(pharmacyConsultationRequestRepository.findAllByChatRoomId(roomId))
+            .thenReturn(List.of(request));
         when(userRepository.findById(receiverId))
             .thenReturn(Optional.of(receiver));
         when(messageRepository.save(any()))
@@ -148,8 +150,8 @@ class ChatServiceImplTest {
 
         when(chatRoomRepository.findById(roomId))
             .thenReturn(Optional.of(chatRoom));
-        when(pharmacyConsultationRequestRepository.findByChatRoomId(roomId))
-            .thenReturn(Optional.of(request));
+        when(pharmacyConsultationRequestRepository.findAllByChatRoomId(roomId))
+            .thenReturn(List.of(request));
         when(userRepository.findById(receiverId))
             .thenReturn(Optional.of(receiver));
         when(messageRepository.save(any()))
@@ -186,8 +188,8 @@ class ChatServiceImplTest {
 
         when(chatRoomRepository.findById(roomId))
             .thenReturn(Optional.of(chatRoom));
-        when(pharmacyConsultationRequestRepository.findByChatRoomId(roomId))
-            .thenReturn(Optional.of(request));
+        when(pharmacyConsultationRequestRepository.findAllByChatRoomId(roomId))
+            .thenReturn(List.of(request));
 
         SendMessageRequest msgRequest = SendMessageRequest.builder()
             .chatRoomId(roomId)
@@ -222,8 +224,8 @@ class ChatServiceImplTest {
 
         when(chatRoomRepository.findById(roomId))
             .thenReturn(Optional.of(chatRoom));
-        when(pharmacyConsultationRequestRepository.findByChatRoomId(roomId))
-            .thenReturn(Optional.of(request));
+        when(pharmacyConsultationRequestRepository.findAllByChatRoomId(roomId))
+            .thenReturn(List.of(request));
 
         SendMessageRequest msgRequest = SendMessageRequest.builder()
             .chatRoomId(roomId)
@@ -258,8 +260,8 @@ class ChatServiceImplTest {
 
         when(chatRoomRepository.findById(roomId))
             .thenReturn(Optional.of(chatRoom));
-        when(pharmacyConsultationRequestRepository.findByChatRoomId(roomId))
-            .thenReturn(Optional.of(request));
+        when(pharmacyConsultationRequestRepository.findAllByChatRoomId(roomId))
+            .thenReturn(List.of(request));
 
         SendMessageRequest msgRequest = SendMessageRequest.builder()
             .chatRoomId(roomId)
@@ -273,5 +275,56 @@ class ChatServiceImplTest {
 
         verify(messageRepository, never()).save(any());
         verify(messagingTemplate, never()).convertAndSendToUser(anyString(), anyString(), any());
+    }
+
+    @Test
+    void sendMessage_when14LockedAnd1EditableRequest_savesMessage() {
+        String roomId = "room-multi";
+        String senderId = "user-ph07";
+        String receiverId = "user-pat07";
+
+        ChatRoom chatRoom = ChatRoom.builder()
+            .chatRoomId(roomId)
+            .user1Id(senderId)
+            .user2Id(receiverId)
+            .build();
+
+        User receiver = User.builder().id(receiverId).username("Patient").build();
+
+        List<PharmacyConsultationRequest> lockedRequests = new ArrayList<>();
+        for (int i = 0; i < 14; i++) {
+            lockedRequests.add(PharmacyConsultationRequest.builder()
+                .chatRoomId(roomId)
+                .order(PharmacyOrder.builder().orderId(100 + i).status("PENDING").build())
+                .build());
+        }
+
+        PharmacyConsultationRequest editableRequest = PharmacyConsultationRequest.builder()
+            .chatRoomId(roomId)
+            .status("IN_REVIEW")
+            .build();
+
+        List<PharmacyConsultationRequest> allRequests = new ArrayList<>(lockedRequests);
+        allRequests.add(editableRequest);
+
+        when(chatRoomRepository.findById(roomId))
+            .thenReturn(Optional.of(chatRoom));
+        when(pharmacyConsultationRequestRepository.findAllByChatRoomId(roomId))
+            .thenReturn(allRequests);
+        when(userRepository.findById(receiverId))
+            .thenReturn(Optional.of(receiver));
+        when(messageRepository.save(any()))
+            .thenReturn(Message.builder().build());
+
+        SendMessageRequest msgRequest = SendMessageRequest.builder()
+            .chatRoomId(roomId)
+            .receiverId(receiverId)
+            .content("Hello")
+            .build();
+
+        service.sendMessage(msgRequest, senderId);
+
+        verify(messageRepository, times(1)).save(any());
+        verify(messagingTemplate, times(2)).convertAndSendToUser(anyString(), anyString(), any());
     }
 }
