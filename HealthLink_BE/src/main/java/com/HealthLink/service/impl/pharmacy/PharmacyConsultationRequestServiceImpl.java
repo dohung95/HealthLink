@@ -1,6 +1,7 @@
 package com.HealthLink.service.impl.pharmacy;
 
 import com.HealthLink.dto.chat.CreateRoomRequest;
+import com.HealthLink.dto.chat.ChatRoomDTO;
 import com.HealthLink.dto.pharmacy.*;
 import com.HealthLink.dto.prescription.PrescriptionItemResponse;
 import com.HealthLink.dto.prescription.PrescriptionResponse;
@@ -9,6 +10,7 @@ import com.HealthLink.entity.enums.NotificationPriority;
 import com.HealthLink.entity.enums.NotificationType;
 import com.HealthLink.entity.enums.PrescriptionTiming;
 import com.HealthLink.exception.BadRequestException;
+import com.HealthLink.exception.BusinessException;
 import com.HealthLink.exception.ForbiddenException;
 import com.HealthLink.exception.ResourceNotFoundException;
 import com.HealthLink.repository.notification.DeviceTokenRepository;
@@ -166,25 +168,11 @@ public class PharmacyConsultationRequestServiceImpl implements PharmacyConsultat
 
         PharmacyConsultationRequest updated = consultationRequestRepository.save(consultationRequest);
 
-        // Auto-create ChatRoom when status moves to IN_REVIEW (consultation only)
         String requestType = normalizeRequestType(updated.getRequestType());
         if (REQUEST_TYPE_CONSULTATION.equals(requestType)
                 && STATUS_IN_REVIEW.equals(targetStatus)
-                && updated.getChatRoomId() == null) {
-            try {
-                String pharmacyUserId = updated.getPharmacy().getUser().getId();
-                String patientUserId = updated.getPatient().getUser().getId();
-                CreateRoomRequest roomRequest = CreateRoomRequest.builder()
-                        .user1Id(pharmacyUserId)
-                        .user2Id(patientUserId)
-                        .build();
-                com.HealthLink.dto.chat.ChatRoomDTO chatRoom = chatService.getOrCreateRoom(roomRequest);
-                updated.setChatRoomId(chatRoom.getChatRoomId());
-                consultationRequestRepository.save(updated);
-            } catch (Exception ex) {
-                log.warn("Failed to auto-create ChatRoom for consultation request {}: {}",
-                        updated.getRequestId(), ex.getMessage());
-            }
+                && updated.getOrder() == null) {
+            ensureChatRoom(updated, updated.getPharmacy().getUser().getId());
         }
 
         notifyPatientAboutRequestStatusAfterCommit(updated);
@@ -202,6 +190,26 @@ public class PharmacyConsultationRequestServiceImpl implements PharmacyConsultat
                 .toList();
     }
 
+    @Override
+    @Transactional
+    public ChatRoomDTO getOrCreateRequestChatRoom(Integer requestId, String userId) {
+        PharmacyConsultationRequest request = getRequestOrThrow(requestId);
+        validateRequestParticipant(request, userId);
+
+        boolean consultation = REQUEST_TYPE_CONSULTATION.equals(normalizeRequestType(request.getRequestType()));
+        if (!consultation && request.getChatRoomId() == null) {
+            throw new BusinessException("Chat is available only for consultation requests");
+        }
+        if (request.getOrder() != null && request.getChatRoomId() == null) {
+            throw new BusinessException("Chat history is not available for this order");
+        }
+        if (request.getChatRoomId() == null
+                && !STATUS_IN_REVIEW.equals(normalizeStatus(request.getStatus()))) {
+            throw new BusinessException("Chat is available only while the request is in review");
+        }
+        return ensureChatRoom(request, userId);
+    }
+
     private PharmacyConsultationRequest getRequestOrThrow(Integer requestId) {
         return consultationRequestRepository.findById(requestId)
                 .orElseThrow(() -> new ResourceNotFoundException(
@@ -209,6 +217,22 @@ public class PharmacyConsultationRequestServiceImpl implements PharmacyConsultat
                         "id",
                         requestId
                 ));
+    }
+
+    private ChatRoomDTO ensureChatRoom(PharmacyConsultationRequest request, String requestingUserId) {
+        String pharmacyUserId = request.getPharmacy().getUser().getId();
+        if (request.getChatRoomId() != null) {
+            return chatService.getRoomById(request.getChatRoomId(), requestingUserId);
+        }
+
+        CreateRoomRequest roomRequest = CreateRoomRequest.builder()
+                .user1Id(pharmacyUserId)
+                .user2Id(request.getPatient().getUser().getId())
+                .build();
+        ChatRoomDTO room = chatService.getOrCreateRoom(roomRequest);
+        request.setChatRoomId(room.getChatRoomId());
+        consultationRequestRepository.save(request);
+        return room;
     }
 
     private PharmacyConsultationRequestResponse toResponse(PharmacyConsultationRequest request) {
@@ -410,6 +434,18 @@ public class PharmacyConsultationRequestServiceImpl implements PharmacyConsultat
                 || request.getPharmacy().getPharmacyId() == null
                 || !request.getPharmacy().getPharmacyId().equals(pharmacyId)) {
             throw new ForbiddenException("You are not allowed to view prescriptions for this request");
+        }
+    }
+
+    private void validateRequestParticipant(PharmacyConsultationRequest request, String userId) {
+        String patientUserId = request.getPatient() != null && request.getPatient().getUser() != null
+                ? request.getPatient().getUser().getId()
+                : null;
+        String pharmacyUserId = request.getPharmacy() != null && request.getPharmacy().getUser() != null
+                ? request.getPharmacy().getUser().getId()
+                : null;
+        if (!Objects.equals(userId, patientUserId) && !Objects.equals(userId, pharmacyUserId)) {
+            throw new ForbiddenException("You are not allowed to access chat for this request");
         }
     }
 
