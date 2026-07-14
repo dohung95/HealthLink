@@ -4,8 +4,8 @@ import { vitalSignApi } from '../api/vitalSignApi';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useChat } from '../context/ChatContext';
-import { db } from '../firebase';
-import { collection, query, where, getDocs } from 'firebase/firestore';
+// import { db } from '../firebase';
+// import { collection, query, where, getDocs } from 'firebase/firestore';
 import { toast } from 'sonner';
 import ConfirmModal from './ConfirmModal';
 import Loading from './Loading';
@@ -361,7 +361,7 @@ const MyAppointments = () => {
     const isAppointmentJoinable = (appointment) => {
         const s = normalizeText(appointment.status);
         if (s === 'in_consultation' || s === 'inconsultation' || s === 'in_progress') return true;
-        
+
         if (s === 'scheduled' || s === 'confirmed') {
             const appointmentTime = new Date(appointment.appointmentTime);
             return now >= appointmentTime;
