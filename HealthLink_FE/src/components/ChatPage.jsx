@@ -23,18 +23,34 @@ const BOT_USER = {
 // ─── Helper functions ────────────────────────────────────────────────
 function formatTime(isoString) {
     if (!isoString) return '...';
-    const d = new Date(isoString);
-    return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    const dTime = safeParseDate(isoString);
+    if (dTime === 0) return '...';
+    return new Date(dTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+}
+
+function safeParseDate(val) {
+    if (!val) return 0;
+    if (Array.isArray(val) && val.length >= 6) {
+        return new Date(val[0], val[1] - 1, val[2], val[3], val[4], val[5]).getTime();
+    }
+    const parsed = new Date(val).getTime();
+    return isNaN(parsed) ? 0 : parsed;
 }
 
 function formatRelative(isoString) {
     if (!isoString) return '';
-    const d = new Date(isoString);
+    const dTime = safeParseDate(isoString);
+    if (dTime === 0) return '';
+    const d = new Date(dTime);
+    
     const now = new Date();
-    const diffMs = now - d;
+    let diffMs = now.getTime() - dTime;
+    if (diffMs < 0) diffMs = 0; // fallback cho trường hợp lệch timezone hoặc giờ server bị tương lai
+
     const m = Math.floor(diffMs / 60000);
     const h = Math.floor(diffMs / 3600000);
     const day = Math.floor(diffMs / 86400000);
+    
     if (m < 1) return 'just now';
     if (m < 60) return `${m} minutes ago`;
     if (h < 24) return `${h} hours ago`;
@@ -289,7 +305,9 @@ function ChatMessage({ message, currentUserId, isNew = false, onImageClick, onNa
     }, [isNew, fullText]);
 
     const timeStr = message.timestamp
-        ? new Date(message.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric' })
+        ? (safeParseDate(message.timestamp) !== 0 
+            ? new Date(safeParseDate(message.timestamp)).toLocaleString([], { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric' })
+            : '...')
         : (message.createdAt ? formatTime(message.createdAt) : '...');
 
     const imageUrl = getFullUrl(message.imageUrl);
@@ -990,10 +1008,8 @@ export default function ChatPage({ showBot = true }) {
                 });
 
                 updated.sort((a, b) => {
-                    const timeA = new Date(a.lastMessageAt || 0).getTime();
-                    const timeB = new Date(b.lastMessageAt || 0).getTime();
-                    const validA = isNaN(timeA) ? 0 : timeA;
-                    const validB = isNaN(timeB) ? 0 : timeB;
+                    const validA = safeParseDate(a.lastMessageAt);
+                    const validB = safeParseDate(b.lastMessageAt);
                     return validB - validA;
                 });
 
