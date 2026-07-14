@@ -211,10 +211,16 @@ void main() {
   });
 
   group('PharmacyRequestProvider — chat room lookup', () {
-    test('fetchChatRoomId resolves room ID', () async {
+    test('fetchChatRoom resolves the canonical room DTO', () async {
       final mockClient = MockClient((request) async {
         return http.Response(
-          jsonEncode({'chatRoomId': 'room-123'}),
+          jsonEncode({
+            'chatRoomId': 'room-123',
+            'user1Id': 'pharmacy-1',
+            'user1DisplayName': 'Central Pharmacy',
+            'user2Id': 'patient-1',
+            'user2DisplayName': 'Patient One',
+          }),
           200,
         );
       });
@@ -222,11 +228,12 @@ void main() {
       final provider = PharmacyRequestProvider(
         requestService: PharmacyRequestService(client: mockClient),
       );
-      await provider.fetchChatRoomId(_token, '101');
+      await provider.fetchChatRoom(_token, '101', 'pharmacy-1');
       expect(provider.chatRoomId, 'room-123');
+      expect(provider.chatRoom?.partnerName, 'Patient One');
     });
 
-    test('fetchChatRoomId returns null on 404', () async {
+    test('fetchChatRoom clears the room and records the error on 404', () async {
       final mockClient = MockClient((request) async {
         return http.Response('Not Found', 404);
       });
@@ -234,8 +241,9 @@ void main() {
       final provider = PharmacyRequestProvider(
         requestService: PharmacyRequestService(client: mockClient),
       );
-      await provider.fetchChatRoomId(_token, '999');
+      await provider.fetchChatRoom(_token, '999', 'pharmacy-1');
       expect(provider.chatRoomId, isNull);
+      expect(provider.chatError, isNotNull);
     });
   });
 
@@ -330,5 +338,4 @@ void main() {
     });
   });
 }
-
 

@@ -18,7 +18,6 @@ class WebrtcStompService {
   bool _isConnected = false;
   bool _isConnecting = false;
   OnWebRTCSignalCallback? onWebRTCSignalReceived;
-  String? _userId;
 
   WebrtcConnectionState get connectionState {
     if (_isConnected && _stompClient?.connected == true) {
@@ -33,7 +32,6 @@ class WebrtcStompService {
     if (onWebRTCSignalReceived != null) {
       this.onWebRTCSignalReceived = onWebRTCSignalReceived;
     }
-    _userId = userId;
 
     if (_isConnected && _stompClient != null) {
       debugPrint('[WebrtcStomp] Already connected. Callbacks updated. userId=$userId');
