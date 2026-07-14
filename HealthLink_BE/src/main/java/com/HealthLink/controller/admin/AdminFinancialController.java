@@ -58,4 +58,15 @@ public class AdminFinancialController {
             @RequestParam(defaultValue = "0") int month) {
         return ResponseEntity.ok(financialService.getRevenueByDay(year, month));
     }
+
+    /**
+     * Get revenue by week for a specific month
+     * GET /api/admin/financial/revenue-by-week
+     */
+    @GetMapping("/revenue-by-week")
+    public ResponseEntity<RevenueByWeekDto> getRevenueByWeek(
+            @RequestParam(defaultValue = "0") int year,
+            @RequestParam(defaultValue = "0") int month) {
+        return ResponseEntity.ok(financialService.getRevenueByWeek(year, month));
+    }
 }

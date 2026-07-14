@@ -442,6 +442,13 @@ export const financialApi = {
       params: { year, month }
     });
     return response.data;
+  },
+
+  getRevenueByWeek: async (year = 0, month = 0) => {
+    const response = await adminApi.get('/financial/revenue-by-week', {
+      params: { year, month }
+    });
+    return response.data;
   }
 };
 
