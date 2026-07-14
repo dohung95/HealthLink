@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:syncfusion_flutter_pdfviewer/pdfviewer.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import 'doctor_widgets.dart';
+
 enum _DocKind { image, pdf, other }
 
 class DocumentViewerScreen extends StatelessWidget {
@@ -32,9 +34,7 @@ class DocumentViewerScreen extends StatelessWidget {
     if (uri == null) return;
     final opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
     if (!opened && context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Cannot open document.')),
-      );
+      showDoctorNotice(context, 'Cannot open document.', isError: true);
     }
   }
 

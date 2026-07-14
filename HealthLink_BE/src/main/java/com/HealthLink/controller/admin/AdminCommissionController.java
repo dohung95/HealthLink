@@ -30,6 +30,12 @@ public class AdminCommissionController {
         return ResponseEntity.ok(commissionService.getDashboard());
     }
 
+    @GetMapping("/dashboard/monthly")
+    public ResponseEntity<List<AdminMonthlyCommissionDto>> getDashboardMonthly(
+            @RequestParam(defaultValue = "0") int year) {
+        return ResponseEntity.ok(commissionService.getDashboardMonthly(year));
+    }
+
     @GetMapping("/configs")
     public ResponseEntity<List<AdminCommissionConfigDto>> getAllConfigs() {
         return ResponseEntity.ok(commissionService.getAllConfigs());
@@ -162,6 +168,13 @@ public class AdminCommissionController {
             @PathVariable String type,
             @PathVariable String id) {
         return ResponseEntity.ok(commissionService.getPartnerCommission(type, id));
+    }
+
+    @GetMapping("/partners/{type}/{id}/history")
+    public ResponseEntity<AdminPartnerCommissionHistoryDto> getPartnerCommissionHistory(
+            @PathVariable String type,
+            @PathVariable String id) {
+        return ResponseEntity.ok(commissionService.getPartnerCommissionHistory(type, id));
     }
 
     @PutMapping("/partners/{type}/{id}")

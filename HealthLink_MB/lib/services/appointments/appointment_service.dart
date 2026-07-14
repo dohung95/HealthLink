@@ -375,13 +375,12 @@ class PatientAppointment {
   bool isJoinable(DateTime now) {
     if (isHomeVisit) return false;
     final s = status.trim().toLowerCase();
-    return s == 'in_consultation' ||
-        s == 'inconsultation' ||
-        s == 'in_progress';
-    //     return isActive &&
-    //         !isExpired(now) &&
-    //         !now.isBefore(appointmentTime) &&
-    //         now.isBefore(effectiveEndTime);
+    if (s == 'in_consultation' || s == 'inconsultation' || s == 'in_progress') return true;
+
+    if (s == 'scheduled' || s == 'confirmed') {
+      return !now.isBefore(appointmentTime);
+    }
+    return false;
   }
 
   bool canCancel(DateTime now) {

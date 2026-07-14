@@ -11,7 +11,7 @@ import '../../models/doctor/doctor_profile.dart';
 import '../../models/notification/notification_item.dart';
 import '../../config/doctor_theme.dart';
 import '../../widgets/doctor/doctor_widgets.dart';
-import '../../widgets/doctor/complete_appointment_sheet.dart';
+import '../../widgets/doctor/doctor_month_calendar.dart';
 import 'doctor_appointment_detail_screen.dart';
 
 const _readyNowWindow = Duration(minutes: 15);
@@ -36,6 +36,28 @@ class _DoctorHomeScreenState extends State<DoctorHomeScreen> {
   Map<String, dynamic> _stats = {};
   DateTime _selectedDate = _dateOnly(DateTime.now());
 
+  // Theo dõi ID lịch hẹn đã biết để phát hiện lịch hẹn mới xuất hiện khi poll
+  // nền — khớp `knownAppointmentIdsRef` của DoctorTodayCockpit bên web.
+  Set<int> _knownAppointmentIds = {};
+
+  // Search cho tab "Scheduled" — khớp ô search của DoctorTodayCockpit bên web
+  // (trước đây chỉ có ở tab History).
+  String _scheduleSearch = '';
+  final TextEditingController _scheduleSearchController = TextEditingController();
+
+  // ── History tab (giống mục "History" dưới "Appointments" bên web) ────────
+  bool _showHistory = false;
+  bool _historyLoaded = false;
+  bool _historyLoading = false;
+  String? _historyError;
+  List<DoctorAppointment> _historyAppointments = [];
+  String _historyStatusFilter = 'ALL';
+  DateTime? _historyDateFilter;
+  String _historySearch = '';
+  final TextEditingController _historySearchController = TextEditingController();
+  int _historyPage = 1;
+  static const int _historyPageSize = 6;
+
   Timer? _pollTimer;
 
   int _unreadCount = 0;
@@ -54,6 +76,8 @@ class _DoctorHomeScreenState extends State<DoctorHomeScreen> {
   void dispose() {
     _pollTimer?.cancel();
     _notificationSubscription?.cancel();
+    _historySearchController.dispose();
+    _scheduleSearchController.dispose();
     super.dispose();
   }
 
@@ -108,21 +132,30 @@ class _DoctorHomeScreenState extends State<DoctorHomeScreen> {
         date: _selectedDate,
       );
       final appointments = daily.appointments;
+      final newIds = appointments.map((a) => a.appointmentId).toSet();
+      // Chỉ báo "lịch hẹn mới" từ lần fetch thứ 2 trở đi cho cùng 1 ngày —
+      // tránh toast dội khi mới load trang, khớp hành vi web.
+      if (_knownAppointmentIds.isNotEmpty) {
+        for (final appt in appointments) {
+          if (!_knownAppointmentIds.contains(appt.appointmentId) && mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('New appointment: ${appt.patientName ?? 'Patient'}')),
+            );
+          }
+        }
+      }
+      _knownAppointmentIds = newIds;
 
       if (mounted) {
         setState(() {
           _profile = profile;
           _todayAppointments = appointments;
+          // Dùng counts BE trả sẵn (đã tính đúng theo SCHEDULED/COMPLETED thật)
+          // thay vì tự đếm lại theo status string ở client.
           _stats = {
-            'todayAppointments': appointments.length,
-            'completedToday': appointments
-                .where((a) => a.status?.toUpperCase() == 'COMPLETED')
-                .length,
-            'pendingToday': appointments
-                .where((a) =>
-                    a.status?.toUpperCase() == 'PENDING' ||
-                    a.status?.toUpperCase() == 'CONFIRMED')
-                .length,
+            'todayAppointments': daily.totalCount,
+            'completedToday': daily.completedCount,
+            'pendingToday': daily.pendingCount,
           };
           _isLoading = false;
         });
@@ -144,18 +177,25 @@ class _DoctorHomeScreenState extends State<DoctorHomeScreen> {
         _selectedDate.day == today.day;
   }
 
-  String get _selectedDateLabel {
-    if (_isToday) return 'Today, ${DateFormat('MMM d').format(_selectedDate)}';
-    return DateFormat('EEE, MMM d, yyyy').format(_selectedDate);
+  void _onCalendarDateChange(DateTime date) {
+    setState(() => _selectedDate = date);
+    _knownAppointmentIds = {};
+    _loadData();
   }
 
-  Future<void> _pickDate() async {
+  void _selectTab(bool showHistory) {
+    if (_showHistory == showHistory) return;
+    setState(() => _showHistory = showHistory);
+    if (showHistory && !_historyLoaded) _loadHistory();
+  }
+
+  Future<void> _pickHistoryDate() async {
     final now = DateTime.now();
     final picked = await showDatePicker(
       context: context,
-      initialDate: _selectedDate,
-      firstDate: DateTime(now.year - 1),
-      lastDate: DateTime(now.year + 1),
+      initialDate: _historyDateFilter ?? now,
+      firstDate: DateTime(now.year - 5),
+      lastDate: now,
       builder: (context, child) => Theme(
         data: Theme.of(context).copyWith(
           colorScheme: Theme.of(context).colorScheme.copyWith(primary: DS.primary),
@@ -164,27 +204,107 @@ class _DoctorHomeScreenState extends State<DoctorHomeScreen> {
       ),
     );
     if (picked != null) {
-      setState(() => _selectedDate = _dateOnly(picked));
-      _loadData();
+      setState(() {
+        _historyDateFilter = _dateOnly(picked);
+        _historyPage = 1;
+      });
     }
   }
 
-  void _goToToday() {
-    if (_isToday) return;
-    setState(() => _selectedDate = _dateOnly(DateTime.now()));
-    _loadData();
+  Future<void> _loadHistory() async {
+    setState(() {
+      _historyLoading = true;
+      _historyError = null;
+    });
+    try {
+      final auth = context.read<AuthProvider>();
+      final token = auth.accessToken;
+      if (token == null) throw Exception('Not authenticated');
+
+      final profile = _profile ?? await DoctorService.getProfile(token);
+      final appointments = await DoctorService.getAppointments(token, profile.doctorId, size: 200);
+
+      if (mounted) {
+        setState(() {
+          _profile = profile;
+          _historyAppointments = appointments;
+          _historyLoaded = true;
+          _historyLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _historyError = e.toString().replaceFirst('Exception: ', '');
+          _historyLoading = false;
+        });
+      }
+    }
+  }
+
+  bool get _historyHasRawHistory => _historyAppointments.any((a) {
+        final s = a.status?.toUpperCase();
+        return s == 'COMPLETED' || s == 'CANCELLED';
+      });
+
+  /// Danh sách đã áp dụng bộ lọc ngày + tìm kiếm (chưa lọc theo status),
+  /// dùng để tính số lượng hiển thị ngay trên từng chip All/Completed/Cancelled.
+  List<DoctorAppointment> get _historyDateSearchFiltered {
+    var list = _historyAppointments.where((a) {
+      final s = a.status?.toUpperCase();
+      return s == 'COMPLETED' || s == 'CANCELLED';
+    }).toList();
+    final dateFilter = _historyDateFilter;
+    if (dateFilter != null) {
+      list = list.where((a) {
+        final t = a.appointmentTime;
+        if (t == null) return false;
+        return t.year == dateFilter.year && t.month == dateFilter.month && t.day == dateFilter.day;
+      }).toList();
+    }
+    final query = _historySearch.trim().toLowerCase();
+    if (query.isNotEmpty) {
+      list = list.where((a) {
+        final haystack = [a.patientName, a.symptoms].whereType<String>().where((v) => v.isNotEmpty).join(' ').toLowerCase();
+        return haystack.contains(query);
+      }).toList();
+    }
+    return list;
+  }
+
+  int _historyCountFor(String status) {
+    if (status == 'ALL') return _historyDateSearchFiltered.length;
+    return _historyDateSearchFiltered.where((a) => a.status?.toUpperCase() == status).length;
+  }
+
+  List<DoctorAppointment> get _filteredHistory {
+    var list = _historyDateSearchFiltered;
+    if (_historyStatusFilter != 'ALL') {
+      list = list.where((a) => a.status?.toUpperCase() == _historyStatusFilter).toList();
+    }
+    list = List<DoctorAppointment>.from(list)
+      ..sort((a, b) {
+        final aTime = a.appointmentTime ?? DateTime.fromMillisecondsSinceEpoch(0);
+        final bTime = b.appointmentTime ?? DateTime.fromMillisecondsSinceEpoch(0);
+        return bTime.compareTo(aTime);
+      });
+    return list;
   }
 
   // ── Grouping theo mức độ khẩn (giống DoctorTodayCockpit bên web) ──────────
+  // Status thật từ BE chỉ có: SCHEDULED, IN_CONSULTATION, COMPLETED, CANCELLED.
 
   List<DoctorAppointment> get _inProgress => _todayAppointments
-      .where((a) => a.status?.toUpperCase() == 'IN_PROGRESS')
+      .where((a) => a.status?.toUpperCase() == 'IN_CONSULTATION')
       .toList();
 
   List<DoctorAppointment> get _actionable {
+    // Coi mọi status không phải COMPLETED/CANCELLED/IN_CONSULTATION là "chưa
+    // start" (kể cả rác dữ liệu cũ như Confirmed/Pending còn sót trong seed) —
+    // tránh appointment biến mất khỏi Home chỉ vì status khác 'SCHEDULED'.
     final list = _todayAppointments.where((a) {
       final s = a.status?.toUpperCase();
-      return s == 'PENDING' || s == 'CONFIRMED';
+      return s != 'COMPLETED' && s != 'CANCELLED' && s != 'IN_CONSULTATION';
     }).toList();
     list.sort((a, b) {
       final aTime = a.appointmentTime ?? DateTime.now();
@@ -210,7 +330,7 @@ class _DoctorHomeScreenState extends State<DoctorHomeScreen> {
 
   List<DoctorAppointment> get _finishedToday => _todayAppointments.where((a) {
         final s = a.status?.toUpperCase();
-        return s == 'COMPLETED' || s == 'CANCELLED' || s == 'NO_SHOW';
+        return s == 'COMPLETED' || s == 'CANCELLED';
       }).toList();
 
   /// Chỉ nổi bật "lịch hẹn kế tiếp" khi đang xem hôm nay — khái niệm
@@ -238,63 +358,44 @@ class _DoctorHomeScreenState extends State<DoctorHomeScreen> {
     return combined.where((a) => a.appointmentId != next?.appointmentId).toList();
   }
 
+  /// Danh sách "TODAY'S SCHEDULE" sau khi áp search — khớp cách web filter
+  /// `todayAppointments` (không lọc thẻ next-appointment nổi bật ở trên).
+  List<DoctorAppointment> get _filteredScheduleList {
+    final query = _scheduleSearch.trim().toLowerCase();
+    if (query.isEmpty) return _scheduleList;
+    return _scheduleList.where((a) {
+      final haystack = [a.patientName, a.symptoms, a.consultationType, a.status]
+          .whereType<String>()
+          .where((v) => v.isNotEmpty)
+          .join(' ')
+          .toLowerCase();
+      return haystack.contains(query);
+    }).toList();
+  }
+
+  /// Badge đếm ngược cho thẻ "Next Appointment" — khớp `NextAppointmentCard`
+  /// bên web (Live / Ready / In X mins / In X hrs).
+  String? _highlightBadgeFor(DoctorAppointment appointment) {
+    final status = appointment.status?.toUpperCase();
+    if (status == 'IN_CONSULTATION') return null; // dùng nhãn mặc định "IN PROGRESS"
+    final apptTime = appointment.appointmentTime;
+    if (apptTime == null) return null;
+    final diff = apptTime.difference(DateTime.now());
+    if (diff <= _readyNowWindow && diff >= Duration.zero) return 'READY NOW';
+    if (diff < Duration.zero) return null; // đã trễ giờ nhưng chưa start — giữ "NEXT UP"
+    final minutes = diff.inMinutes;
+    if (minutes < 60) return 'IN $minutes MIN${minutes == 1 ? '' : 'S'}';
+    final hours = (minutes / 60).round();
+    return 'IN $hours HR${hours == 1 ? '' : 'S'}';
+  }
+
   // ── Actions ─────────────────────────────────────────────────────────────
-
-  Future<void> _startConsultation(DoctorAppointment appointment) async {
-    try {
-      final token = context.read<AuthProvider>().accessToken;
-      if (token == null) return;
-      await DoctorService.startConsultation(token, appointment.appointmentId);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Consultation started'), behavior: SnackBarBehavior.floating),
-        );
-        _loadData();
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e'), behavior: SnackBarBehavior.floating, backgroundColor: DS.rose700),
-        );
-      }
-    }
-  }
-
-  void _cancelAppointment(DoctorAppointment appointment) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Appointment updated'), behavior: SnackBarBehavior.floating),
-    );
-    _loadData();
-  }
-
-  void _openCompleteSheet(DoctorAppointment appointment) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (_) => CompleteAppointmentSheet(
-        appointmentId: appointment.appointmentId,
-        patientName: appointment.patientName,
-        onCompleted: _loadData,
-      ),
-    );
-  }
 
   void _openDetail(DoctorAppointment appointment) {
     Navigator.push(
       context,
       MaterialPageRoute(builder: (_) => DoctorAppointmentDetailScreen(appointment: appointment)),
     ).then((_) => _loadData());
-  }
-
-  void _startCall(DoctorAppointment appointment) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Connecting call with ${appointment.patientName ?? "patient"}...'),
-        behavior: SnackBarBehavior.floating,
-        backgroundColor: DS.primary,
-      ),
-    );
   }
 
   @override
@@ -338,6 +439,7 @@ class _DoctorHomeScreenState extends State<DoctorHomeScreen> {
 
     final next = _nextAppointment;
     final schedule = _scheduleList;
+    final filteredSchedule = _filteredScheduleList;
 
     return Scaffold(
       backgroundColor: DS.background,
@@ -355,42 +457,22 @@ class _DoctorHomeScreenState extends State<DoctorHomeScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Date selector
+                    // Scheduled / History switcher — kiểu viên thuốc (pill) giống nút
+                    // "Login" ở navbar bản web: bo tròn hoàn toàn + đổ bóng màu primary.
                     Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        GestureDetector(
-                          onTap: _pickDate,
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              const Icon(Icons.calendar_month_rounded, size: 18, color: DS.primary),
-                              const SizedBox(width: 8),
-                              Text(
-                                _selectedDateLabel,
-                                style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: DS.foreground),
-                              ),
-                              const SizedBox(width: 4),
-                              const Icon(Icons.keyboard_arrow_down_rounded, size: 18, color: DS.mutedForeground),
-                            ],
-                          ),
-                        ),
-                        if (!_isToday)
-                          GestureDetector(
-                            onTap: _goToToday,
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                              decoration: BoxDecoration(
-                                color: DS.primary.withValues(alpha: 0.1),
-                                borderRadius: BorderRadius.circular(20),
-                              ),
-                              child: const Text(
-                                'Today',
-                                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: DS.primary),
-                              ),
-                            ),
-                          ),
+                        Expanded(child: _HomeTabChip(label: 'Scheduled', selected: !_showHistory, isFirst: true, onTap: () => _selectTab(false))),
+                        Expanded(child: _HomeTabChip(label: 'History', selected: _showHistory, isFirst: false, onTap: () => _selectTab(true))),
                       ],
+                    ),
+                    const SizedBox(height: 14),
+
+                    if (!_showHistory) ...[
+                    // Calendar tháng — khớp TodayTimeline bên web (Today/Scheduled/Day Off/Empty).
+                    // Mặc định thu gọn, chỉ hiện dòng tóm tắt ngày đang chọn; bấm vào để xổ ra chọn ngày.
+                    DoctorMonthCalendar(
+                      selectedDate: _selectedDate,
+                      onDateChange: _onCalendarDateChange,
                     ),
                     const SizedBox(height: 14),
 
@@ -447,10 +529,7 @@ class _DoctorHomeScreenState extends State<DoctorHomeScreen> {
                       DoctorAppointmentActionCard(
                         appointment: next,
                         highlighted: true,
-                        onStart: () => _startConsultation(next),
-                        onCancel: () => _cancelAppointment(next),
-                        onComplete: () => _openCompleteSheet(next),
-                        onCall: () => _startCall(next),
+                        highlightBadge: _highlightBadgeFor(next),
                         onTap: () => _openDetail(next),
                       ),
                       const SizedBox(height: 20),
@@ -495,6 +574,34 @@ class _DoctorHomeScreenState extends State<DoctorHomeScreen> {
                             ],
                           ),
                           const SizedBox(height: 12),
+                          if (schedule.isNotEmpty) ...[
+                            TextField(
+                              controller: _scheduleSearchController,
+                              onChanged: (v) => setState(() => _scheduleSearch = v),
+                              style: const TextStyle(fontSize: 14, color: DS.foreground),
+                              decoration: InputDecoration(
+                                hintText: 'Search patient...',
+                                hintStyle: const TextStyle(fontSize: 14, color: DS.mutedForeground),
+                                prefixIcon: const Icon(Icons.search, size: 20, color: DS.mutedForeground),
+                                suffixIcon: _scheduleSearch.isEmpty
+                                    ? null
+                                    : IconButton(
+                                        icon: const Icon(Icons.close, size: 18, color: DS.mutedForeground),
+                                        onPressed: () {
+                                          _scheduleSearchController.clear();
+                                          setState(() => _scheduleSearch = '');
+                                        },
+                                      ),
+                                filled: true,
+                                fillColor: DS.background,
+                                contentPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 12),
+                                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: DS.cardBorder)),
+                                enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: DS.cardBorder)),
+                                focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: DS.primary)),
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                          ],
                           if (next == null && schedule.isEmpty)
                             DoctorEmptyState(
                               icon: Icons.event_available,
@@ -509,25 +616,221 @@ class _DoctorHomeScreenState extends State<DoctorHomeScreen> {
                               title: "You're all caught up",
                               subtitle: 'No other appointments waiting today.',
                             )
+                          else if (filteredSchedule.isEmpty)
+                            const DoctorEmptyState(
+                              icon: Icons.search_off,
+                              title: 'No matching appointments',
+                              subtitle: 'Try a different search term.',
+                            )
                           else
-                            ...schedule.take(5).map((a) => Padding(
+                            ...filteredSchedule.map((a) => Padding(
                                   padding: const EdgeInsets.only(bottom: 12),
                                   child: DoctorAppointmentActionCard(
                                     appointment: a,
-                                    onStart: () => _startConsultation(a),
-                                    onCancel: () => _cancelAppointment(a),
-                                    onComplete: () => _openCompleteSheet(a),
-                                    onCall: () => _startCall(a),
                                     onTap: () => _openDetail(a),
                                   ),
                                 )),
                         ],
                       ),
                     ),
+                    ] else
+                      _buildHistoryContent(),
                   ],
                 ),
               ),
             ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ── History tab content ────────────────────────────────────────────────
+
+  Widget _buildHistoryContent() {
+    if (_historyLoading) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: 40),
+        child: Center(child: CircularProgressIndicator(color: DS.primary)),
+      );
+    }
+
+    if (_historyError != null) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 24),
+        child: Center(
+          child: Column(children: [
+            const Icon(Icons.error_outline, size: 32, color: DS.rose600),
+            const SizedBox(height: 8),
+            Text(_historyError!, style: const TextStyle(fontSize: 13, color: DS.mutedForeground), textAlign: TextAlign.center),
+            const SizedBox(height: 12),
+            ElevatedButton.icon(onPressed: _loadHistory, style: DS.primaryButtonStyle, icon: const Icon(Icons.refresh, size: 16), label: const Text('Retry')),
+          ]),
+        ),
+      );
+    }
+
+    final all = _filteredHistory;
+    final totalPages = all.isEmpty ? 1 : ((all.length - 1) ~/ _historyPageSize) + 1;
+    final page = _historyPage.clamp(1, totalPages);
+    final pageItems = all.skip((page - 1) * _historyPageSize).take(_historyPageSize).toList();
+    final dateFilter = _historyDateFilter;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  children: [
+                    DoctorFilterChip(label: 'All (${_historyCountFor('ALL')})', selected: _historyStatusFilter == 'ALL', onTap: () => setState(() { _historyStatusFilter = 'ALL'; _historyPage = 1; })),
+                    const SizedBox(width: 8),
+                    DoctorFilterChip(label: 'Completed (${_historyCountFor('COMPLETED')})', selected: _historyStatusFilter == 'COMPLETED', onTap: () => setState(() { _historyStatusFilter = 'COMPLETED'; _historyPage = 1; })),
+                    const SizedBox(width: 8),
+                    DoctorFilterChip(label: 'Cancelled (${_historyCountFor('CANCELLED')})', selected: _historyStatusFilter == 'CANCELLED', onTap: () => setState(() { _historyStatusFilter = 'CANCELLED'; _historyPage = 1; })),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            GestureDetector(
+              onTap: _pickHistoryDate,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                decoration: BoxDecoration(
+                  color: dateFilter != null ? DS.primary.withValues(alpha: 0.1) : DS.card,
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: dateFilter != null ? DS.primary : DS.cardBorder),
+                ),
+                child: Row(mainAxisSize: MainAxisSize.min, children: [
+                  Icon(Icons.calendar_today, size: 14, color: dateFilter != null ? DS.primary : DS.mutedForeground),
+                  if (dateFilter != null) ...[
+                    const SizedBox(width: 6),
+                    Text(DateFormat('MM/dd').format(dateFilter), style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: DS.primary)),
+                    const SizedBox(width: 4),
+                    GestureDetector(
+                      onTap: () => setState(() { _historyDateFilter = null; _historyPage = 1; }),
+                      child: const Icon(Icons.close, size: 14, color: DS.primary),
+                    ),
+                  ],
+                ]),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 10),
+        TextField(
+          controller: _historySearchController,
+          onChanged: (v) => setState(() { _historySearch = v; _historyPage = 1; }),
+          style: const TextStyle(fontSize: 14, color: DS.foreground),
+          decoration: InputDecoration(
+            hintText: 'Search patient...',
+            hintStyle: const TextStyle(fontSize: 14, color: DS.mutedForeground),
+            prefixIcon: const Icon(Icons.search, size: 20, color: DS.mutedForeground),
+            suffixIcon: _historySearch.isEmpty
+                ? null
+                : IconButton(
+                    icon: const Icon(Icons.close, size: 18, color: DS.mutedForeground),
+                    onPressed: () {
+                      _historySearchController.clear();
+                      setState(() { _historySearch = ''; _historyPage = 1; });
+                    },
+                  ),
+            filled: true,
+            fillColor: DS.card,
+            contentPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 12),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: DS.cardBorder)),
+            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: DS.cardBorder)),
+            focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: DS.primary)),
+          ),
+        ),
+        const SizedBox(height: 14),
+        if (all.isEmpty)
+          DoctorEmptyState(
+            icon: _historyHasRawHistory ? Icons.search_off : Icons.history,
+            title: _historyHasRawHistory ? 'No appointments found' : 'No appointment history',
+            subtitle: _historyHasRawHistory
+                ? 'Try adjusting your filters or date range.'
+                : 'Completed or cancelled appointments will show up here.',
+          )
+        else ...[
+          ...pageItems.map((a) => Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: DoctorAppointmentActionCard(
+                  appointment: a,
+                  showFullDate: true,
+                  onTap: () => _openDetail(a),
+                ),
+              )),
+          if (totalPages > 1)
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                TextButton.icon(
+                  onPressed: page > 1 ? () => setState(() => _historyPage = page - 1) : null,
+                  icon: const Icon(Icons.chevron_left, size: 16),
+                  label: const Text('Prev'),
+                ),
+                Text('$page / $totalPages', style: const TextStyle(fontSize: 12, color: DS.mutedForeground)),
+                TextButton.icon(
+                  onPressed: page < totalPages ? () => setState(() => _historyPage = page + 1) : null,
+                  icon: const Icon(Icons.chevron_right, size: 16),
+                  label: const Text('Next'),
+                ),
+              ],
+            ),
+        ],
+      ],
+    );
+  }
+}
+
+class _HomeTabChip extends StatelessWidget {
+  final String label;
+  final bool selected;
+  final bool isFirst;
+  final VoidCallback onTap;
+
+  const _HomeTabChip({required this.label, required this.selected, required this.isFirst, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final outerRadius = const Radius.circular(50);
+    final borderRadius = isFirst
+        ? BorderRadius.only(topLeft: outerRadius, bottomLeft: outerRadius)
+        : BorderRadius.only(topRight: outerRadius, bottomRight: outerRadius);
+    final borderSide = BorderSide(color: DS.cardBorder);
+
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(vertical: 11),
+        decoration: BoxDecoration(
+          color: selected ? DS.primary : DS.card,
+          borderRadius: borderRadius,
+          border: selected
+              ? null
+              : Border(
+                  top: borderSide,
+                  bottom: borderSide,
+                  left: isFirst ? borderSide : BorderSide.none,
+                  right: isFirst ? BorderSide.none : borderSide,
+                ),
+          boxShadow: selected
+              ? [BoxShadow(color: DS.primary.withValues(alpha: 0.35), blurRadius: 15, offset: const Offset(0, 4))]
+              : null,
+        ),
+        child: Text(
+          label,
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+            color: selected ? DS.primaryForeground : DS.mutedForeground,
           ),
         ),
       ),

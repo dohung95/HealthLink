@@ -5,13 +5,13 @@ import '../../providers/auth_provider.dart';
 import '../../services/doctor/doctor_service.dart';
 import '../../services/patient/patient_service.dart';
 import '../../services/patient/vitals/vital_sign_service.dart';
+import '../../models/doctor/doctor_appointment.dart';
 import '../../models/doctor/doctor_patient.dart';
 import '../../models/patient/patient_profile.dart';
 import '../../config/api_config.dart';
 import '../../config/doctor_theme.dart';
 import '../../widgets/doctor/doctor_widgets.dart';
-import '../../widgets/doctor/document_viewer_screen.dart';
-import '../../widgets/doctor/patient_prescription_detail_view.dart';
+import 'doctor_appointment_detail_screen.dart';
 
 class DoctorPatientDetailScreen extends StatefulWidget {
   const DoctorPatientDetailScreen({super.key, required this.patient});
@@ -34,10 +34,13 @@ class _DoctorPatientDetailScreenState extends State<DoctorPatientDetailScreen>
   bool _loadingVitals = true;
   Map<String, dynamic>? _latestVitals;
 
+  static const int _timelinePageSize = 7;
+  int _timelinePage = 1;
+
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+    _tabController = TabController(length: 2, vsync: this);
     _loadData();
     _loadVitals();
   }
@@ -113,14 +116,6 @@ class _DoctorPatientDetailScreenState extends State<DoctorPatientDetailScreen>
     return DateTime.tryParse(v.toString());
   }
 
-  String _ageFromDob(DateTime? dob) {
-    if (dob == null) return '?';
-    final now = DateTime.now();
-    int age = now.year - dob.year;
-    if (now.month < dob.month || (now.month == dob.month && now.day < dob.day)) age--;
-    return '$age';
-  }
-
   String _formatDate(DateTime? date) {
     if (date == null) return 'Unknown';
     return DateFormat('MMM d, yyyy').format(date);
@@ -153,8 +148,7 @@ class _DoctorPatientDetailScreenState extends State<DoctorPatientDetailScreen>
                             labelStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
                             tabs: const [
                               Tab(text: 'Overview'),
-                              Tab(text: 'Prescriptions'),
-                              Tab(text: 'Documents'),
+                              Tab(text: 'Timeline'),
                             ],
                           ),
                           Expanded(
@@ -162,8 +156,7 @@ class _DoctorPatientDetailScreenState extends State<DoctorPatientDetailScreen>
                               controller: _tabController,
                               children: [
                                 _buildOverviewTab(),
-                                _buildPrescriptionsTab(),
-                                _buildDocumentsTab(),
+                                _buildTimelineTab(),
                               ],
                             ),
                           ),
@@ -212,29 +205,10 @@ class _DoctorPatientDetailScreenState extends State<DoctorPatientDetailScreen>
       const SizedBox(height: 12),
       Text(patient.fullName ?? 'Unknown', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: DS.foreground)),
       const SizedBox(height: 4),
-      Text('${_ageFromDob(patient.dateOfBirth)} years · ${patient.gender ?? 'Unknown'}', style: const TextStyle(fontSize: 14, color: DS.mutedForeground)),
-      const SizedBox(height: 16),
-      Row(children: [
-        Expanded(
-          child: OutlinedButton.icon(
-            onPressed: () {
-              ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Calling ${patient.fullName}...'), behavior: SnackBarBehavior.floating));
-            },
-            icon: const Icon(Icons.phone_outlined, size: 16),
-            label: const Text('Call'),
-            style: DS.outlineButtonStyle,
-          ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: ElevatedButton.icon(
-            onPressed: () {},
-            icon: const Icon(Icons.chat_bubble_outline, size: 16),
-            label: const Text('Chat'),
-            style: DS.primaryButtonStyle,
-          ),
-        ),
-      ]),
+      Text(
+        patient.email ?? patient.phoneNumber ?? 'No contact listed',
+        style: const TextStyle(fontSize: 14, color: DS.mutedForeground),
+      ),
     ]);
   }
 
@@ -252,8 +226,6 @@ class _DoctorPatientDetailScreenState extends State<DoctorPatientDetailScreen>
           const SizedBox(height: 20),
           _buildPatientInfoCard(),
           const SizedBox(height: 20),
-          _buildAllergiesCard(),
-          const SizedBox(height: 20),
           _buildEmergencyContactCard(),
           const SizedBox(height: 20),
           _buildVitalsCard(),
@@ -270,7 +242,7 @@ class _DoctorPatientDetailScreenState extends State<DoctorPatientDetailScreen>
         padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 4),
         decoration: DS.cardDecoration,
         child: Column(children: [
-          Icon(icon, size: 16, color: color),
+          Icon(icon, size: 26, color: color),
           const SizedBox(height: 4),
           Text(value, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: DS.foreground)),
           const SizedBox(height: 2),
@@ -307,43 +279,26 @@ class _DoctorPatientDetailScreenState extends State<DoctorPatientDetailScreen>
         const DoctorSectionLabel('Patient Information'),
         const SizedBox(height: 4),
         const Divider(height: 1, color: DS.border),
-        DoctorInfoRow(icon: Icons.wc_outlined, label: 'Gender', value: data['gender']?.toString() ?? widget.patient.gender ?? 'Not provided'),
-        const Divider(height: 1, color: DS.border),
-        DoctorInfoRow(icon: Icons.phone_outlined, label: 'Phone', value: data['phoneNumber']?.toString() ?? widget.patient.phoneNumber ?? 'Not provided'),
-        const Divider(height: 1, color: DS.border),
-        DoctorInfoRow(icon: Icons.bloodtype_outlined, label: 'Blood Type', value: data['bloodType']?.toString() ?? widget.patient.bloodType ?? 'Not provided'),
-        const Divider(height: 1, color: DS.border),
-        DoctorInfoRow(icon: Icons.cake_outlined, label: 'Date of Birth', value: _formatDate(dob)),
-      ]),
-    );
-  }
-
-  Widget _buildAllergiesCard() {
-    final data = _history ?? {};
-    final allergyList = _splitList(data['allergies']?.toString());
-
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: DS.cardDecoration,
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        const DoctorSectionLabel('Allergies'),
-        const SizedBox(height: 8),
-        if (allergyList.isEmpty)
-          const Text('No known allergies.', style: TextStyle(fontSize: 14, color: DS.mutedForeground))
-        else
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: allergyList.map((allergy) => Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-              decoration: BoxDecoration(color: DS.amber50, borderRadius: BorderRadius.circular(6), border: Border.all(color: DS.amber200)),
-              child: Row(mainAxisSize: MainAxisSize.min, children: [
-                const Icon(Icons.warning_amber, size: 12, color: DS.amber700),
-                const SizedBox(width: 4),
-                Text(allergy, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: DS.amber700)),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: Column(children: [
+                DoctorInfoRow(icon: Icons.wc_outlined, label: 'Gender', value: data['gender']?.toString() ?? widget.patient.gender ?? 'Not provided'),
+                const Divider(height: 1, color: DS.border),
+                DoctorInfoRow(icon: Icons.phone_outlined, label: 'Phone', value: data['phoneNumber']?.toString() ?? widget.patient.phoneNumber ?? 'Not provided'),
               ]),
-            )).toList(),
-          ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(children: [
+                DoctorInfoRow(icon: Icons.bloodtype_outlined, label: 'Blood Type', value: data['bloodType']?.toString() ?? widget.patient.bloodType ?? 'Not provided'),
+                const Divider(height: 1, color: DS.border),
+                DoctorInfoRow(icon: Icons.cake_outlined, label: 'Date of Birth', value: _formatDate(dob)),
+              ]),
+            ),
+          ],
+        ),
       ]),
     );
   }
@@ -351,6 +306,7 @@ class _DoctorPatientDetailScreenState extends State<DoctorPatientDetailScreen>
   Widget _buildEmergencyContactCard() {
     final profile = _patientProfile;
     final hasContact = profile?.emergencyContactName?.isNotEmpty == true;
+    final allergyList = _splitList((_history ?? {})['allergies']?.toString());
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -358,27 +314,75 @@ class _DoctorPatientDetailScreenState extends State<DoctorPatientDetailScreen>
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         const DoctorSectionLabel('Emergency Contact'),
         const SizedBox(height: 10),
-        if (!hasContact)
-          Row(children: [
-            Icon(Icons.add_circle_outline, color: DS.mutedForeground.withValues(alpha: 0.5), size: 28),
-            const SizedBox(width: 12),
-            const Expanded(
-              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text('No emergency contact', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: DS.foreground)),
-                Text('Patient has not provided one yet', style: TextStyle(fontSize: 12, color: DS.mutedForeground)),
-              ]),
-            ),
-          ])
-        else ...[
-          DoctorInfoRow(icon: Icons.person_outline, label: 'Name', value: profile!.emergencyContactName!),
-          if ((profile.emergencyContactRelationship ?? '').isNotEmpty) ...[
-            const Divider(height: 1, color: DS.border),
-            DoctorInfoRow(icon: Icons.badge_outlined, label: 'Relationship', value: profile.emergencyContactRelationship!),
-          ],
-          const Divider(height: 1, color: DS.border),
-          DoctorInfoRow(icon: Icons.phone_outlined, label: 'Phone', value: profile.emergencyContactPhone ?? 'Not provided'),
-        ],
+        IntrinsicHeight(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Expanded(
+                child: !hasContact
+                    ? Row(children: [
+                        Icon(Icons.add_circle_outline, color: DS.mutedForeground.withValues(alpha: 0.5), size: 28),
+                        const SizedBox(width: 12),
+                        const Expanded(
+                          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                            Text('No emergency contact', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: DS.foreground)),
+                            Text('Patient has not provided one yet', style: TextStyle(fontSize: 12, color: DS.mutedForeground)),
+                          ]),
+                        ),
+                      ])
+                    : Column(children: [
+                        DoctorInfoRow(icon: Icons.person_outline, label: 'Name', value: profile!.emergencyContactName!),
+                        if ((profile.emergencyContactRelationship ?? '').isNotEmpty) ...[
+                          const Divider(height: 1, color: DS.border),
+                          DoctorInfoRow(icon: Icons.badge_outlined, label: 'Relationship', value: profile.emergencyContactRelationship!),
+                        ],
+                        const Divider(height: 1, color: DS.border),
+                        DoctorInfoRow(icon: Icons.phone_outlined, label: 'Phone', value: profile.emergencyContactPhone ?? 'Not provided'),
+                      ]),
+              ),
+              const SizedBox(width: 12),
+              Expanded(child: _buildAllergiesColumn(allergyList)),
+            ],
+          ),
+        ),
       ]),
+    );
+  }
+
+  Widget _buildAllergiesColumn(List<String> allergyList) {
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 130),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 10),
+          decoration: BoxDecoration(
+            color: DS.amber50,
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: DS.amber200),
+          ),
+          child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.center, children: [
+            Row(mainAxisSize: MainAxisSize.min, children: [
+              const Icon(Icons.warning_amber_rounded, size: 14, color: DS.amber700),
+              const SizedBox(width: 4),
+              const Text('Allergies', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: DS.amber700)),
+            ]),
+            const SizedBox(height: 6),
+            if (allergyList.isEmpty)
+              const Text('None', style: TextStyle(fontSize: 12, color: DS.mutedForeground))
+            else
+              Wrap(
+                alignment: WrapAlignment.center,
+                spacing: 6,
+                runSpacing: 6,
+                children: allergyList.map((allergy) => Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(color: DS.amber700, borderRadius: BorderRadius.circular(6)),
+                  child: Text(allergy, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Colors.white)),
+                )).toList(),
+              ),
+          ]),
+        ),
+      ),
     );
   }
 
@@ -398,6 +402,31 @@ class _DoctorPatientDetailScreenState extends State<DoctorPatientDetailScreen>
     );
   }
 
+  Widget _buildVitalsRows(List<Widget> badges) {
+    if (badges.isEmpty) return const SizedBox.shrink();
+    final rows = <Widget>[];
+    for (var i = 0; i < badges.length; i += 3) {
+      final rowItems = badges.sublist(i, i + 3 > badges.length ? badges.length : i + 3);
+      rows.add(Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          for (var j = 0; j < rowItems.length; j++) ...[
+            if (j > 0) const SizedBox(width: 8),
+            rowItems[j],
+          ],
+        ],
+      ));
+    }
+    return Column(
+      children: [
+        for (var i = 0; i < rows.length; i++) ...[
+          if (i > 0) const SizedBox(height: 8),
+          rows[i],
+        ],
+      ],
+    );
+  }
+
   Widget _buildVitalsCard() {
     final heightCm = _patientProfile?.heightCm ?? (_history?['heightCm'] as num?)?.toDouble();
     final weightKg = _patientProfile?.weightKg ?? (_history?['weightKg'] as num?)?.toDouble();
@@ -405,6 +434,14 @@ class _DoctorPatientDetailScreenState extends State<DoctorPatientDetailScreen>
         ? (weightKg / ((heightCm / 100) * (heightCm / 100))).toStringAsFixed(1)
         : null;
     final v = _latestVitals;
+
+    final vitalBadges = <Widget>[
+      if (v != null && v['heartRate'] != null) _vitalBadge(Icons.favorite_border, '${v['heartRate']}', 'bpm'),
+      if (v != null && v['bloodPressureSystolic'] != null) _vitalBadge(Icons.monitor_heart_outlined, '${v['bloodPressureSystolic']}/${v['bloodPressureDiastolic'] ?? '?'}', 'mmHg'),
+      if (v != null && v['oxygenSaturation'] != null) _vitalBadge(Icons.air, '${v['oxygenSaturation']}', '%'),
+      if (v != null && v['temperature'] != null) _vitalBadge(Icons.thermostat_outlined, '${v['temperature']}', '°C'),
+      if (v != null && v['respiratoryRate'] != null) _vitalBadge(Icons.waves, '${v['respiratoryRate']}', 'br/pm'),
+    ];
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -417,20 +454,14 @@ class _DoctorPatientDetailScreenState extends State<DoctorPatientDetailScreen>
         else if (v == null)
           const Text('No vitals recorded', style: TextStyle(fontSize: 13, color: DS.mutedForeground))
         else
-          Wrap(spacing: 8, runSpacing: 8, children: [
-            if (v['heartRate'] != null) _vitalBadge(Icons.favorite_border, '${v['heartRate']}', 'bpm'),
-            if (v['bloodPressureSystolic'] != null) _vitalBadge(Icons.monitor_heart_outlined, '${v['bloodPressureSystolic']}/${v['bloodPressureDiastolic'] ?? '?'}', 'mmHg'),
-            if (v['oxygenSaturation'] != null) _vitalBadge(Icons.air, '${v['oxygenSaturation']}', '%'),
-            if (v['temperature'] != null) _vitalBadge(Icons.thermostat_outlined, '${v['temperature']}', '°C'),
-            if (v['respiratoryRate'] != null) _vitalBadge(Icons.waves, '${v['respiratoryRate']}', 'br/pm'),
-          ]),
+          _buildVitalsRows(vitalBadges),
         if (heightCm != null || weightKg != null) ...[
           const SizedBox(height: 12),
           const Divider(height: 1, color: DS.border),
           const SizedBox(height: 8),
           const Text('BODY METRICS', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: DS.mutedForeground, letterSpacing: 0.5)),
           const SizedBox(height: 8),
-          Wrap(spacing: 8, runSpacing: 8, children: [
+          Row(mainAxisAlignment: MainAxisAlignment.spaceEvenly, children: [
             if (heightCm != null) _vitalBadge(Icons.height, heightCm.toStringAsFixed(0), 'cm'),
             if (weightKg != null) _vitalBadge(Icons.monitor_weight_outlined, weightKg.toStringAsFixed(0), 'kg'),
             if (bmi != null) _vitalBadge(Icons.calculate_outlined, bmi, null),
@@ -440,302 +471,119 @@ class _DoctorPatientDetailScreenState extends State<DoctorPatientDetailScreen>
     );
   }
 
-  // ── Prescriptions ───────────────────────────────────────────────────────
+  // ── Timeline ────────────────────────────────────────────────────────────
 
-  Widget _buildPrescriptionsTab() {
-    final prescriptions = (_history?['prescriptions'] as List<dynamic>? ?? [])
-        .map((e) => Map<String, dynamic>.from(e as Map))
-        .toList();
-
-    return RefreshIndicator(
-      onRefresh: _handleRefresh,
-      color: DS.primary,
-      child: prescriptions.isEmpty
-          ? SingleChildScrollView(
-              physics: const AlwaysScrollableScrollPhysics(),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 60),
-                child: Center(
-                  child: Column(children: [
-                    Icon(Icons.medication_outlined, size: 48, color: DS.mutedForeground.withValues(alpha: 0.4)),
-                    const SizedBox(height: 12),
-                    const Text('No prescriptions found', style: TextStyle(color: DS.mutedForeground)),
-                  ]),
-                ),
-              ),
-            )
-          : ListView.builder(
-              padding: const EdgeInsets.all(20),
-              itemCount: prescriptions.length,
-              itemBuilder: (context, index) => _PatientPrescriptionRow(
-                data: prescriptions[index],
-                onTap: () => _openPrescriptionDetail(prescriptions[index]),
-              ),
-            ),
-    );
-  }
-
-  void _openPrescriptionDetail(Map<String, dynamic> prescription) {
+  List<Map<String, dynamic>> _completedAppointments() {
     final appointments = (_history?['appointments'] as List<dynamic>? ?? [])
         .map((e) => Map<String, dynamic>.from(e as Map))
+        .where((a) => a['status']?.toString().toLowerCase() == 'completed')
         .toList();
-
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (_) => PatientPrescriptionDetailView(
-        prescription: prescription,
-        appointments: appointments,
-      ),
-    );
+    appointments.sort((a, b) {
+      final da = _dynDate(a['appointmentTime']) ?? DateTime.fromMillisecondsSinceEpoch(0);
+      final db = _dynDate(b['appointmentTime']) ?? DateTime.fromMillisecondsSinceEpoch(0);
+      return db.compareTo(da);
+    });
+    return appointments;
   }
 
-  // ── Documents ───────────────────────────────────────────────────────────
-  // Lưu ý: BE chỉ trả về document mà patient đã chủ động chia sẻ với bác sĩ
-  // này qua tính năng Share Health Record (HealthRecordShare còn hiệu lực).
-  // Không hiển thị toàn bộ hồ sơ của patient.
+  Widget _buildTimelineTab() {
+    final all = _completedAppointments();
+    final totalPages = all.isEmpty ? 1 : ((all.length - 1) ~/ _timelinePageSize) + 1;
+    final page = _timelinePage.clamp(1, totalPages);
+    final pageItems = all.skip((page - 1) * _timelinePageSize).take(_timelinePageSize).toList();
 
-  Widget _buildDocumentsTab() {
-    final categories = (_history?['documentsByCategory'] as List<dynamic>? ?? [])
-        .map((e) => Map<String, dynamic>.from(e as Map))
-        .toList();
-
-    if (categories.isEmpty) {
-      return const Center(
-        child: Padding(
-          padding: EdgeInsets.symmetric(horizontal: 32),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(Icons.folder_off_outlined, size: 48, color: DS.mutedForeground),
-              SizedBox(height: 12),
-              Text(
-                'No shared documents',
-                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: DS.foreground),
-                textAlign: TextAlign.center,
-              ),
-              SizedBox(height: 6),
-              Text(
-                'This patient has not shared any health record documents with you yet.',
-                style: TextStyle(fontSize: 12, color: DS.mutedForeground),
-                textAlign: TextAlign.center,
-              ),
-            ],
-          ),
-        ),
-      );
-    }
-
-    return ListView.separated(
-      padding: const EdgeInsets.all(20),
-      itemCount: categories.length,
-      separatorBuilder: (_, _) => const SizedBox(height: 10),
-      itemBuilder: (context, index) {
-        final category = categories[index];
-        final documents = (category['documents'] as List<dynamic>? ?? [])
-            .map((e) => Map<String, dynamic>.from(e as Map))
-            .toList();
-        return _DocumentCategoryCard(
-          category: category['category']?.toString() ?? 'Documents',
-          documents: documents,
-          onViewDocument: _viewDocument,
-        );
+    return RefreshIndicator(
+      onRefresh: () async {
+        setState(() => _timelinePage = 1);
+        await _handleRefresh();
       },
-    );
-  }
-
-  void _viewDocument(Map<String, dynamic> document) {
-    final rawLocation = document['fileLocation']?.toString();
-    final url = ApiConfig.normalizeUrl(rawLocation);
-
-    if (url == null || url.isEmpty) {
-      _showSnack('Document file is not available.', isError: true);
-      return;
-    }
-
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => DocumentViewerScreen(
-          url: url,
-          title: document['documentName']?.toString() ?? 'Document',
-          mimeType: document['mimeType']?.toString(),
-        ),
-      ),
-    );
-  }
-
-  void _showSnack(String message, {bool isError = false}) {
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: isError ? DS.destructive : null,
-      ),
-    );
-  }
-}
-
-class _DocumentCategoryCard extends StatefulWidget {
-  final String category;
-  final List<Map<String, dynamic>> documents;
-  final ValueChanged<Map<String, dynamic>> onViewDocument;
-
-  const _DocumentCategoryCard({
-    required this.category,
-    required this.documents,
-    required this.onViewDocument,
-  });
-
-  @override
-  State<_DocumentCategoryCard> createState() => _DocumentCategoryCardState();
-}
-
-class _DocumentCategoryCardState extends State<_DocumentCategoryCard> {
-  bool _expanded = false;
-
-  IconData _iconForDocument(Map<String, dynamic> doc) {
-    final mime = (doc['mimeType']?.toString() ?? '').toLowerCase();
-    final name = (doc['documentName']?.toString() ?? '').toLowerCase();
-    if (mime.contains('pdf') || name.endsWith('.pdf')) return Icons.picture_as_pdf_outlined;
-    if (mime.contains('image') || name.endsWith('.png') || name.endsWith('.jpg') || name.endsWith('.jpeg')) {
-      return Icons.image_outlined;
-    }
-    if (mime.contains('word') || name.endsWith('.doc') || name.endsWith('.docx')) return Icons.description_outlined;
-    return Icons.insert_drive_file_outlined;
-  }
-
-  String? _formatDate(dynamic raw) {
-    if (raw == null) return null;
-    final dt = DateTime.tryParse(raw.toString());
-    if (dt == null) return null;
-    return DateFormat('dd MMM yyyy').format(dt);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final count = widget.documents.length;
-    return Container(
-      decoration: DS.cardDecoration,
-      clipBehavior: Clip.antiAlias,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          InkWell(
-            onTap: () => setState(() => _expanded = !_expanded),
-            child: Padding(
-              padding: const EdgeInsets.all(14),
-              child: Row(children: [
-                Container(
-                  width: 38,
-                  height: 38,
-                  decoration: BoxDecoration(color: DS.primary.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(10)),
-                  child: const Icon(Icons.folder_outlined, color: DS.primary, size: 18),
-                ),
-                const SizedBox(width: 12),
-                Expanded(child: Text(widget.category, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: DS.foreground))),
-                Text('$count document${count == 1 ? '' : 's'}', style: const TextStyle(fontSize: 12, color: DS.mutedForeground)),
-                const SizedBox(width: 6),
-                Icon(_expanded ? Icons.expand_less : Icons.expand_more, size: 20, color: DS.mutedForeground),
-              ]),
-            ),
-          ),
-          if (_expanded)
-            Column(
-              children: widget.documents.map((doc) {
-                final dateStr = _formatDate(doc['documentDate']) ?? _formatDate(doc['uploadedAt']);
-                return InkWell(
-                  onTap: () => widget.onViewDocument(doc),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                    decoration: const BoxDecoration(
-                      border: Border(top: BorderSide(color: DS.cardBorder, width: 1)),
-                    ),
-                    child: Row(children: [
-                      Icon(_iconForDocument(doc), size: 18, color: DS.mutedForeground),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              doc['documentName']?.toString() ?? 'Document',
-                              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: DS.foreground),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                            if (dateStr != null)
-                              Padding(
-                                padding: const EdgeInsets.only(top: 2),
-                                child: Text(dateStr, style: const TextStyle(fontSize: 11, color: DS.mutedForeground)),
-                              ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      const Icon(Icons.chevron_right, size: 18, color: DS.mutedForeground),
-                    ]),
-                  ),
-                );
-              }).toList(),
-            ),
-        ],
-      ),
-    );
-  }
-}
-
-class _PatientPrescriptionRow extends StatelessWidget {
-  final Map<String, dynamic> data;
-  final VoidCallback onTap;
-
-  const _PatientPrescriptionRow({required this.data, required this.onTap});
-
-  Color _statusColor(String status) {
-    switch (status) {
-      case 'ACTIVE':
-        return DS.emerald600;
-      case 'ISSUED':
-        return DS.amber600;
-      default:
-        return DS.mutedForeground;
-    }
-  }
-
-  String _formatDate(dynamic raw) {
-    if (raw == null) return '—';
-    final dt = DateTime.tryParse(raw.toString());
-    if (dt == null) return raw.toString();
-    return DateFormat('dd MMM yyyy').format(dt);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final status = (data['status']?.toString() ?? 'ISSUED').toUpperCase();
-    final rxId = data['prescriptionHeaderId'] != null
-        ? 'RX-${data['prescriptionHeaderId'].toString().padLeft(4, '0')}'
-        : 'RX-0000';
-    final items = data['items'] as List<dynamic>? ?? [];
-    final diagnosis = data['diagnosis']?.toString() ?? '';
-
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 10),
-        padding: const EdgeInsets.all(14),
-        decoration: DS.cardDecoration,
+      color: DS.primary,
+      child: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.all(20),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Row(children: [
-            Text(_formatDate(data['createdAt'] ?? data['issueDate']), style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: DS.primary)),
-            const Spacer(),
-            Container(width: 8, height: 8, decoration: BoxDecoration(color: _statusColor(status), shape: BoxShape.circle)),
-          ]),
-          const SizedBox(height: 4),
-          Text(rxId, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: DS.foreground)),
-          const SizedBox(height: 2),
-          Text(diagnosis.isNotEmpty ? diagnosis : '${items.length} medication(s)', style: const TextStyle(fontSize: 13, color: DS.mutedForeground), maxLines: 1, overflow: TextOverflow.ellipsis),
+          const DoctorSectionLabel('Timeline'),
+          const SizedBox(height: 12),
+          if (all.isEmpty)
+            const Text('No completed appointments yet.', style: TextStyle(fontSize: 13, color: DS.mutedForeground))
+          else ...[
+            ...pageItems.map((item) => _TimelineRow(
+                  data: item,
+                  onView: () => _openAppointmentDetail(item),
+                )),
+            if (totalPages > 1) ...[
+              const SizedBox(height: 8),
+              const Divider(height: 1, color: DS.border),
+              const SizedBox(height: 8),
+              Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                TextButton.icon(
+                  onPressed: page > 1 ? () => setState(() => _timelinePage = page - 1) : null,
+                  icon: const Icon(Icons.chevron_left, size: 16),
+                  label: const Text('Prev'),
+                ),
+                Text('$page / $totalPages', style: const TextStyle(fontSize: 12, color: DS.mutedForeground)),
+                TextButton.icon(
+                  onPressed: page < totalPages ? () => setState(() => _timelinePage = page + 1) : null,
+                  icon: const Icon(Icons.chevron_right, size: 16),
+                  label: const Text('Next'),
+                ),
+              ]),
+            ],
+          ],
         ]),
       ),
+    );
+  }
+
+  void _openAppointmentDetail(Map<String, dynamic> item) {
+    final appointment = DoctorAppointment.fromJson(item);
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => DoctorAppointmentDetailScreen(appointment: appointment)),
+    );
+  }
+}
+
+class _TimelineRow extends StatelessWidget {
+  final Map<String, dynamic> data;
+  final VoidCallback onView;
+
+  const _TimelineRow({required this.data, required this.onView});
+
+  String _formatDateTime(dynamic raw) {
+    if (raw == null) return 'N/A';
+    final dt = DateTime.tryParse(raw.toString());
+    if (dt == null) return 'N/A';
+    return DateFormat('MMM d, yyyy · h:mm a').format(dt);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final type = data['consultationType']?.toString() ?? 'Consultation';
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(14),
+      decoration: DS.cardDecoration,
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text(_formatDateTime(data['appointmentTime']), style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: DS.foreground)),
+        const SizedBox(height: 8),
+        Row(children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+            decoration: BoxDecoration(color: DS.secondary, borderRadius: BorderRadius.circular(6)),
+            child: Text(type, style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: DS.mutedForeground)),
+          ),
+          const SizedBox(width: 8),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+            decoration: BoxDecoration(color: DS.emerald600.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(6)),
+            child: const Text('Completed', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: DS.emerald600)),
+          ),
+          const Spacer(),
+          TextButton(onPressed: onView, child: const Text('View')),
+        ]),
+      ]),
     );
   }
 }

@@ -337,6 +337,11 @@ export const commissionApi = {
     return response.data;
   },
 
+  getDashboardMonthly: async (year) => {
+    const response = await adminApi.get('/commission/dashboard/monthly', { params: { year } });
+    return response.data;
+  },
+
   getConfigs: async () => {
     const response = await adminApi.get('/commission/configs');
     return response.data;
@@ -400,6 +405,11 @@ export const commissionApi = {
     return response.data;
   },
 
+  getPartnerHistory: async (type, id) => {
+    const response = await adminApi.get(`/commission/partners/${type}/${id}/history`);
+    return response.data;
+  },
+
   updatePartnerCommission: async (type, id, data) => {
     const response = await adminApi.put(`/commission/partners/${type}/${id}`, data);
     return response.data;
@@ -439,6 +449,13 @@ export const financialApi = {
 
   getRevenueByDay: async (year = 0, month = 0) => {
     const response = await adminApi.get('/financial/revenue-by-day', {
+      params: { year, month }
+    });
+    return response.data;
+  },
+
+  getRevenueByWeek: async (year = 0, month = 0) => {
+    const response = await adminApi.get('/financial/revenue-by-week', {
       params: { year, month }
     });
     return response.data;

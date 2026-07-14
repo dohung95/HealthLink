@@ -146,11 +146,50 @@ public class ChatServiceImpl implements ChatService {
     // Lấy phòng chat theo ID
     // -------------------------------------------------------------------------
     @Override
-    @Transactional(readOnly = true)
+    @Transactional
     public ChatRoomDTO getRoomById(String chatRoomId, String userId) {
         ChatRoom room = chatRoomRepository.findById(chatRoomId)
                 .orElseThrow(() -> new ResourceNotFoundException("ChatRoom", "id", chatRoomId));
+
+        syncLatestAppointment(room);
+
         return toRoomDTO(room, userId);
+    }
+
+    private void syncLatestAppointment(ChatRoom room) {
+        try {
+            User user1 = userRepository.findById(room.getUser1Id()).orElse(null);
+            User user2 = userRepository.findById(room.getUser2Id()).orElse(null);
+
+            if (user1 == null || user2 == null) return;
+
+            String doctorId = null;
+            String patientId = null;
+
+            if (user1.getDoctor() != null) doctorId = user1.getId();
+            else if (user1.getPatient() != null) patientId = user1.getId();
+
+            if (user2.getDoctor() != null) doctorId = user2.getId();
+            else if (user2.getPatient() != null) patientId = user2.getId();
+
+            if (doctorId != null && patientId != null) {
+                List<Appointment> apps = appointmentRepository.findDoctorPatientAppointments(doctorId, patientId);
+                if (!apps.isEmpty()) {
+                    // Pick the first appointment that is not CANCELLED if possible
+                    Appointment latest = apps.stream()
+                        .filter(a -> !"CANCELLED".equalsIgnoreCase(a.getStatus()))
+                        .findFirst()
+                        .orElse(apps.get(0));
+
+                    if (room.getAppointment() == null || !room.getAppointment().getAppointmentId().equals(latest.getAppointmentId())) {
+                        room.setAppointment(latest);
+                        chatRoomRepository.save(room);
+                    }
+                }
+            }
+        } catch (Exception e) {
+            System.err.println("Error auto-syncing appointment for chat room: " + e.getMessage());
+        }
     }
 
     // -------------------------------------------------------------------------

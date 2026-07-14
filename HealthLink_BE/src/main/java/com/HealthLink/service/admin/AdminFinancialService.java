@@ -21,7 +21,10 @@ public class AdminFinancialService {
     private EntityManager entityManager;
 
     /**
-     * Get financial overview statistics
+     * Get financial overview statistics.
+     * Gộp cả doanh thu Doctor (Appointments) và Pharmacy (PharmacyOrders):
+     * Total Revenue / Platform Fees / Transactions = tổng 2 nguồn; Doctor Earnings
+     * và Pharmacy Earnings tách riêng theo từng nguồn.
      */
     public FinancialOverviewDto getFinancialOverview() {
         LocalDate today = LocalDate.now();
@@ -29,64 +32,100 @@ public class AdminFinancialService {
         LocalDate startOfMonth = today.withDayOfMonth(1);
         LocalDate startOfLastMonth = startOfMonth.minusMonths(1);
 
-        // Total revenue from completed appointments
-        String totalRevenueSql = "SELECT COALESCE(SUM(Fee), 0) FROM Appointments WHERE LOWER(Status) = 'completed'";
-        BigDecimal totalRevenue = getBigDecimalResult(totalRevenueSql);
+        // ── Doctor (Appointments) ───────────────────────────────────────────
+        BigDecimal doctorRevenue = getBigDecimalResult(
+                "SELECT COALESCE(SUM(Fee), 0) FROM Appointments WHERE LOWER(Status) = 'completed'");
 
-        // Platform fees (assuming 10% commission rate if not stored)
-        String platformFeesSql = "SELECT COALESCE(SUM(i.PlatformFee), 0) FROM Invoices i WHERE i.Status = 'PAID'";
-        BigDecimal platformFees = getBigDecimalResult(platformFeesSql);
-        if (platformFees.compareTo(BigDecimal.ZERO) == 0) {
-            // Estimate platform fees as 10% of total revenue
-            platformFees = totalRevenue.multiply(new BigDecimal("0.10"));
+        BigDecimal doctorPlatformFee = getBigDecimalResult(
+                "SELECT COALESCE(SUM(i.PlatformFee), 0) FROM Invoices i " +
+                        "WHERE i.AppointmentId IS NOT NULL AND UPPER(i.Status) = 'PAID'");
+        if (doctorPlatformFee.compareTo(BigDecimal.ZERO) == 0) {
+            // Chưa có Invoice nào khớp (dữ liệu thưa) -> ước tính 10% doanh thu doctor
+            doctorPlatformFee = doctorRevenue.multiply(new BigDecimal("0.10"));
         }
+        BigDecimal doctorEarnings = doctorRevenue.subtract(doctorPlatformFee);
 
-        // Doctor earnings
-        BigDecimal doctorEarnings = totalRevenue.subtract(platformFees);
+        // ── Pharmacy (PharmacyOrders) ───────────────────────────────────────
+        BigDecimal pharmacyRevenue = getBigDecimalResult(
+                "SELECT COALESCE(SUM(totalAmount), 0) FROM PharmacyOrders WHERE UPPER(paymentStatus) = 'PAID'");
 
-        // Today's revenue
-        String todayRevenueSql = "SELECT COALESCE(SUM(Fee), 0) FROM Appointments " +
-                "WHERE LOWER(Status) = 'completed' AND CAST(AppointmentTime AS DATE) = :today";
-        Query todayQuery = entityManager.createNativeQuery(todayRevenueSql);
-        todayQuery.setParameter("today", today);
-        BigDecimal todayRevenue = new BigDecimal(todayQuery.getSingleResult().toString());
+        // platformFee/pharmacyEarning của PharmacyOrders được FeeCalculatorService tính và
+        // lưu ngay tại thời điểm capture PayPal, không phụ thuộc Invoice có tồn tại hay không.
+        BigDecimal pharmacyPlatformFee = getBigDecimalResult(
+                "SELECT COALESCE(SUM(platformFee), 0) FROM PharmacyOrders WHERE UPPER(paymentStatus) = 'PAID'");
+        BigDecimal pharmacyEarnings = getBigDecimalResult(
+                "SELECT COALESCE(SUM(pharmacyEarning), 0) FROM PharmacyOrders WHERE UPPER(paymentStatus) = 'PAID'");
+
+        // ── Tổng hợp Doctor + Pharmacy ──────────────────────────────────────
+        BigDecimal totalRevenue = doctorRevenue.add(pharmacyRevenue);
+        BigDecimal platformFees = doctorPlatformFee.add(pharmacyPlatformFee);
+
+        // Today's revenue (doctor + pharmacy)
+        BigDecimal todayRevenue = getDateFilteredSum(
+                "SELECT COALESCE(SUM(Fee), 0) FROM Appointments " +
+                        "WHERE LOWER(Status) = 'completed' AND CAST(AppointmentTime AS DATE) = :d", today)
+                .add(getDateFilteredSum(
+                        "SELECT COALESCE(SUM(totalAmount), 0) FROM PharmacyOrders " +
+                                "WHERE UPPER(paymentStatus) = 'PAID' AND CAST(createdAt AS DATE) = :d", today));
 
         // This week's revenue
-        String weekRevenueSql = "SELECT COALESCE(SUM(Fee), 0) FROM Appointments " +
-                "WHERE LOWER(Status) = 'completed' AND CAST(AppointmentTime AS DATE) >= :startOfWeek";
-        Query weekQuery = entityManager.createNativeQuery(weekRevenueSql);
-        weekQuery.setParameter("startOfWeek", startOfWeek);
-        BigDecimal thisWeekRevenue = new BigDecimal(weekQuery.getSingleResult().toString());
+        BigDecimal thisWeekRevenue = getDateFilteredSum(
+                "SELECT COALESCE(SUM(Fee), 0) FROM Appointments " +
+                        "WHERE LOWER(Status) = 'completed' AND CAST(AppointmentTime AS DATE) >= :d", startOfWeek)
+                .add(getDateFilteredSum(
+                        "SELECT COALESCE(SUM(totalAmount), 0) FROM PharmacyOrders " +
+                                "WHERE UPPER(paymentStatus) = 'PAID' AND CAST(createdAt AS DATE) >= :d", startOfWeek));
 
         // This month's revenue
-        String monthRevenueSql = "SELECT COALESCE(SUM(Fee), 0) FROM Appointments " +
-                "WHERE LOWER(Status) = 'completed' AND CAST(AppointmentTime AS DATE) >= :startOfMonth";
-        Query monthQuery = entityManager.createNativeQuery(monthRevenueSql);
-        monthQuery.setParameter("startOfMonth", startOfMonth);
-        BigDecimal thisMonthRevenue = new BigDecimal(monthQuery.getSingleResult().toString());
+        BigDecimal thisMonthRevenue = getDateFilteredSum(
+                "SELECT COALESCE(SUM(Fee), 0) FROM Appointments " +
+                        "WHERE LOWER(Status) = 'completed' AND CAST(AppointmentTime AS DATE) >= :d", startOfMonth)
+                .add(getDateFilteredSum(
+                        "SELECT COALESCE(SUM(totalAmount), 0) FROM PharmacyOrders " +
+                                "WHERE UPPER(paymentStatus) = 'PAID' AND CAST(createdAt AS DATE) >= :d", startOfMonth));
+
+        // Breakdown theo kỳ (Today / This Month) — dùng cho mini chart "Cụm A"
+        PeriodFinancials todayFinancials = computePeriodFinancials(today, today.plusDays(1));
+        PeriodFinancials thisMonthFinancials = computePeriodFinancials(startOfMonth, startOfMonth.plusMonths(1));
 
         // Last month's revenue (for growth calculation)
-        String lastMonthRevenueSql = "SELECT COALESCE(SUM(Fee), 0) FROM Appointments " +
-                "WHERE LOWER(Status) = 'completed' " +
-                "AND CAST(AppointmentTime AS DATE) >= :startOfLastMonth " +
-                "AND CAST(AppointmentTime AS DATE) < :startOfMonth";
-        Query lastMonthQuery = entityManager.createNativeQuery(lastMonthRevenueSql);
-        lastMonthQuery.setParameter("startOfLastMonth", startOfLastMonth);
-        lastMonthQuery.setParameter("startOfMonth", startOfMonth);
-        BigDecimal lastMonthRevenue = new BigDecimal(lastMonthQuery.getSingleResult().toString());
+        Query lastMonthApptQuery = entityManager.createNativeQuery(
+                "SELECT COALESCE(SUM(Fee), 0) FROM Appointments " +
+                        "WHERE LOWER(Status) = 'completed' " +
+                        "AND CAST(AppointmentTime AS DATE) >= :startOfLastMonth " +
+                        "AND CAST(AppointmentTime AS DATE) < :startOfMonth");
+        lastMonthApptQuery.setParameter("startOfLastMonth", startOfLastMonth);
+        lastMonthApptQuery.setParameter("startOfMonth", startOfMonth);
+        Query lastMonthPharmacyQuery = entityManager.createNativeQuery(
+                "SELECT COALESCE(SUM(totalAmount), 0) FROM PharmacyOrders " +
+                        "WHERE UPPER(paymentStatus) = 'PAID' " +
+                        "AND CAST(createdAt AS DATE) >= :startOfLastMonth " +
+                        "AND CAST(createdAt AS DATE) < :startOfMonth");
+        lastMonthPharmacyQuery.setParameter("startOfLastMonth", startOfLastMonth);
+        lastMonthPharmacyQuery.setParameter("startOfMonth", startOfMonth);
+        BigDecimal lastMonthRevenue = new BigDecimal(lastMonthApptQuery.getSingleResult().toString())
+                .add(new BigDecimal(lastMonthPharmacyQuery.getSingleResult().toString()));
 
-        // Transaction counts
-        String totalTransSql = "SELECT COUNT(*) FROM Appointments WHERE Fee IS NOT NULL AND Fee > 0";
-        long totalTransactions = getLongResult(totalTransSql);
+        // Transaction counts (doctor + pharmacy)
+        long totalTransactions = getLongResult(
+                "SELECT COUNT(*) FROM Appointments WHERE Fee IS NOT NULL AND Fee > 0")
+                + getLongResult(
+                "SELECT COUNT(*) FROM PharmacyOrders WHERE totalAmount IS NOT NULL AND totalAmount > 0");
 
-        String completedTransSql = "SELECT COUNT(*) FROM Appointments WHERE LOWER(Status) = 'completed'";
-        long completedTransactions = getLongResult(completedTransSql);
+        long completedTransactions = getLongResult(
+                "SELECT COUNT(*) FROM Appointments WHERE LOWER(Status) = 'completed'")
+                + getLongResult(
+                "SELECT COUNT(*) FROM PharmacyOrders WHERE UPPER(paymentStatus) = 'PAID'");
 
-        String pendingTransSql = "SELECT COUNT(*) FROM Appointments WHERE LOWER(Status) IN ('scheduled', 'pending', 'in progress')";
-        long pendingTransactions = getLongResult(pendingTransSql);
+        long pendingTransactions = getLongResult(
+                "SELECT COUNT(*) FROM Appointments WHERE LOWER(Status) IN ('scheduled', 'pending', 'in progress')")
+                + getLongResult(
+                "SELECT COUNT(*) FROM PharmacyOrders WHERE UPPER(paymentStatus) = 'PENDING'");
 
-        String failedTransSql = "SELECT COUNT(*) FROM Appointments WHERE LOWER(Status) = 'cancelled'";
-        long failedTransactions = getLongResult(failedTransSql);
+        long failedTransactions = getLongResult(
+                "SELECT COUNT(*) FROM Appointments WHERE LOWER(Status) = 'cancelled'")
+                + getLongResult(
+                "SELECT COUNT(*) FROM PharmacyOrders WHERE UPPER(paymentStatus) IN ('REFUNDED', 'CANCELLED')");
 
         // Average transaction value
         BigDecimal averageTransactionValue = BigDecimal.ZERO;
@@ -107,10 +146,16 @@ public class AdminFinancialService {
                 .totalRevenue(totalRevenue)
                 .platformFees(platformFees)
                 .doctorEarnings(doctorEarnings)
-                .pharmacyEarnings(BigDecimal.ZERO) // TODO: Implement pharmacy earnings
+                .pharmacyEarnings(pharmacyEarnings)
                 .todayRevenue(todayRevenue)
                 .thisWeekRevenue(thisWeekRevenue)
                 .thisMonthRevenue(thisMonthRevenue)
+                .todayPlatformFees(todayFinancials.platformFees)
+                .todayDoctorEarnings(todayFinancials.doctorEarnings)
+                .todayPharmacyEarnings(todayFinancials.pharmacyEarnings)
+                .thisMonthPlatformFees(thisMonthFinancials.platformFees)
+                .thisMonthDoctorEarnings(thisMonthFinancials.doctorEarnings)
+                .thisMonthPharmacyEarnings(thisMonthFinancials.pharmacyEarnings)
                 .totalTransactions(totalTransactions)
                 .completedTransactions(completedTransactions)
                 .pendingTransactions(pendingTransactions)
@@ -118,6 +163,76 @@ public class AdminFinancialService {
                 .averageTransactionValue(averageTransactionValue)
                 .revenueGrowthPercent(revenueGrowthPercent)
                 .build();
+    }
+
+    private BigDecimal getDateFilteredSum(String sql, LocalDate date) {
+        Query query = entityManager.createNativeQuery(sql);
+        query.setParameter("d", date);
+        Object result = query.getSingleResult();
+        return result != null ? new BigDecimal(result.toString()) : BigDecimal.ZERO;
+    }
+
+    private BigDecimal getRangeSum(String sql, LocalDate fromInclusive, LocalDate toExclusive) {
+        Query query = entityManager.createNativeQuery(sql);
+        query.setParameter("from", fromInclusive);
+        query.setParameter("to", toExclusive);
+        Object result = query.getSingleResult();
+        return result != null ? new BigDecimal(result.toString()) : BigDecimal.ZERO;
+    }
+
+    /**
+     * Gộp Doctor + Pharmacy trong khoảng [fromInclusive, toExclusive) — dùng cho
+     * breakdown Today/This Month của mini chart "Cụm A".
+     */
+    private PeriodFinancials computePeriodFinancials(LocalDate fromInclusive, LocalDate toExclusive) {
+        BigDecimal doctorRevenue = getRangeSum(
+                "SELECT COALESCE(SUM(Fee), 0) FROM Appointments WHERE LOWER(Status) = 'completed' " +
+                        "AND CAST(AppointmentTime AS DATE) >= :from AND CAST(AppointmentTime AS DATE) < :to",
+                fromInclusive, toExclusive);
+
+        BigDecimal doctorPlatformFee = getRangeSum(
+                "SELECT COALESCE(SUM(i.PlatformFee), 0) FROM Invoices i " +
+                        "JOIN Appointments a ON i.AppointmentId = a.AppointmentID " +
+                        "WHERE UPPER(i.Status) = 'PAID' AND LOWER(a.Status) = 'completed' " +
+                        "AND CAST(a.AppointmentTime AS DATE) >= :from AND CAST(a.AppointmentTime AS DATE) < :to",
+                fromInclusive, toExclusive);
+        if (doctorPlatformFee.compareTo(BigDecimal.ZERO) == 0 && doctorRevenue.compareTo(BigDecimal.ZERO) > 0) {
+            doctorPlatformFee = doctorRevenue.multiply(new BigDecimal("0.10"));
+        }
+        BigDecimal doctorEarnings = doctorRevenue.subtract(doctorPlatformFee);
+
+        BigDecimal pharmacyRevenue = getRangeSum(
+                "SELECT COALESCE(SUM(totalAmount), 0) FROM PharmacyOrders WHERE UPPER(paymentStatus) = 'PAID' " +
+                        "AND CAST(createdAt AS DATE) >= :from AND CAST(createdAt AS DATE) < :to",
+                fromInclusive, toExclusive);
+        BigDecimal pharmacyPlatformFee = getRangeSum(
+                "SELECT COALESCE(SUM(platformFee), 0) FROM PharmacyOrders WHERE UPPER(paymentStatus) = 'PAID' " +
+                        "AND CAST(createdAt AS DATE) >= :from AND CAST(createdAt AS DATE) < :to",
+                fromInclusive, toExclusive);
+        BigDecimal pharmacyEarnings = getRangeSum(
+                "SELECT COALESCE(SUM(pharmacyEarning), 0) FROM PharmacyOrders WHERE UPPER(paymentStatus) = 'PAID' " +
+                        "AND CAST(createdAt AS DATE) >= :from AND CAST(createdAt AS DATE) < :to",
+                fromInclusive, toExclusive);
+
+        BigDecimal totalRevenue = doctorRevenue.add(pharmacyRevenue);
+        BigDecimal platformFees = doctorPlatformFee.add(pharmacyPlatformFee);
+
+        return new PeriodFinancials(totalRevenue, platformFees, doctorEarnings, pharmacyEarnings);
+    }
+
+    private static class PeriodFinancials {
+        final BigDecimal totalRevenue;
+        final BigDecimal platformFees;
+        final BigDecimal doctorEarnings;
+        final BigDecimal pharmacyEarnings;
+
+        PeriodFinancials(BigDecimal totalRevenue, BigDecimal platformFees,
+                          BigDecimal doctorEarnings, BigDecimal pharmacyEarnings) {
+            this.totalRevenue = totalRevenue;
+            this.platformFees = platformFees;
+            this.doctorEarnings = doctorEarnings;
+            this.pharmacyEarnings = pharmacyEarnings;
+        }
     }
 
     /**
@@ -292,6 +407,67 @@ public class AdminFinancialService {
                 .build();
     }
 
+    /**
+     * Get revenue by week for a specific month (week 1-5, chia theo CEILING(day/7))
+     */
+    public RevenueByWeekDto getRevenueByWeek(int year, int month) {
+        if (year == 0) {
+            year = LocalDate.now().getYear();
+        }
+        if (month == 0) {
+            month = LocalDate.now().getMonthValue();
+        }
+
+        String sql = "SELECT CEILING(DAY(AppointmentTime) / 7.0) as week, " +
+                "COALESCE(SUM(Fee), 0) as revenue, " +
+                "COUNT(*) as transactionCount " +
+                "FROM Appointments " +
+                "WHERE YEAR(AppointmentTime) = :year " +
+                "AND MONTH(AppointmentTime) = :month " +
+                "AND LOWER(Status) = 'completed' " +
+                "GROUP BY CEILING(DAY(AppointmentTime) / 7.0) " +
+                "ORDER BY week";
+
+        Query query = entityManager.createNativeQuery(sql);
+        query.setParameter("year", year);
+        query.setParameter("month", month);
+
+        @SuppressWarnings("unchecked")
+        List<Object[]> results = query.getResultList();
+
+        Map<Integer, BigDecimal> weekRevenue = new LinkedHashMap<>();
+        Map<Integer, Long> weekTransactions = new LinkedHashMap<>();
+        for (int i = 1; i <= 5; i++) {
+            weekRevenue.put(i, BigDecimal.ZERO);
+            weekTransactions.put(i, 0L);
+        }
+
+        for (Object[] row : results) {
+            int week = ((Number) row[0]).intValue();
+            BigDecimal revenue = new BigDecimal(row[1].toString());
+            long count = ((Number) row[2]).longValue();
+            if (week >= 1 && week <= 5) {
+                weekRevenue.put(week, revenue);
+                weekTransactions.put(week, count);
+            }
+        }
+
+        List<RevenueByWeekDto.WeeklyRevenueData> data = new ArrayList<>();
+        for (int i = 1; i <= 5; i++) {
+            data.add(RevenueByWeekDto.WeeklyRevenueData.builder()
+                    .week("Week " + i)
+                    .revenue(weekRevenue.get(i))
+                    .transactionCount(weekTransactions.get(i))
+                    .build());
+        }
+
+        return RevenueByWeekDto.builder()
+                .year(year)
+                .month(month)
+                .data(data)
+                .build();
+    }
+
     // Helper methods
     private BigDecimal getBigDecimalResult(String sql) {
         Query query = entityManager.createNativeQuery(sql);
@@ -305,8 +481,8 @@ public class AdminFinancialService {
         return result != null ? ((Number) result).longValue() : 0L;
     }
 
-    private void setQueryParameters(Query query, String status, LocalDate fromDate,
-                                    LocalDate toDate, String searchTerm) {
+    private void setQueryParameters(Query query, String status,
+                                    LocalDate fromDate, LocalDate toDate, String searchTerm) {
         if (status != null && !status.isEmpty()) {
             query.setParameter("status", status);
         }

@@ -18,11 +18,14 @@ import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.TreeMap;
 import com.HealthLink.repository.admin.commission.AdminCommissionConfigRepository;
 import com.HealthLink.repository.admin.commission.AdminCommissionTransactionRepository;
 import com.HealthLink.service.admin.AdminAuditLogService;
@@ -359,26 +362,123 @@ public class AdminCommissionServiceImpl implements AdminCommissionService {
 
     @Override
     public AdminCommissionDashboardDto getDashboard() {
-        LocalDateTime oneYearAgo = LocalDateTime.now().minusYears(1);
-        List<AdminRecipientSummaryDto> topDoctors = transactionRepo.getTopPendingByType("DOCTOR", PageRequest.of(0, 5));
-        List<AdminRecipientSummaryDto> topPharmacies = transactionRepo.getTopPendingByType("PHARMACY", PageRequest.of(0, 5));
+        LocalDateTime now = LocalDateTime.now();
+
+        BigDecimal doctorGross = BigDecimal.ZERO;
+        BigDecimal doctorCommission = BigDecimal.ZERO;
+        BigDecimal pharmacyGross = BigDecimal.ZERO;
+        BigDecimal pharmacyCommission = BigDecimal.ZERO;
+        BigDecimal totalPending = BigDecimal.ZERO;
+        long totalTransactions = 0;
+        Map<Integer, AdminYearlyCommissionDto> yearlyMap = new TreeMap<>();
+        List<AdminRecipientSummaryDto> doctorPending = new ArrayList<>();
+        List<AdminRecipientSummaryDto> pharmacyPending = new ArrayList<>();
+
+        for (Doctor doctor : doctorRepo.findAll()) {
+            String doctorId = doctor.getDoctorId();
+            BigDecimal onlineRate = resolveEffectiveDoctorRate(doctor, "CONSULTATION_ONLINE", now);
+            BigDecimal offlineRate = resolveEffectiveDoctorRate(doctor, "CONSULTATION_HOME_VISIT", now);
+
+            PartnerFinancials fin = computeDoctorFinancials(doctorId, onlineRate, offlineRate);
+            doctorGross = doctorGross.add(fin.grossRevenue);
+            doctorCommission = doctorCommission.add(fin.commissionAmount);
+            totalPending = totalPending.add(fin.pendingSettlement);
+            totalTransactions += adminAppointmentRepo.countByDoctorAndStatusAndType(doctorId, COMPLETED_STATUSES, ONLINE_TYPES)
+                + adminAppointmentRepo.countByDoctorAndStatusAndType(doctorId, COMPLETED_STATUSES, OFFLINE_TYPES);
+
+            if (fin.pendingSettlement.compareTo(BigDecimal.ZERO) > 0) {
+                doctorPending.add(AdminRecipientSummaryDto.builder()
+                    .recipientId(doctorId).recipientName(doctor.getFullName()).recipientType("DOCTOR")
+                    .totalGross(fin.grossRevenue).totalCommission(fin.commissionAmount).totalNet(fin.netEarnings)
+                    .pendingAmount(fin.pendingSettlement).transactionCount(0L)
+                    .build());
+            }
+
+            accumulateYearlyBuckets(yearlyMap,
+                adminAppointmentRepo.sumCompletedFeeByDoctorGroupedByYearMonth(doctorId, ONLINE_TYPES, OFFLINE_TYPES),
+                onlineRate, offlineRate, true);
+        }
+
+        for (Pharmacy pharmacy : pharmacyRepo.findAll()) {
+            String pharmacyId = pharmacy.getPharmacyId();
+            BigDecimal rate = resolveEffectivePharmacyRate(pharmacy, now);
+
+            PartnerFinancials fin = computePharmacyFinancials(pharmacyId, rate);
+            pharmacyGross = pharmacyGross.add(fin.grossRevenue);
+            pharmacyCommission = pharmacyCommission.add(fin.commissionAmount);
+            totalPending = totalPending.add(fin.pendingSettlement);
+            totalTransactions += pharmacyOrderRepo.countByPharmacyAndStatuses(pharmacyId, PHARMACY_COMPLETED_STATUSES);
+
+            if (fin.pendingSettlement.compareTo(BigDecimal.ZERO) > 0) {
+                pharmacyPending.add(AdminRecipientSummaryDto.builder()
+                    .recipientId(pharmacyId).recipientName(pharmacy.getName()).recipientType("PHARMACY")
+                    .totalGross(fin.grossRevenue).totalCommission(fin.commissionAmount).totalNet(fin.netEarnings)
+                    .pendingAmount(fin.pendingSettlement).transactionCount(0L)
+                    .build());
+            }
+
+            accumulateYearlyBuckets(yearlyMap,
+                pharmacyOrderRepo.sumTotalAmountByPharmacyGroupedByYearMonth(pharmacyId, PHARMACY_COMPLETED_STATUSES),
+                rate, null, false);
+        }
+
+        doctorPending.sort((a, b) -> b.getPendingAmount().compareTo(a.getPendingAmount()));
+        pharmacyPending.sort((a, b) -> b.getPendingAmount().compareTo(a.getPendingAmount()));
+
+        List<AdminYearlyCommissionDto> yearlyData = new ArrayList<>(yearlyMap.values());
 
         return AdminCommissionDashboardDto.builder()
-            .totalGrossRevenue(transactionRepo.getTotalGrossRevenue())
-            .totalCommission(transactionRepo.getTotalCommission())
+            .totalGrossRevenue(doctorGross.add(pharmacyGross))
+            .totalCommission(doctorCommission.add(pharmacyCommission))
             .totalPaidOut(settlementRepo.getTotalPaidOut())
-            .totalPending(transactionRepo.getTotalPendingAmount())
-            .doctorGross(transactionRepo.getGrossByRecipientType("DOCTOR"))
-            .doctorCommission(transactionRepo.getCommissionByRecipientType("DOCTOR"))
-            .pharmacyGross(transactionRepo.getGrossByRecipientType("PHARMACY"))
-            .pharmacyCommission(transactionRepo.getCommissionByRecipientType("PHARMACY"))
-            .totalTransactions((int) transactionRepo.count())
-            .pendingTransactions(transactionRepo.countPendingTransactions())
+            .totalPending(totalPending)
+            .doctorGross(doctorGross)
+            .doctorCommission(doctorCommission)
+            .pharmacyGross(pharmacyGross)
+            .pharmacyCommission(pharmacyCommission)
+            .totalTransactions((int) totalTransactions)
+            .pendingTransactions(doctorPending.size() + pharmacyPending.size())
             .pendingSettlements(settlementRepo.countPendingSettlements())
-            .topDoctorsPending(topDoctors)
-            .topPharmaciesPending(topPharmacies)
-            .monthlyData(fillMonthNames(transactionRepo.getMonthlyCommission(oneYearAgo)))
+            .topDoctorsPending(doctorPending.stream().limit(5).toList())
+            .topPharmaciesPending(pharmacyPending.stream().limit(5).toList())
+            .yearlyData(yearlyData)
             .build();
+    }
+
+    @Override
+    public List<AdminMonthlyCommissionDto> getDashboardMonthly(int year) {
+        if (year <= 0) {
+            year = LocalDate.now().getYear();
+        }
+        LocalDateTime now = LocalDateTime.now();
+        Map<Integer, AdminMonthlyCommissionDto> monthMap = new LinkedHashMap<>();
+        for (int m = 1; m <= 12; m++) {
+            monthMap.put(m, AdminMonthlyCommissionDto.builder()
+                .year(year).month(m).grossAmount(BigDecimal.ZERO).commissionAmount(BigDecimal.ZERO)
+                .netAmount(BigDecimal.ZERO).transactionCount(0L).build());
+        }
+
+        for (Doctor doctor : doctorRepo.findAll()) {
+            BigDecimal onlineRate = resolveEffectiveDoctorRate(doctor, "CONSULTATION_ONLINE", now);
+            BigDecimal offlineRate = resolveEffectiveDoctorRate(doctor, "CONSULTATION_HOME_VISIT", now);
+            for (Object[] row : adminAppointmentRepo.sumCompletedFeeByDoctorGroupedByYearMonth(doctor.getDoctorId(), ONLINE_TYPES, OFFLINE_TYPES)) {
+                if (((Number) row[0]).intValue() != year) {
+                    continue;
+                }
+                mergeMonthRow(monthMap, row, onlineRate, offlineRate, true);
+            }
+        }
+        for (Pharmacy pharmacy : pharmacyRepo.findAll()) {
+            BigDecimal rate = resolveEffectivePharmacyRate(pharmacy, now);
+            for (Object[] row : pharmacyOrderRepo.sumTotalAmountByPharmacyGroupedByYearMonth(pharmacy.getPharmacyId(), PHARMACY_COMPLETED_STATUSES)) {
+                if (((Number) row[0]).intValue() != year) {
+                    continue;
+                }
+                mergeMonthRow(monthMap, row, rate, null, false);
+            }
+        }
+
+        return fillMonthNames(new ArrayList<>(monthMap.values()));
     }
 
     @Override
@@ -386,7 +486,69 @@ public class AdminCommissionServiceImpl implements AdminCommissionService {
         if (limit <= 0) {
             limit = 10;
         }
-        return transactionRepo.getTopPendingByType(type, PageRequest.of(0, limit));
+        LocalDateTime now = LocalDateTime.now();
+        List<AdminRecipientSummaryDto> summaries = new ArrayList<>();
+        if ("DOCTOR".equalsIgnoreCase(type)) {
+            for (Doctor doctor : doctorRepo.findAll()) {
+                BigDecimal onlineRate = resolveEffectiveDoctorRate(doctor, "CONSULTATION_ONLINE", now);
+                BigDecimal offlineRate = resolveEffectiveDoctorRate(doctor, "CONSULTATION_HOME_VISIT", now);
+                PartnerFinancials fin = computeDoctorFinancials(doctor.getDoctorId(), onlineRate, offlineRate);
+                summaries.add(AdminRecipientSummaryDto.builder()
+                    .recipientId(doctor.getDoctorId()).recipientName(doctor.getFullName()).recipientType("DOCTOR")
+                    .totalGross(fin.grossRevenue).totalCommission(fin.commissionAmount).totalNet(fin.netEarnings)
+                    .pendingAmount(fin.pendingSettlement).transactionCount(0L)
+                    .build());
+            }
+        } else if ("PHARMACY".equalsIgnoreCase(type)) {
+            for (Pharmacy pharmacy : pharmacyRepo.findAll()) {
+                BigDecimal rate = resolveEffectivePharmacyRate(pharmacy, now);
+                PartnerFinancials fin = computePharmacyFinancials(pharmacy.getPharmacyId(), rate);
+                summaries.add(AdminRecipientSummaryDto.builder()
+                    .recipientId(pharmacy.getPharmacyId()).recipientName(pharmacy.getName()).recipientType("PHARMACY")
+                    .totalGross(fin.grossRevenue).totalCommission(fin.commissionAmount).totalNet(fin.netEarnings)
+                    .pendingAmount(fin.pendingSettlement).transactionCount(0L)
+                    .build());
+            }
+        }
+        summaries.sort((a, b) -> b.getPendingAmount().compareTo(a.getPendingAmount()));
+        return summaries.stream().limit(limit).toList();
+    }
+
+    @Override
+    public AdminPartnerCommissionHistoryDto getPartnerCommissionHistory(String partnerType, String partnerId) {
+        LocalDateTime now = LocalDateTime.now();
+        Map<Integer, AdminYearlyCommissionDto> yearlyMap = new TreeMap<>();
+        Map<String, AdminMonthlyCommissionDto> monthMap = new LinkedHashMap<>();
+
+        if ("DOCTOR".equalsIgnoreCase(partnerType)) {
+            Doctor doctor = doctorRepo.findById(partnerId)
+                .orElseThrow(() -> new RuntimeException("Doctor not found: " + partnerId));
+            BigDecimal onlineRate = resolveEffectiveDoctorRate(doctor, "CONSULTATION_ONLINE", now);
+            BigDecimal offlineRate = resolveEffectiveDoctorRate(doctor, "CONSULTATION_HOME_VISIT", now);
+            List<Object[]> rows = adminAppointmentRepo.sumCompletedFeeByDoctorGroupedByYearMonth(partnerId, ONLINE_TYPES, OFFLINE_TYPES);
+            accumulateYearlyBuckets(yearlyMap, rows, onlineRate, offlineRate, true);
+            for (Object[] row : rows) {
+                putMonthRow(monthMap, row, onlineRate, offlineRate, true);
+            }
+        } else if ("PHARMACY".equalsIgnoreCase(partnerType)) {
+            Pharmacy pharmacy = pharmacyRepo.findById(partnerId)
+                .orElseThrow(() -> new RuntimeException("Pharmacy not found: " + partnerId));
+            BigDecimal rate = resolveEffectivePharmacyRate(pharmacy, now);
+            List<Object[]> rows = pharmacyOrderRepo.sumTotalAmountByPharmacyGroupedByYearMonth(partnerId, PHARMACY_COMPLETED_STATUSES);
+            accumulateYearlyBuckets(yearlyMap, rows, rate, null, false);
+            for (Object[] row : rows) {
+                putMonthRow(monthMap, row, rate, null, false);
+            }
+        } else {
+            throw new RuntimeException("Invalid partner type: " + partnerType);
+        }
+
+        return AdminPartnerCommissionHistoryDto.builder()
+            .partnerId(partnerId)
+            .partnerType(partnerType.toUpperCase())
+            .yearlyBreakdown(new ArrayList<>(yearlyMap.values()))
+            .monthlyBreakdown(fillMonthNames(new ArrayList<>(monthMap.values())))
+            .build();
     }
 
     @Override
@@ -470,6 +632,191 @@ public class AdminCommissionServiceImpl implements AdminCommissionService {
             return false; // Đã hết hạn
         }
         return true;
+    }
+
+    // ========================================================================
+    // Financial computation — derived live from Appointments/PharmacyOrders.
+    // (CommissionTransactions is not used here: nothing in the real appointment/order
+    // completion flow ever writes to it outside of seed data, so it can't be trusted
+    // as a source for reporting — see calculateAndRecordAppointment/PharmacyOrder.)
+    // ========================================================================
+
+    private static class PartnerFinancials {
+        final BigDecimal grossRevenue;
+        final BigDecimal commissionAmount;
+        final BigDecimal netEarnings;
+        final BigDecimal pendingSettlement;
+
+        PartnerFinancials(BigDecimal grossRevenue, BigDecimal commissionAmount,
+                           BigDecimal netEarnings, BigDecimal pendingSettlement) {
+            this.grossRevenue = grossRevenue;
+            this.commissionAmount = commissionAmount;
+            this.netEarnings = netEarnings;
+            this.pendingSettlement = pendingSettlement;
+        }
+    }
+
+    private BigDecimal resolveEffectiveDoctorRate(Doctor doctor, String serviceType, LocalDateTime now) {
+        boolean isOnline = "CONSULTATION_ONLINE".equals(serviceType);
+        BigDecimal customRate = isOnline ? doctor.getCustomCommissionRateOnline() : doctor.getCustomCommissionRateOffline();
+        LocalDateTime from = isOnline ? doctor.getCustomCommissionRateOnlineEffectiveFrom() : doctor.getCustomCommissionRateOfflineEffectiveFrom();
+        LocalDateTime to = isOnline ? doctor.getCustomCommissionRateOnlineEffectiveTo() : doctor.getCustomCommissionRateOfflineEffectiveTo();
+
+        if (customRate != null && isCustomRateValid(from, to, now)) {
+            return customRate;
+        }
+        BigDecimal fallback = isOnline ? new BigDecimal("0.15") : new BigDecimal("0.10");
+        return configRepo.findActiveConfigByServiceType(serviceType, now)
+            .map(CommissionConfig::getCommissionRate)
+            .orElse(fallback);
+    }
+
+    private BigDecimal resolveEffectivePharmacyRate(Pharmacy pharmacy, LocalDateTime now) {
+        if (pharmacy.getCustomCommissionRate() != null &&
+            isCustomRateValid(pharmacy.getCustomCommissionRateEffectiveFrom(), pharmacy.getCustomCommissionRateEffectiveTo(), now)) {
+            return pharmacy.getCustomCommissionRate();
+        }
+        return configRepo.findActiveConfigByServiceType("PHARMACY_ORDER", now)
+            .map(CommissionConfig::getCommissionRate)
+            .orElse(new BigDecimal("0.10"));
+    }
+
+    private PartnerFinancials computeDoctorFinancials(String doctorId, BigDecimal onlineRate, BigDecimal offlineRate) {
+        BigDecimal onlineCompleted = nz(adminAppointmentRepo.sumFeeByDoctorAndStatusAndType(doctorId, COMPLETED_STATUSES, ONLINE_TYPES));
+        BigDecimal offlineCompleted = nz(adminAppointmentRepo.sumFeeByDoctorAndStatusAndType(doctorId, COMPLETED_STATUSES, OFFLINE_TYPES));
+
+        BigDecimal gross = onlineCompleted.add(offlineCompleted);
+        BigDecimal commission = onlineCompleted.multiply(onlineRate).setScale(2, RoundingMode.HALF_UP)
+            .add(offlineCompleted.multiply(offlineRate).setScale(2, RoundingMode.HALF_UP));
+        BigDecimal net = gross.subtract(commission);
+        BigDecimal completedSettlements = nz(settlementRepo.getTotalCompletedNetAmountByRecipient("DOCTOR", doctorId));
+        BigDecimal pending = net.subtract(completedSettlements);
+
+        return new PartnerFinancials(gross, commission, net, pending);
+    }
+
+    private PartnerFinancials computePharmacyFinancials(String pharmacyId, BigDecimal rate) {
+        BigDecimal completed = nz(pharmacyOrderRepo.sumTotalAmountByPharmacyAndStatuses(pharmacyId, PHARMACY_COMPLETED_STATUSES));
+
+        BigDecimal commission = completed.multiply(rate).setScale(2, RoundingMode.HALF_UP);
+        BigDecimal net = completed.subtract(commission);
+        BigDecimal completedSettlements = nz(settlementRepo.getTotalCompletedNetAmountByRecipient("PHARMACY", pharmacyId));
+        BigDecimal pending = net.subtract(completedSettlements);
+
+        return new PartnerFinancials(completed, commission, net, pending);
+    }
+
+    private BigDecimal nz(BigDecimal value) {
+        return value != null ? value : BigDecimal.ZERO;
+    }
+
+    /**
+     * Merge grouped-by-year-month rows into a running year-bucket map. Rows are either
+     * doctor shape [year, month, onlineFee, offlineFee, count] (isDoctorRows=true, rateB=offlineRate)
+     * or pharmacy shape [year, month, totalAmount, count] (isDoctorRows=false, rateB unused).
+     */
+    private void accumulateYearlyBuckets(Map<Integer, AdminYearlyCommissionDto> yearlyMap, List<Object[]> rows,
+                                          BigDecimal rateA, BigDecimal rateB, boolean isDoctorRows) {
+        for (Object[] row : rows) {
+            int year = ((Number) row[0]).intValue();
+            BigDecimal gross;
+            BigDecimal commission;
+            long count;
+            if (isDoctorRows) {
+                BigDecimal onlineFee = toBigDecimal(row[2]);
+                BigDecimal offlineFee = toBigDecimal(row[3]);
+                gross = onlineFee.add(offlineFee);
+                commission = onlineFee.multiply(rateA).setScale(2, RoundingMode.HALF_UP)
+                    .add(offlineFee.multiply(rateB).setScale(2, RoundingMode.HALF_UP));
+                count = ((Number) row[4]).longValue();
+            } else {
+                BigDecimal amount = toBigDecimal(row[2]);
+                gross = amount;
+                commission = amount.multiply(rateA).setScale(2, RoundingMode.HALF_UP);
+                count = ((Number) row[3]).longValue();
+            }
+
+            AdminYearlyCommissionDto bucket = yearlyMap.computeIfAbsent(year, y -> AdminYearlyCommissionDto.builder()
+                .year(y).grossAmount(BigDecimal.ZERO).commissionAmount(BigDecimal.ZERO)
+                .netAmount(BigDecimal.ZERO).transactionCount(0L).build());
+            bucket.setGrossAmount(bucket.getGrossAmount().add(gross));
+            bucket.setCommissionAmount(bucket.getCommissionAmount().add(commission));
+            bucket.setNetAmount(bucket.getNetAmount().add(gross.subtract(commission)));
+            bucket.setTransactionCount(bucket.getTransactionCount() + count);
+        }
+    }
+
+    /** Same row shapes as accumulateYearlyBuckets, merged into a pre-initialized (1..12) month map for one year. */
+    private void mergeMonthRow(Map<Integer, AdminMonthlyCommissionDto> monthMap, Object[] row,
+                                BigDecimal rateA, BigDecimal rateB, boolean isDoctorRows) {
+        int month = ((Number) row[1]).intValue();
+        BigDecimal gross;
+        BigDecimal commission;
+        long count;
+        if (isDoctorRows) {
+            BigDecimal onlineFee = toBigDecimal(row[2]);
+            BigDecimal offlineFee = toBigDecimal(row[3]);
+            gross = onlineFee.add(offlineFee);
+            commission = onlineFee.multiply(rateA).setScale(2, RoundingMode.HALF_UP)
+                .add(offlineFee.multiply(rateB).setScale(2, RoundingMode.HALF_UP));
+            count = ((Number) row[4]).longValue();
+        } else {
+            BigDecimal amount = toBigDecimal(row[2]);
+            gross = amount;
+            commission = amount.multiply(rateA).setScale(2, RoundingMode.HALF_UP);
+            count = ((Number) row[3]).longValue();
+        }
+
+        AdminMonthlyCommissionDto bucket = monthMap.get(month);
+        if (bucket == null) {
+            return;
+        }
+        bucket.setGrossAmount(bucket.getGrossAmount().add(gross));
+        bucket.setCommissionAmount(bucket.getCommissionAmount().add(commission));
+        bucket.setNetAmount(bucket.getNetAmount().add(gross.subtract(commission)));
+        bucket.setTransactionCount(bucket.getTransactionCount() + count);
+    }
+
+    /** Same row shapes, keyed by "year-month" into a growing (not pre-initialized) map spanning all years. */
+    private void putMonthRow(Map<String, AdminMonthlyCommissionDto> monthMap, Object[] row,
+                              BigDecimal rateA, BigDecimal rateB, boolean isDoctorRows) {
+        int year = ((Number) row[0]).intValue();
+        int month = ((Number) row[1]).intValue();
+        BigDecimal gross;
+        BigDecimal commission;
+        long count;
+        if (isDoctorRows) {
+            BigDecimal onlineFee = toBigDecimal(row[2]);
+            BigDecimal offlineFee = toBigDecimal(row[3]);
+            gross = onlineFee.add(offlineFee);
+            commission = onlineFee.multiply(rateA).setScale(2, RoundingMode.HALF_UP)
+                .add(offlineFee.multiply(rateB).setScale(2, RoundingMode.HALF_UP));
+            count = ((Number) row[4]).longValue();
+        } else {
+            BigDecimal amount = toBigDecimal(row[2]);
+            gross = amount;
+            commission = amount.multiply(rateA).setScale(2, RoundingMode.HALF_UP);
+            count = ((Number) row[3]).longValue();
+        }
+
+        String key = year + "-" + month;
+        AdminMonthlyCommissionDto bucket = monthMap.computeIfAbsent(key, k -> AdminMonthlyCommissionDto.builder()
+            .year(year).month(month).grossAmount(BigDecimal.ZERO).commissionAmount(BigDecimal.ZERO)
+            .netAmount(BigDecimal.ZERO).transactionCount(0L).build());
+        bucket.setGrossAmount(bucket.getGrossAmount().add(gross));
+        bucket.setCommissionAmount(bucket.getCommissionAmount().add(commission));
+        bucket.setNetAmount(bucket.getNetAmount().add(gross.subtract(commission)));
+        bucket.setTransactionCount(bucket.getTransactionCount() + count);
+    }
+
+    private BigDecimal toBigDecimal(Object value) {
+        if (value == null) {
+            return BigDecimal.ZERO;
+        }
+        if (value instanceof BigDecimal bd) {
+            return bd;
+        }
+        return new BigDecimal(value.toString());
     }
 
     // ========================================================================
@@ -708,25 +1055,14 @@ public class AdminCommissionServiceImpl implements AdminCommissionService {
                 now
             );
 
-        // Get default rates
-        BigDecimal defaultOnlineRate = configRepo.findActiveConfigByServiceType("CONSULTATION_ONLINE", now)
-            .map(CommissionConfig::getCommissionRate)
-            .orElse(new BigDecimal("0.15"));
-
-        // Rate thực tế được áp dụng cho appointment HomeVisit (xem getCommissionRate()) đọc từ config CONSULTATION_HOME_VISIT,
-        // không phải CONSULTATION_OFFLINE (config cũ, không còn appointment nào dùng trong luồng mới).
-        BigDecimal defaultOfflineRate = configRepo.findActiveConfigByServiceType("CONSULTATION_HOME_VISIT", now)
-            .map(CommissionConfig::getCommissionRate)
-            .orElse(new BigDecimal("0.10"));
-
-        BigDecimal effectiveOnlineRate = usingCustomRateOnline ? doctor.getCustomCommissionRateOnline() : defaultOnlineRate;
-        BigDecimal effectiveOfflineRate = usingCustomRateOffline ? doctor.getCustomCommissionRateOffline() : defaultOfflineRate;
-
-        // Calculate total commission paid from transactions
-        BigDecimal totalCommissionPaid = transactionRepo.getTotalCommissionByRecipient("DOCTOR", doctor.getDoctorId());
-        BigDecimal totalGrossRevenue = transactionRepo.getTotalGrossByRecipient("DOCTOR", doctor.getDoctorId());
+        BigDecimal effectiveOnlineRate = resolveEffectiveDoctorRate(doctor, "CONSULTATION_ONLINE", now);
+        BigDecimal effectiveOfflineRate = resolveEffectiveDoctorRate(doctor, "CONSULTATION_HOME_VISIT", now);
 
         String doctorId = doctor.getDoctorId();
+
+        // Financial summary — computed live from real Appointments (not the CommissionTransactions
+        // ledger, which nothing populates outside seed data; see AdminCommissionServiceImpl history).
+        PartnerFinancials financials = computeDoctorFinancials(doctorId, effectiveOnlineRate, effectiveOfflineRate);
 
         // Online appointment statistics
         Integer onlinePendingCount = adminAppointmentRepo.countByDoctorAndStatusAndType(doctorId, PENDING_STATUSES, ONLINE_TYPES);
@@ -764,10 +1100,10 @@ public class AdminCommissionServiceImpl implements AdminCommissionService {
             .effectiveCommissionRateOffline(effectiveOfflineRate)
             .usingCustomRateOffline(usingCustomRateOffline)
             // Financial
-            .totalEarnings(doctor.getTotalEarnings() != null ? doctor.getTotalEarnings() : BigDecimal.ZERO)
-            .pendingSettlement(doctor.getPendingSettlement() != null ? doctor.getPendingSettlement() : BigDecimal.ZERO)
-            .totalCommissionPaid(totalCommissionPaid != null ? totalCommissionPaid : BigDecimal.ZERO)
-            .totalGrossRevenue(totalGrossRevenue != null ? totalGrossRevenue : BigDecimal.ZERO)
+            .totalEarnings(financials.netEarnings)
+            .pendingSettlement(financials.pendingSettlement)
+            .totalCommissionPaid(financials.commissionAmount)
+            .totalGrossRevenue(financials.grossRevenue)
             // Online appointment breakdown
             .onlinePendingAmount(onlinePendingAmount)
             .onlinePendingCount(onlinePendingCount != null ? onlinePendingCount : 0)
@@ -800,17 +1136,13 @@ public class AdminCommissionServiceImpl implements AdminCommissionService {
                 now
             );
 
-        BigDecimal defaultRate = configRepo.findActiveConfigByServiceType("PHARMACY_ORDER", now)
-            .map(CommissionConfig::getCommissionRate)
-            .orElse(new BigDecimal("0.10"));
-
-        BigDecimal effectiveRate = usingCustomRate ? pharmacy.getCustomCommissionRate() : defaultRate;
-
-        // Calculate total commission paid from transactions
-        BigDecimal totalCommissionPaid = transactionRepo.getTotalCommissionByRecipient("PHARMACY", pharmacy.getPharmacyId());
-        BigDecimal totalGrossRevenue = transactionRepo.getTotalGrossByRecipient("PHARMACY", pharmacy.getPharmacyId());
+        BigDecimal effectiveRate = resolveEffectivePharmacyRate(pharmacy, now);
 
         String pharmacyId = pharmacy.getPharmacyId();
+
+        // Financial summary — computed live from real PharmacyOrders (not the CommissionTransactions
+        // ledger, which nothing populates outside seed data; see AdminCommissionServiceImpl history).
+        PartnerFinancials financials = computePharmacyFinancials(pharmacyId, effectiveRate);
 
         // Pharmacy order statistics
         Integer pharmacyPendingCount = pharmacyOrderRepo.countByPharmacyAndStatuses(pharmacyId, PHARMACY_PENDING_STATUSES);
@@ -832,10 +1164,10 @@ public class AdminCommissionServiceImpl implements AdminCommissionService {
             .customCommissionRateEffectiveTo(pharmacy.getCustomCommissionRateEffectiveTo())
             .effectiveCommissionRate(effectiveRate)
             .usingCustomRate(usingCustomRate)
-            .totalEarnings(pharmacy.getTotalEarnings() != null ? pharmacy.getTotalEarnings() : BigDecimal.ZERO)
-            .pendingSettlement(pharmacy.getPendingSettlement() != null ? pharmacy.getPendingSettlement() : BigDecimal.ZERO)
-            .totalCommissionPaid(totalCommissionPaid != null ? totalCommissionPaid : BigDecimal.ZERO)
-            .totalGrossRevenue(totalGrossRevenue != null ? totalGrossRevenue : BigDecimal.ZERO)
+            .totalEarnings(financials.netEarnings)
+            .pendingSettlement(financials.pendingSettlement)
+            .totalCommissionPaid(financials.commissionAmount)
+            .totalGrossRevenue(financials.grossRevenue)
             // Pharmacy order breakdown
             .pharmacyPendingAmount(pharmacyPendingAmount)
             .pharmacyPendingCount(pharmacyPendingCount != null ? pharmacyPendingCount : 0)

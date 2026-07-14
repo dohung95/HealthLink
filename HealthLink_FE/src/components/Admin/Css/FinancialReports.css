@@ -35,63 +35,162 @@
     font-weight: 600;
 }
 
-/* ========== COMPACT STATS STRIP ========== */
-.financial-stats-strip {
-    display: flex;
-    align-items: center;
+/* ========== KHỐI 5/12 — 5 CHỈ SỐ DẠNG LỤC GIÁC (2+2+1 căn giữa) ========== */
+/* Namespaced "fin-" để không đụng .stat-item/.stat-label dùng chung ở
+   Registrations.css/Registrations.jsx (xem memory global-css-class-collisions). */
+.fin-stat-list {
+    height: 100%;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    align-content: center;
+    justify-items: center;
+    gap: 10px 8px;
+    padding: 8px;
+}
+
+/* Viền màu quanh lục giác (identity riêng từng chỉ số) — vẽ bằng cách xếp 2 lớp
+   clip-path lục giác lồng nhau: lớp ngoài tô màu accent, lớp trong (padding tạo
+   viền) tô trắng. box-shadow không bám theo clip-path nên dùng drop-shadow.
+   Kích thước cố định (không co giãn theo cột) — 106px (to hơn 10% so với 96px). */
+.fin-stat-row {
+    width: 106px;
+    aspect-ratio: 1.1547 / 1;
+    clip-path: polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%);
+    background: var(--fin-accent);
+    padding: 2px;
+    filter: drop-shadow(0 3px 8px rgba(0, 0, 0, 0.10));
+}
+
+/* Mục thứ 5 (còn dư, không đủ cặp) — chiếm cả 2 cột, căn giữa, cùng kích thước */
+.fin-stat-row:nth-child(5) {
+    grid-column: 1 / -1;
+    justify-self: center;
+}
+
+.fin-stat-row.revenue  { --fin-accent: #10b981; }
+.fin-stat-row.fees     { --fin-accent: #f59e0b; }
+.fin-stat-row.doctor   { --fin-accent: #ec4899; }
+.fin-stat-row.pharmacy { --fin-accent: #06b6d4; }
+.fin-stat-row.tx       { --fin-accent: #6366f1; }
+
+/* Lục giác trắng bên trong — bao trọn cả icon lẫn text, tạo hiệu ứng viền màu
+   accent (từ .fin-stat-row cha) dày 3px xung quanh. */
+.fin-stat-inner {
+    width: 100%;
+    height: 100%;
+    clip-path: polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%);
     background: white;
-    border-radius: 12px;
-    padding: 12px 20px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
-    border: 1px solid #e5e7eb;
-    gap: 0;
-    flex-wrap: wrap;
-}
-
-.stat-item {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 8px 16px;
-    flex: 1;
-    min-width: 140px;
-}
-
-.stat-item i {
-    font-size: 20px;
-    width: 36px;
-    height: 36px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 10px;
-    flex-shrink: 0;
-}
-
-.stat-item.primary i { background: rgba(16, 185, 129, 0.1); color: #10b981; }
-.stat-item.blue i { background: rgba(59, 130, 246, 0.1); color: #3b82f6; }
-.stat-item.purple i { background: rgba(139, 92, 246, 0.1); color: #8b5cf6; }
-.stat-item.orange i { background: rgba(245, 158, 11, 0.1); color: #f59e0b; }
-.stat-item.pink i { background: rgba(236, 72, 153, 0.1); color: #ec4899; }
-.stat-item.indigo i { background: rgba(99, 102, 241, 0.1); color: #6366f1; }
-.stat-item.cyan i { background: rgba(6, 182, 212, 0.1); color: #06b6d4; }
-
-.stat-content {
     display: flex;
     flex-direction: column;
-    min-width: 0;
+    align-items: center;
+    justify-content: center;
+    padding: 0 15%;
+    text-align: center;
 }
 
-.stat-value {
-    font-size: 18px;
+.fin-stat-inner > i {
+    font-size: 17px;
+    color: var(--fin-accent);
+    margin-bottom: 3px;
+}
+
+.fin-stat-text {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-width: 0;
+    gap: 1px;
+}
+
+.fin-stat-value {
+    font-size: 13px;
     font-weight: 700;
-    color: #1f2937;
-    line-height: 1.2;
+    color: #111827;
+    line-height: 1.15;
+    letter-spacing: -0.2px;
     white-space: nowrap;
 }
 
-.stat-label {
-    font-size: 11px;
+.fin-stat-label {
+    font-size: 9px;
+    color: #6b7280;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+@media (max-width: 576px) {
+    .fin-stat-list {
+        grid-template-columns: 1fr 1fr;
+        gap: 12px 10px;
+    }
+}
+
+/* ========== CỤM A — This Month / Today (toggle 2 nút) ========== */
+.fin-cluster-a {
+    display: flex;
+    gap: 10px;
+}
+
+.fin-cluster-btn {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 16px;
+    border-radius: 12px;
+    border: 1px solid #e5e7eb;
+    background: white;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+    cursor: pointer;
+    text-align: left;
+    transition: all 0.15s ease;
+}
+
+.fin-cluster-btn:hover {
+    border-color: #d1d5db;
+}
+
+.fin-cluster-icon {
+    width: 34px;
+    height: 34px;
+    border-radius: 9px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    flex-shrink: 0;
+    background: #f3f4f6;
+    color: #9ca3af;
+    transition: all 0.15s ease;
+}
+
+.fin-cluster-btn.selected {
+    border-color: #10b981;
+    background: rgba(16, 185, 129, 0.05);
+    box-shadow: 0 2px 10px rgba(16, 185, 129, 0.12);
+}
+
+.fin-cluster-btn.selected .fin-cluster-icon {
+    background: #10b981;
+    color: white;
+}
+
+.fin-cluster-text {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    gap: 1px;
+}
+
+.fin-cluster-value {
+    font-size: 16px;
+    font-weight: 700;
+    color: #111827;
+    line-height: 1.2;
+}
+
+.fin-cluster-label {
+    font-size: 11.5px;
     color: #6b7280;
     font-weight: 500;
     display: flex;
@@ -100,38 +199,76 @@
     white-space: nowrap;
 }
 
-.stat-growth {
+.fin-cluster-radio {
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    border: 2px solid #d1d5db;
+    margin-left: auto;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.fin-cluster-btn.selected .fin-cluster-radio {
+    border-color: #10b981;
+}
+
+.fin-cluster-btn.selected .fin-cluster-radio::after {
+    content: "";
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #10b981;
+}
+
+.fin-growth-badge {
     display: inline-flex;
     align-items: center;
+    gap: 2px;
     font-size: 10px;
-    font-weight: 600;
+    font-weight: 700;
     padding: 1px 6px;
     border-radius: 8px;
 }
 
-.stat-growth.up {
-    background: #d1fae5;
-    color: #059669;
-}
+.fin-growth-badge.up { background: #d1fae5; color: #059669; }
+.fin-growth-badge.down { background: #fee2e2; color: #dc2626; }
 
-.stat-growth.down {
-    background: #fee2e2;
-    color: #dc2626;
-}
-
-.stat-growth i {
+.fin-growth-badge i {
     font-size: 8px;
-    width: auto;
-    height: auto;
-    background: none !important;
-    margin-right: 2px;
 }
 
-.stat-divider {
-    width: 1px;
-    height: 40px;
-    background: #e5e7eb;
-    flex-shrink: 0;
+/* ========== MINI CHART (Cụm A breakdown) ========== */
+.mini-chart-card {
+    background: white;
+    border-radius: 14px;
+    border: 1px solid #e5e7eb;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+    padding: 16px 18px;
+    display: flex;
+    flex-direction: column;
+}
+
+.mini-chart-title {
+    font-size: 12.5px;
+    font-weight: 600;
+    color: #374151;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 6px;
+}
+
+.mini-chart-title .period {
+    color: #10b981;
+}
+
+@media (max-width: 576px) {
+    .fin-cluster-a {
+        flex-direction: column;
+    }
 }
 
 /* ========== CHART CONTAINER ========== */
@@ -424,50 +561,12 @@
 
 /* ========== RESPONSIVE ========== */
 @media (max-width: 1400px) {
-    .financial-stats-strip {
-        gap: 8px;
-    }
-
-    .stat-item {
-        padding: 8px 12px;
-        min-width: 120px;
-    }
-
-    .stat-value {
+    .fin-stat-value {
         font-size: 16px;
     }
 }
 
-@media (max-width: 1200px) {
-    .financial-stats-strip {
-        flex-wrap: wrap;
-        justify-content: flex-start;
-    }
-
-    .stat-divider {
-        display: none;
-    }
-
-    .stat-item {
-        flex: 0 0 calc(33.333% - 8px);
-        border-right: 1px solid #e5e7eb;
-        padding: 10px 16px;
-    }
-
-    .stat-item:nth-child(6n) {
-        border-right: none;
-    }
-}
-
 @media (max-width: 992px) {
-    .stat-item {
-        flex: 0 0 calc(50% - 8px);
-    }
-
-    .stat-item:nth-child(4n) {
-        border-right: none;
-    }
-
     .chart-header {
         flex-direction: column;
         align-items: flex-start;
@@ -480,23 +579,8 @@
 }
 
 @media (max-width: 768px) {
-    .financial-stats-strip {
-        padding: 8px 12px;
-    }
-
-    .stat-item {
-        flex: 0 0 100%;
-        border-right: none;
-        border-bottom: 1px solid #f3f4f6;
-        padding: 10px 8px;
-    }
-
-    .stat-item:last-of-type {
-        border-bottom: none;
-    }
-
-    .stat-value {
-        font-size: 18px;
+    .fin-stat-value {
+        font-size: 16px;
     }
 
     .chart-body {

@@ -476,7 +476,7 @@ void main() {
   });
 
   group('ChatRoomScreen — doctor appointment without vitals', () {
-    testWidgets('shows vitals wait message for doctor', (tester) async {
+    testWidgets('keeps chat available for doctor', (tester) async {
       await tester.pumpWidget(_buildChatTestApp(
         auth: _DoctorMockAuth(),
         screen: ChatRoomScreen(
@@ -487,9 +487,10 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 100));
 
+      expect(find.byKey(const Key('chat-message-input')), findsOneWidget);
       expect(
         find.text('Waiting for patient to fill medical information...'),
-        findsWidgets,
+        findsNothing,
       );
     });
   });

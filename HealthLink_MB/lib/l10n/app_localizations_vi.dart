@@ -1620,6 +1620,14 @@ class AppLocalizationsVi extends AppLocalizations {
   String get vitalsSavedSuccess => 'Đã lưu thông tin sức khỏe thành công.';
 
   @override
+  String get chatAppointmentCompleted =>
+      'Buổi hẹn đã kết thúc. Cuộc trò chuyện hiện ở chế độ chỉ đọc.';
+
+  @override
+  String get chatAppointmentNotStarted =>
+      'Cuộc hẹn chưa bắt đầu. Chat sẽ tự động mở khi đến giờ khám.';
+
+  @override
   String get vitalsInstructionsTitle => 'Hướng dẫn trước khi bắt đầu tư vấn';
 
   @override

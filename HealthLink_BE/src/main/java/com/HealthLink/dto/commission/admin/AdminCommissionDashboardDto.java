@@ -23,5 +23,5 @@ public class AdminCommissionDashboardDto {
     private Integer pendingSettlements;
     private List<AdminRecipientSummaryDto> topDoctorsPending;
     private List<AdminRecipientSummaryDto> topPharmaciesPending;
-    private List<AdminMonthlyCommissionDto> monthlyData;
+    private List<AdminYearlyCommissionDto> yearlyData;
 }

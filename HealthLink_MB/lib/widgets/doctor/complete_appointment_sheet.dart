@@ -3,9 +3,14 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
+import '../../models/doctor/doctor_appointment.dart';
+import '../../models/doctor/doctor_follow_up.dart';
 import '../../services/doctor/doctor_service.dart';
+import '../../services/doctor/doctor_follow_up_service.dart';
 import '../../services/patient/patient_pharmacy/medicine_service.dart';
+import '../../services/patient/vitals/vital_sign_service.dart';
 import '../../config/doctor_theme.dart';
+import 'doctor_widgets.dart';
 
 class CompleteAppointmentSheet extends StatefulWidget {
   final int appointmentId;
@@ -65,6 +70,19 @@ class _CompleteAppointmentSheetState extends State<CompleteAppointmentSheet> {
   String? _error;
   Timer? _debounce;
 
+  // ── Readiness checklist (khớp `CompleteConfirmModal` bên web) ────────────
+  bool _loadingChecklist = true;
+  Map<String, dynamic>? _latestVital;
+  DoctorAppointment? _appointmentDetail;
+  FollowUpStatus? _followUpStatus;
+  bool _copyPrescription = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadChecklistData();
+  }
+
   @override
   void dispose() {
     _debounce?.cancel();
@@ -76,6 +94,72 @@ class _CompleteAppointmentSheetState extends State<CompleteAppointmentSheet> {
     }
     super.dispose();
   }
+
+  Future<void> _loadChecklistData() async {
+    final token = context.read<AuthProvider>().accessToken;
+    if (token == null) {
+      setState(() => _loadingChecklist = false);
+      return;
+    }
+
+    Map<String, dynamic>? vital;
+    try {
+      vital = await VitalSignService.getLatestAppointmentVitalSign(token, widget.appointmentId);
+    } catch (_) {}
+
+    DoctorAppointment? detail;
+    try {
+      detail = await DoctorService.getAppointmentDetail(token, widget.appointmentId);
+    } catch (_) {}
+
+    FollowUpStatus? followUp;
+    try {
+      followUp = await DoctorFollowUpService(accessToken: token).getStatus(widget.appointmentId);
+    } catch (_) {}
+
+    if (!mounted) return;
+    setState(() {
+      _latestVital = vital;
+      _appointmentDetail = detail;
+      _followUpStatus = followUp;
+      // Nạp sẵn diagnosis/notes đã lưu trước đó (vd: từ tab Notes trong màn
+      // chi tiết) nếu người dùng chưa gõ gì trong sheet này.
+      if (_diagnosisCtrl.text.isEmpty && _appointmentDetail?.diagnosis != null) {
+        _diagnosisCtrl.text = _appointmentDetail!.diagnosis!;
+      }
+      if (_notesCtrl.text.isEmpty && _appointmentDetail?.consultationNotes != null) {
+        _notesCtrl.text = _appointmentDetail!.consultationNotes!;
+      }
+      _loadingChecklist = false;
+    });
+  }
+
+  bool get _isHomeVisit =>
+      (_appointmentDetail?.consultationType ?? '').toUpperCase().contains('HOME');
+
+  /// Backend bỏ qua yêu cầu vitals cho HomeVisit (xem
+  /// `FollowUpAppointmentServiceImpl.completeAppointment`).
+  bool get _vitalsSubmitted => _isHomeVisit || _latestVital != null;
+
+  bool get _notesSaved =>
+      _diagnosisCtrl.text.trim().isNotEmpty ||
+      _notesCtrl.text.trim().isNotEmpty ||
+      (_appointmentDetail?.diagnosis?.trim().isNotEmpty ?? false) ||
+      (_appointmentDetail?.consultationNotes?.trim().isNotEmpty ?? false);
+
+  bool get _prescriptionReady => _rows.isEmpty || _rows.every(_rowIsValid);
+
+  bool get _hasConfiguredFollowUp =>
+      _followUpStatus?.followUpDate != null || _appointmentDetail?.followUpDate != null;
+
+  bool get _followUpPendingPayment => _followUpStatus?.isPendingPayment ?? false;
+
+  bool get _canComplete =>
+      !_loadingChecklist &&
+      _vitalsSubmitted &&
+      _notesSaved &&
+      _prescriptionReady &&
+      !_followUpPendingPayment;
 
   void _onQueryChanged(String query) {
     _debounce?.cancel();
@@ -114,9 +198,7 @@ class _CompleteAppointmentSheetState extends State<CompleteAppointmentSheet> {
   void _addMedicine(Map<String, dynamic> medicine) {
     final id = medicine['medicineId'];
     if (_rows.any((r) => r.medicine['medicineId'] == id)) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Medicine already added'), behavior: SnackBarBehavior.floating),
-      );
+      showDoctorNotice(context, 'Medicine already added');
       return;
     }
     setState(() {
@@ -140,6 +222,8 @@ class _CompleteAppointmentSheetState extends State<CompleteAppointmentSheet> {
   }
 
   Future<void> _handleSubmit() async {
+    if (!_canComplete) return;
+
     for (final row in _rows) {
       if (!_rowIsValid(row)) {
         setState(() => _error = 'Please fill quantity, supply days, and at least one timing for every medication.');
@@ -168,7 +252,7 @@ class _CompleteAppointmentSheetState extends State<CompleteAppointmentSheet> {
           token,
           widget.appointmentId,
           diagnosis: diagnosis,
-          notes: notes,
+          doctorNotes: notes,
         );
       }
 
@@ -190,18 +274,16 @@ class _CompleteAppointmentSheetState extends State<CompleteAppointmentSheet> {
         });
       }
 
-      await DoctorService.completeAppointment(token, widget.appointmentId);
+      await DoctorService.completeAppointment(
+        token,
+        widget.appointmentId,
+        copyPrescription: _hasConfiguredFollowUp && _copyPrescription,
+      );
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Appointment completed'),
-            backgroundColor: Colors.green,
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
         widget.onCompleted();
         Navigator.pop(context);
+        showDoctorNotice(context, 'Appointment completed');
       }
     } catch (e) {
       if (mounted) {
@@ -230,10 +312,13 @@ class _CompleteAppointmentSheetState extends State<CompleteAppointmentSheet> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  _buildChecklist(),
+                  const SizedBox(height: 20),
                   _sectionLabel('Diagnosis'),
                   const SizedBox(height: 6),
                   TextField(
                     controller: _diagnosisCtrl,
+                    onChanged: (_) => setState(() {}),
                     decoration: DS.inputDecoration(hintText: 'e.g. Seasonal flu'),
                   ),
                   const SizedBox(height: 16),
@@ -242,6 +327,7 @@ class _CompleteAppointmentSheetState extends State<CompleteAppointmentSheet> {
                   TextField(
                     controller: _notesCtrl,
                     maxLines: 3,
+                    onChanged: (_) => setState(() {}),
                     decoration: DS.inputDecoration(hintText: 'Consultation notes for the patient record'),
                   ),
                   const SizedBox(height: 20),
@@ -250,6 +336,10 @@ class _CompleteAppointmentSheetState extends State<CompleteAppointmentSheet> {
                   _buildMedicineSearch(),
                   const SizedBox(height: 12),
                   ..._rows.map(_buildMedicationRow),
+                  if (_hasConfiguredFollowUp) ...[
+                    const SizedBox(height: 16),
+                    _buildCopyPrescriptionToggle(),
+                  ],
                   if (_error != null) ...[
                     const SizedBox(height: 12),
                     Container(
@@ -275,6 +365,80 @@ class _CompleteAppointmentSheetState extends State<CompleteAppointmentSheet> {
         text,
         style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: DS.foreground),
       );
+
+  /// Checklist sẵn sàng hoàn tất — khớp `CompleteConfirmModal` bên web
+  /// (Vitals/Notes/Prescription bắt buộc, Follow-up chỉ mang tính thông tin).
+  Widget _buildChecklist() {
+    if (_loadingChecklist) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: 8),
+        child: Center(child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: DS.primary))),
+      );
+    }
+
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(color: DS.background, borderRadius: BorderRadius.circular(10), border: Border.all(color: DS.cardBorder)),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _ChecklistRow(icon: Icons.favorite_border, label: 'Patient Vitals', done: _vitalsSubmitted),
+          _ChecklistRow(icon: Icons.article_outlined, label: 'Consultation Notes', done: _notesSaved),
+          _ChecklistRow(icon: Icons.medication_outlined, label: 'Prescription', done: _prescriptionReady),
+          _ChecklistRow(icon: Icons.event_available, label: 'Follow-up', done: _hasConfiguredFollowUp, optional: true),
+          if (_followUpPendingPayment) ...[
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(color: DS.amber100, borderRadius: BorderRadius.circular(8)),
+              child: const Row(
+                children: [
+                  Icon(Icons.hourglass_top, size: 16, color: DS.amber700),
+                  SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Follow-up payment pending. Waiting for patient to pay before you can complete.',
+                      style: TextStyle(fontSize: 12, color: DS.amber700),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCopyPrescriptionToggle() {
+    return InkWell(
+      onTap: () => setState(() => _copyPrescription = !_copyPrescription),
+      borderRadius: BorderRadius.circular(10),
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(color: DS.background, borderRadius: BorderRadius.circular(10), border: Border.all(color: DS.cardBorder)),
+        child: Row(
+          children: [
+            Checkbox(
+              value: _copyPrescription,
+              activeColor: DS.primary,
+              onChanged: (v) => setState(() => _copyPrescription = v ?? true),
+            ),
+            const SizedBox(width: 4),
+            const Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Copy prescription', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: DS.foreground)),
+                  Text('Copy latest prescription to the follow-up appointment', style: TextStyle(fontSize: 11, color: DS.mutedForeground)),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 
   Widget _buildHeader() {
     return Container(
@@ -457,38 +621,96 @@ class _CompleteAppointmentSheetState extends State<CompleteAppointmentSheet> {
     );
   }
 
+  String? get _completeHint {
+    if (_isSaving || _loadingChecklist) return null;
+    if (_followUpPendingPayment) return 'Waiting for patient to pay the follow-up request.';
+    if (!_vitalsSubmitted) return 'Patient has not submitted vitals for this appointment yet.';
+    if (!_notesSaved) return 'Add a diagnosis or consultation notes first.';
+    if (!_prescriptionReady) return 'Fill quantity, supply days, and timing for every medication.';
+    return null;
+  }
+
   Widget _buildFooter() {
+    final hint = _completeHint;
     return Container(
       padding: EdgeInsets.fromLTRB(16, 12, 16, MediaQuery.of(context).viewInsets.bottom > 0 ? 12 : 24),
       decoration: const BoxDecoration(
         color: DS.card,
         border: Border(top: BorderSide(color: DS.cardBorder)),
       ),
-      child: Row(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Expanded(
-            child: OutlinedButton(
-              style: DS.outlineButtonStyle,
-              onPressed: _isSaving ? null : () => Navigator.pop(context),
-              child: const Text('Cancel'),
+          if (hint != null) ...[
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Text(hint, style: const TextStyle(fontSize: 12, color: DS.rose600), textAlign: TextAlign.center),
             ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            flex: 2,
-            child: ElevatedButton(
-              style: DS.primaryButtonStyle,
-              onPressed: _isSaving ? null : _handleSubmit,
-              child: _isSaving
-                  ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                    )
-                  : const Text('Complete Appointment'),
-            ),
+          ],
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton(
+                  style: DS.outlineButtonStyle,
+                  onPressed: _isSaving ? null : () => Navigator.pop(context),
+                  child: const Text('Cancel'),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                flex: 2,
+                child: ElevatedButton(
+                  style: DS.primaryButtonStyle,
+                  onPressed: (_isSaving || !_canComplete) ? null : _handleSubmit,
+                  child: _isSaving
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                        )
+                      : const Text('Complete Appointment'),
+                ),
+              ),
+            ],
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _ChecklistRow extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final bool done;
+  final bool optional;
+
+  const _ChecklistRow({
+    required this.icon,
+    required this.label,
+    required this.done,
+    this.optional = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final color = done ? DS.emerald600 : (optional ? DS.amber600 : DS.rose600);
+    final bg = done ? DS.emerald100 : (optional ? DS.amber100 : DS.rose100);
+    final statusText = done ? 'Ready' : (optional ? 'Optional' : 'Not ready');
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 3),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(8)),
+        child: Row(
+          children: [
+            Icon(icon, size: 15, color: color),
+            const SizedBox(width: 8),
+            Expanded(child: Text(label, style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w500, color: DS.foreground))),
+            Text(statusText, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: color)),
+          ],
+        ),
       ),
     );
   }

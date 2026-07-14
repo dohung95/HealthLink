@@ -723,30 +723,35 @@ class DoctorDateItem extends StatelessWidget {
 // APPOINTMENT ACTION CARD
 // ============================================
 
-/// Card lịch hẹn có action-row đổi theo status (Start/Cancel, Complete/Call).
-/// Dùng chung giữa Appointments tab và Home "next up"/schedule preview.
+/// Card lịch hẹn — chỉ hiển thị thông tin, tap vào để mở màn chi tiết.
+/// Khớp bản web (`AppointmentCard.jsx`): card danh sách không có action-row
+/// (Start/Complete/Call) — mọi hành động (start, join room, complete) chỉ
+/// thực hiện được bên trong màn chi tiết appointment.
 class DoctorAppointmentActionCard extends StatelessWidget {
   final DoctorAppointment appointment;
-  final VoidCallback? onStart;
-  final VoidCallback? onCancel;
-  final VoidCallback? onComplete;
-  final VoidCallback? onCall;
 
-  /// Mở màn chi tiết khi tap vào phần thông tin bệnh nhân (không phải action-row).
+  /// Mở màn chi tiết khi tap vào card.
   final VoidCallback? onTap;
 
   /// Tô viền + nhãn nổi bật khi dùng làm lịch hẹn "kế tiếp" trên Home.
   final bool highlighted;
 
+  /// Nhãn tuỳ chỉnh cho banner nổi bật (vd: "IN 12 MINS") — khớp badge đếm
+  /// ngược của `NextAppointmentCard` bên web. Khi null, dùng nhãn mặc định
+  /// "IN PROGRESS"/"NEXT UP" theo status.
+  final String? highlightBadge;
+
+  /// Hiện thêm ngày/tháng phía trên giờ — dùng cho danh sách trải dài nhiều
+  /// ngày (vd: History) thay vì chỉ "Today's schedule" (chỉ 1 ngày).
+  final bool showFullDate;
+
   const DoctorAppointmentActionCard({
     super.key,
     required this.appointment,
-    this.onStart,
-    this.onCancel,
-    this.onComplete,
-    this.onCall,
     this.onTap,
     this.highlighted = false,
+    this.highlightBadge,
+    this.showFullDate = false,
   });
 
   @override
@@ -755,10 +760,11 @@ class DoctorAppointmentActionCard extends StatelessWidget {
     final time = appointment.appointmentTime != null
         ? timeFormat.format(appointment.appointmentTime!)
         : '--:--';
-    final status = appointment.status?.toUpperCase() ?? 'PENDING';
-    final showActions =
-        status == 'CONFIRMED' || status == 'PENDING' || status == 'IN_PROGRESS';
-    final isInProgress = status == 'IN_PROGRESS';
+    final dateLabel = showFullDate && appointment.appointmentTime != null
+        ? DateFormat('dd/MM/yy').format(appointment.appointmentTime!)
+        : null;
+    final status = appointment.status?.toUpperCase() ?? 'SCHEDULED';
+    final isInProgress = status == 'IN_CONSULTATION';
 
     return Container(
       decoration: highlighted
@@ -783,7 +789,7 @@ class DoctorAppointmentActionCard extends StatelessWidget {
                       size: 14, color: DS.primary),
                   const SizedBox(width: 6),
                   Text(
-                    isInProgress ? 'IN PROGRESS' : 'NEXT UP',
+                    highlightBadge ?? (isInProgress ? 'IN PROGRESS' : 'NEXT UP'),
                     style: const TextStyle(
                       fontSize: 11,
                       fontWeight: FontWeight.w700,
@@ -802,15 +808,25 @@ class DoctorAppointmentActionCard extends StatelessWidget {
               child: Row(
                 children: [
                   SizedBox(
-                    width: 56,
+                    width: showFullDate ? 68 : 56,
                     child: Column(
-                      children: [
-                        Text(time,
-                            style: const TextStyle(
-                                fontSize: 16, fontWeight: FontWeight.bold, color: DS.foreground)),
-                        const SizedBox(height: 4),
-                        Icon(Icons.schedule, size: 12, color: DS.mutedForeground.withOpacity(0.6)),
-                      ],
+                      children: dateLabel != null
+                          ? [
+                              Text(dateLabel,
+                                  style: const TextStyle(
+                                      fontSize: 11, fontWeight: FontWeight.w600, color: DS.mutedForeground)),
+                              const SizedBox(height: 2),
+                              Text(time,
+                                  style: const TextStyle(
+                                      fontSize: 14, fontWeight: FontWeight.bold, color: DS.foreground)),
+                            ]
+                          : [
+                              Text(time,
+                                  style: const TextStyle(
+                                      fontSize: 16, fontWeight: FontWeight.bold, color: DS.foreground)),
+                              const SizedBox(height: 4),
+                              Icon(Icons.schedule, size: 12, color: DS.mutedForeground.withOpacity(0.6)),
+                            ],
                     ),
                   ),
                   Container(
@@ -862,61 +878,6 @@ class DoctorAppointmentActionCard extends StatelessWidget {
               ),
             ),
           ),
-          if (showActions)
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-              decoration: BoxDecoration(
-                color: DS.secondary.withOpacity(0.5),
-                borderRadius:
-                    const BorderRadius.only(bottomLeft: Radius.circular(12), bottomRight: Radius.circular(12)),
-                border: const Border(top: BorderSide(color: DS.cardBorder)),
-              ),
-              child: Row(
-                children: [
-                  if (isInProgress) ...[
-                    Expanded(
-                      child: DoctorActionButton(
-                        label: 'Complete',
-                        icon: Icons.check_circle_outline,
-                        color: DS.emerald600,
-                        filled: true,
-                        onTap: onComplete ?? () {},
-                      ),
-                    ),
-                    if (appointment.consultationType?.toUpperCase() != 'CHAT') ...[
-                      const SizedBox(width: 8),
-                      DoctorActionButton(
-                        label: appointment.consultationType?.toUpperCase() == 'VIDEO' ? 'Video' : 'Audio',
-                        icon: appointment.consultationType?.toUpperCase() == 'VIDEO'
-                            ? Icons.videocam
-                            : Icons.phone,
-                        color: DS.primary,
-                        filled: false,
-                        onTap: onCall ?? () {},
-                      ),
-                    ],
-                  ] else ...[
-                    Expanded(
-                      child: DoctorActionButton(
-                        label: 'Start',
-                        icon: Icons.play_circle_outline,
-                        color: DS.primary,
-                        filled: true,
-                        onTap: onStart ?? () {},
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    DoctorActionButton(
-                      label: 'Cancel',
-                      icon: Icons.close,
-                      color: DS.rose700,
-                      filled: false,
-                      onTap: onCancel ?? () {},
-                    ),
-                  ],
-                ],
-              ),
-            ),
         ],
       ),
     );
