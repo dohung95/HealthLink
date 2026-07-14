@@ -1,17 +1,16 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
-import '../../models/pharmacy/pharmacy_revenue_series.dart';
-import '../../providers/pharmacy/pharmacy_revenue_provider.dart';
-import '../../providers/auth_provider.dart';
+import 'package:provider/provider.dart';
 
-/// Compact revenue card showing NET REVENUE with a Week/Month/Year bar chart.
-///
-/// Uses the existing [PharmacyRevenueProvider] for data and selection actions.
+import '../../models/pharmacy/pharmacy_revenue_series.dart';
+import '../../providers/auth_provider.dart';
+import '../../providers/pharmacy/pharmacy_revenue_provider.dart';
+
 class PharmacyRevenueCard extends StatelessWidget {
   const PharmacyRevenueCard({super.key});
 
-  static const double _maxBarHeight = 40;
+  static const double _chartHeight = 160;
+  static const double _minimumCardHeight = 240;
 
   @override
   Widget build(BuildContext context) {
@@ -20,346 +19,372 @@ class PharmacyRevenueCard extends StatelessWidget {
 
     return Card(
       margin: EdgeInsets.zero,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildHeader(theme, provider),
-            const SizedBox(height: 4),
-            _buildSegmentedControl(theme, provider),
-            if (provider.range != PharmacyRevenueRange.week) ...[
-              const SizedBox(height: 2),
-              _buildPeriodSelector(theme, provider),
-            ],
-            const SizedBox(height: 2),
-            _buildBarChart(theme, provider),
-            _buildFooter(context, theme, provider),
-          ],
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(minHeight: _minimumCardHeight),
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final growth = _buildGrowth(theme, provider);
+              final ranges = _buildRangeControl(theme, provider);
+              final header = constraints.maxWidth < 340
+                  ? Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [growth, const SizedBox(height: 8), ranges],
+                    )
+                  : Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(child: growth),
+                        const SizedBox(width: 8),
+                        ranges,
+                      ],
+                    );
+
+              return Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  header,
+                  if (provider.range != PharmacyRevenueRange.week) ...[
+                    const SizedBox(height: 4),
+                    _buildPeriodSelector(theme, provider),
+                  ],
+                  const SizedBox(height: 8),
+                  _buildBarChart(theme, provider),
+                  const SizedBox(height: 4),
+                  _buildFooter(context, theme, provider),
+                ],
+              );
+            },
+          ),
         ),
       ),
     );
   }
 
-  // ── Header ─────────────────────────────────────────────────────────
-
-  Widget _buildHeader(ThemeData theme, PharmacyRevenueProvider provider) {
+  Widget _buildGrowth(ThemeData theme, PharmacyRevenueProvider provider) {
     final series = provider.series;
+    final comparison = 'vs previous ${provider.range.name}';
+    final positive = series.growthPercent != null && series.growthPercent! >= 0;
+    final color = positive ? Colors.green.shade700 : Colors.red.shade700;
 
-    if (!provider.hasData && !provider.loading && provider.error == null) {
-      return Text('No revenue data',
-          style: theme.textTheme.bodySmall
-              ?.copyWith(color: theme.colorScheme.onSurfaceVariant));
-    }
-
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.end,
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('NET REVENUE',
-                  style: theme.textTheme.labelSmall
-                      ?.copyWith(fontWeight: FontWeight.w700, fontSize: 10)),
-              Text(
-                NumberFormat.currency(symbol: '\$', decimalDigits: 2)
-                    .format(series.total),
-                style: theme.textTheme.titleLarge
-                    ?.copyWith(fontWeight: FontWeight.bold),
-              ),
-              if (series.transactionCount > 0)
-                Text(
-                  '${series.transactionCount} transaction${series.transactionCount == 1 ? '' : 's'}',
-                  style: theme.textTheme.bodySmall
-                      ?.copyWith(fontSize: 10, color: theme.colorScheme.onSurfaceVariant),
-                ),
-            ],
-          ),
-        ),
         if (series.isNewRevenue)
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
-            decoration: BoxDecoration(
-              color: Colors.green.withOpacity(0.12),
-              borderRadius: BorderRadius.circular(6),
+          Text(
+            'NEW',
+            style: theme.textTheme.labelLarge?.copyWith(
+              color: Colors.green.shade700,
+              fontWeight: FontWeight.w700,
             ),
-            child: Text('NEW',
-                style: TextStyle(
-                    fontSize: 9,
-                    fontWeight: FontWeight.w700,
-                    color: Colors.green.shade700)),
           )
         else if (series.growthPercent != null)
           Row(
             mainAxisSize: MainAxisSize.min,
             children: [
               Icon(
-                series.growthPercent! >= 0
-                    ? Icons.trending_up
-                    : Icons.trending_down,
-                size: 14,
-                color: series.growthPercent! >= 0
-                    ? Colors.green.shade600
-                    : Colors.red.shade600,
+                positive ? Icons.trending_up : Icons.trending_down,
+                size: 18,
+                color: color,
               ),
-              const SizedBox(width: 1),
+              const SizedBox(width: 4),
               Text(
-                '${series.growthPercent! >= 0 ? '+' : ''}${series.growthPercent!.toStringAsFixed(1)}%',
-                style: TextStyle(
-                  fontSize: 10,
-                  fontWeight: FontWeight.w600,
-                  color: series.growthPercent! >= 0
-                      ? Colors.green.shade600
-                      : Colors.red.shade600,
+                '${positive ? '+' : ''}${series.growthPercent!.toStringAsFixed(1)}%',
+                style: theme.textTheme.titleSmall?.copyWith(
+                  color: color,
+                  fontWeight: FontWeight.w700,
                 ),
               ),
             ],
+          )
+        else
+          Text(
+            'No previous comparison',
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
           ),
+        const SizedBox(height: 2),
+        Text(
+          comparison,
+          style: theme.textTheme.labelSmall?.copyWith(
+            color: theme.colorScheme.onSurfaceVariant,
+          ),
+        ),
       ],
     );
   }
 
-  // ── Segmented Control ──────────────────────────────────────────────
-
-  Widget _buildSegmentedControl(
-      ThemeData theme, PharmacyRevenueProvider provider) {
-    return SizedBox(
-      height: 24,
-      child: Row(
-        children: [
-          _segmentBtn(theme, 'Week', PharmacyRevenueRange.week, provider),
-          const SizedBox(width: 3),
-          _segmentBtn(theme, 'Month', PharmacyRevenueRange.month, provider),
-          const SizedBox(width: 3),
-          _segmentBtn(theme, 'Year', PharmacyRevenueRange.year, provider),
-        ],
-      ),
+  Widget _buildRangeControl(ThemeData theme, PharmacyRevenueProvider provider) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        _rangeButton(theme, 'Week', PharmacyRevenueRange.week, provider),
+        const SizedBox(width: 4),
+        _rangeButton(theme, 'Month', PharmacyRevenueRange.month, provider),
+        const SizedBox(width: 4),
+        _rangeButton(theme, 'Year', PharmacyRevenueRange.year, provider),
+      ],
     );
   }
 
-  Widget _segmentBtn(ThemeData theme, String label,
-      PharmacyRevenueRange value, PharmacyRevenueProvider provider) {
-    final selected = provider.range == value;
-    return Expanded(
-      child: GestureDetector(
-        onTap: () => provider.selectRange(value),
-        child: Container(
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            color: selected
-                ? theme.colorScheme.primary.withOpacity(0.1)
-                : Colors.transparent,
-            borderRadius: BorderRadius.circular(5),
-            border: Border.all(
-              color: selected
-                  ? theme.colorScheme.primary
-                  : theme.colorScheme.outlineVariant,
-            ),
-          ),
-          child: Text(
-            label,
-            style: TextStyle(
-              fontSize: 10,
-              fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-              color: selected
-                  ? theme.colorScheme.primary
-                  : theme.colorScheme.onSurfaceVariant,
-            ),
-          ),
+  Widget _rangeButton(
+    ThemeData theme,
+    String label,
+    PharmacyRevenueRange range,
+    PharmacyRevenueProvider provider,
+  ) {
+    final selected = provider.range == range;
+    return Material(
+      color: selected
+          ? theme.colorScheme.primary.withOpacity(0.10)
+          : Colors.transparent,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(6),
+        side: BorderSide(
+          color: selected
+              ? theme.colorScheme.primary
+              : theme.colorScheme.outlineVariant,
         ),
       ),
-    );
-  }
-
-  // ── Period Selector ────────────────────────────────────────────────
-
-  Widget _buildPeriodSelector(
-      ThemeData theme, PharmacyRevenueProvider provider) {
-    if (provider.range == PharmacyRevenueRange.month) {
-      return SizedBox(
-        height: 20,
-        child: Row(
-          children: [
-            _periodBtn(theme, Icons.chevron_left, () {
-              final newM = provider.selectedMonth == 1
-                  ? 12
-                  : provider.selectedMonth - 1;
-              final newY = provider.selectedMonth == 1
-                  ? provider.selectedYear - 1
-                  : provider.selectedYear;
-              provider.selectMonth(newM, newY);
-            }),
-            Expanded(
-              child: Text(
-                '${_monthName(provider.selectedMonth)} ${provider.selectedYear}',
-                textAlign: TextAlign.center,
-                style: theme.textTheme.labelSmall
-                    ?.copyWith(fontWeight: FontWeight.w600, fontSize: 10),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(6),
+        onTap: () => provider.selectRange(range),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
+          child: Center(
+            child: Text(
+              label,
+              style: theme.textTheme.labelMedium?.copyWith(
+                color: selected
+                    ? theme.colorScheme.primary
+                    : theme.colorScheme.onSurfaceVariant,
+                fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
               ),
             ),
-            _periodBtn(theme, Icons.chevron_right, () {
-              final newM = provider.selectedMonth == 12
-                  ? 1
-                  : provider.selectedMonth + 1;
-              final newY = provider.selectedMonth == 12
-                  ? provider.selectedYear + 1
-                  : provider.selectedYear;
-              provider.selectMonth(newM, newY);
-            }),
-          ],
+          ),
         ),
-      );
-    }
+      ),
+    );
+  }
+
+  Widget _buildPeriodSelector(
+    ThemeData theme,
+    PharmacyRevenueProvider provider,
+  ) {
+    final isMonth = provider.range == PharmacyRevenueRange.month;
+    final label = isMonth
+        ? '${_monthName(provider.selectedMonth)} ${provider.selectedYear}'
+        : '${provider.selectedYear}';
 
     return SizedBox(
-      height: 20,
+      height: 44,
       child: Row(
         children: [
-          _periodBtn(theme, Icons.chevron_left, () {
-            provider.selectYear(provider.selectedYear - 1);
-          }),
+          IconButton(
+            icon: const Icon(Icons.chevron_left),
+            tooltip: isMonth ? 'Previous month' : 'Previous year',
+            onPressed: () => _selectPreviousPeriod(provider),
+          ),
           Expanded(
             child: Text(
-              '${provider.selectedYear}',
+              label,
               textAlign: TextAlign.center,
-              style: theme.textTheme.labelSmall
-                  ?.copyWith(fontWeight: FontWeight.w600, fontSize: 10),
+              style: theme.textTheme.labelLarge?.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
             ),
           ),
-          _periodBtn(theme, Icons.chevron_right, () {
-            provider.selectYear(provider.selectedYear + 1);
-          }),
+          IconButton(
+            icon: const Icon(Icons.chevron_right),
+            tooltip: isMonth ? 'Next month' : 'Next year',
+            onPressed: () => _selectNextPeriod(provider),
+          ),
         ],
       ),
     );
   }
 
-  Widget _periodBtn(ThemeData theme, IconData icon, VoidCallback onTap) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.all(1),
-        child: Icon(icon, size: 14),
-      ),
-    );
+  void _selectPreviousPeriod(PharmacyRevenueProvider provider) {
+    if (provider.range == PharmacyRevenueRange.month) {
+      final month = provider.selectedMonth == 1
+          ? 12
+          : provider.selectedMonth - 1;
+      final year = provider.selectedMonth == 1
+          ? provider.selectedYear - 1
+          : provider.selectedYear;
+      provider.selectMonth(month, year);
+      return;
+    }
+    provider.selectYear(provider.selectedYear - 1);
   }
 
-  // ── Bar Chart ──────────────────────────────────────────────────────
+  void _selectNextPeriod(PharmacyRevenueProvider provider) {
+    if (provider.range == PharmacyRevenueRange.month) {
+      final month = provider.selectedMonth == 12
+          ? 1
+          : provider.selectedMonth + 1;
+      final year = provider.selectedMonth == 12
+          ? provider.selectedYear + 1
+          : provider.selectedYear;
+      provider.selectMonth(month, year);
+      return;
+    }
+    provider.selectYear(provider.selectedYear + 1);
+  }
 
   Widget _buildBarChart(ThemeData theme, PharmacyRevenueProvider provider) {
     final series = provider.series;
-    if (series.buckets.isEmpty) return const SizedBox.shrink();
+    if (provider.loading && !provider.hasData) {
+      return const SizedBox(
+        key: ValueKey('pharmacy-revenue-chart'),
+        height: _chartHeight,
+        child: Center(child: CircularProgressIndicator()),
+      );
+    }
+    if (!provider.hasData && provider.error == null) {
+      return SizedBox(
+        key: const ValueKey('pharmacy-revenue-chart'),
+        height: _chartHeight,
+        child: Center(
+          child: Text(
+            'No revenue in this period',
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
+        ),
+      );
+    }
 
-    final numericAmounts = series.buckets
-        .where((b) => b.amount != null)
-        .map((b) => b.amount!)
+    final amounts = series.buckets
+        .where((bucket) => bucket.amount != null)
+        .map((bucket) => bucket.amount!)
         .toList();
-    final maxVal =
-        numericAmounts.isEmpty ? 0.0 : numericAmounts.reduce((a, b) => a > b ? a : b);
-    final allZero = numericAmounts.isEmpty || numericAmounts.every((v) => v == 0);
+    final maximum = amounts.isEmpty
+        ? 0.0
+        : amounts.reduce((a, b) => a > b ? a : b);
 
     return SizedBox(
-      height: _maxBarHeight + 10,
+      key: const ValueKey('pharmacy-revenue-chart'),
+      height: _chartHeight,
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.end,
-        children: series.buckets.map((bucket) {
-          final ratio =
-              (maxVal > 0 && bucket.amount != null) ? bucket.amount! / maxVal : 0.0;
-          final barHeight = ratio * _maxBarHeight;
-
-          return Expanded(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 1),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  if (bucket.amount != null && !allZero)
-                    Text(
-                      NumberFormat.compact().format(bucket.amount),
-                      style: theme.textTheme.labelSmall
-                          ?.copyWith(fontSize: 7, fontWeight: FontWeight.w600),
-                    ),
-                  Expanded(
-                    child: Align(
-                      alignment: Alignment.bottomCenter,
-                      child: bucket.amount != null && !allZero
-                          ? Container(
-                              width: 10,
-                              height: barHeight.clamp(2, _maxBarHeight),
-                              decoration: BoxDecoration(
-                                color: theme.colorScheme.primary,
-                                borderRadius: const BorderRadius.vertical(
-                                    top: Radius.circular(2)),
-                              ),
-                            )
-                          : bucket.amount != null
-                              ? Container(
-                                  width: 10,
-                                  height: 2,
-                                  decoration: BoxDecoration(
-                                    color: theme.colorScheme.outlineVariant,
-                                    borderRadius: BorderRadius.circular(1),
-                                  ),
-                                )
-                              : const SizedBox.shrink(),
-                    ),
-                  ),
-                  Text(
-                    bucket.label,
-                    style: theme.textTheme.labelSmall?.copyWith(fontSize: 7),
-                    overflow: TextOverflow.ellipsis,
-                    textAlign: TextAlign.center,
-                  ),
-                ],
-              ),
-            ),
-          );
-        }).toList(),
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: series.buckets
+            .map((bucket) => _buildBucket(theme, bucket, maximum))
+            .toList(),
       ),
     );
   }
 
-  // ── Footer ─────────────────────────────────────────────────────────
+  Widget _buildBucket(
+    ThemeData theme,
+    PharmacyRevenueBucket bucket,
+    double maximum,
+  ) {
+    final hasBar = bucket.amount != null;
+    final ratio = hasBar && maximum > 0 ? bucket.amount! / maximum : 0.0;
+    final barHeight = maximum == 0 ? 3.0 : (ratio * 126).clamp(4.0, 126.0);
+    final amountLabel = hasBar
+        ? NumberFormat.currency(
+            symbol: '\$',
+            decimalDigits: 2,
+          ).format(bucket.amount)
+        : null;
+    final transactionLabel = bucket.transactionCount == 1
+        ? '1 transaction'
+        : '${bucket.transactionCount} transactions';
+    final tooltipMessage = hasBar
+        ? '${bucket.label}\n$amountLabel | $transactionLabel'
+        : null;
+    final bar = hasBar
+        ? Container(
+            width: 14,
+            height: barHeight,
+            decoration: BoxDecoration(
+              color: theme.colorScheme.primary,
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(3),
+              ),
+            ),
+          )
+        : const SizedBox.shrink();
 
-  Widget _buildFooter(BuildContext ctx, ThemeData theme, PharmacyRevenueProvider provider) {
-    if (provider.loading && !provider.hasData) {
-      return const SizedBox(
-        height: 10,
-        child: Center(child: SizedBox(width: 10, height: 10, child: CircularProgressIndicator(strokeWidth: 2))),
-      );
-    }
+    return Expanded(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 2),
+        child: Column(
+          children: [
+            Expanded(
+              child: Align(
+                alignment: Alignment.bottomCenter,
+                child: hasBar
+                    ? Semantics(
+                        container: true,
+                        button: true,
+                        label: tooltipMessage,
+                        excludeSemantics: true,
+                        child: Tooltip(
+                          message: tooltipMessage,
+                          triggerMode: TooltipTriggerMode.tap,
+                          child: bar,
+                        ),
+                      )
+                    : bar,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              bucket.label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.center,
+              style: theme.textTheme.labelSmall,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 
+  Widget _buildFooter(
+    BuildContext context,
+    ThemeData theme,
+    PharmacyRevenueProvider provider,
+  ) {
     if (provider.error != null) {
       return Row(
         children: [
           Expanded(
             child: Text(
               provider.error!,
-              style: TextStyle(fontSize: 9, color: theme.colorScheme.error),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
+              style: theme.textTheme.labelSmall?.copyWith(
+                color: theme.colorScheme.error,
+              ),
             ),
           ),
-          const SizedBox(width: 4),
-          GestureDetector(
-            onTap: () {
-              final auth = ctx.read<AuthProvider>();
-              if (auth.accessToken != null) {
-                final pharmacyId = auth.pharmacyProfile?['pharmacyId']
-                        ?.toString() ??
-                    auth.userId!;
-                provider.refresh(
-                    token: auth.accessToken!, pharmacyId: pharmacyId);
-              }
+          TextButton(
+            onPressed: () {
+              final auth = context.read<AuthProvider>();
+              final token = auth.accessToken;
+              if (token == null) return;
+              final pharmacyId =
+                  auth.pharmacyProfile?['pharmacyId']?.toString() ??
+                  auth.userId;
+              if (pharmacyId == null) return;
+              provider.refresh(token: token, pharmacyId: pharmacyId);
             },
-            child: Text('Retry',
-                style: TextStyle(
-                    fontSize: 9,
-                    fontWeight: FontWeight.w600,
-                    color: theme.colorScheme.primary)),
+            style: TextButton.styleFrom(
+              minimumSize: const Size(44, 32),
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              visualDensity: VisualDensity.compact,
+            ),
+            child: const Text('Retry'),
           ),
         ],
       );
@@ -368,29 +393,38 @@ class PharmacyRevenueCard extends StatelessWidget {
     if (provider.updatedAt != null) {
       return Text(
         'Updated ${_timeAgo(provider.updatedAt!)}',
-        style: theme.textTheme.labelSmall
-            ?.copyWith(fontSize: 8, color: theme.colorScheme.onSurfaceVariant),
+        style: theme.textTheme.labelSmall?.copyWith(
+          color: theme.colorScheme.onSurfaceVariant,
+        ),
       );
     }
 
-    return const SizedBox.shrink();
+    return const SizedBox(height: 0);
   }
 
-  // ── Helpers ────────────────────────────────────────────────────────
-
-  static String _monthName(int m) {
+  static String _monthName(int month) {
     const names = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
     ];
-    return names[m - 1];
+    return names[month - 1];
   }
 
-  static String _timeAgo(DateTime dt) {
-    final diff = DateTime.now().difference(dt);
-    if (diff.inSeconds < 60) return 'just now';
-    if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
-    if (diff.inHours < 24) return '${diff.inHours}h ago';
-    return '${diff.inDays}d ago';
+  static String _timeAgo(DateTime value) {
+    final difference = DateTime.now().difference(value);
+    if (difference.inSeconds < 60) return 'just now';
+    if (difference.inMinutes < 60) return '${difference.inMinutes}m ago';
+    if (difference.inHours < 24) return '${difference.inHours}h ago';
+    return '${difference.inDays}d ago';
   }
 }
