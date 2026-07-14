@@ -2,6 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:HealthLink/models/pharmacy/pharmacy_inventory_item.dart';
 import 'package:HealthLink/models/pharmacy/pharmacy_order_item.dart';
 import 'package:HealthLink/models/pharmacy/pharmacy_quote_draft.dart';
+import 'package:HealthLink/utils/pharmacy/pharmacy_quote_eta.dart';
 import 'package:HealthLink/utils/pharmacy/pharmacy_quote_mapper.dart';
 
 void main() {
@@ -364,6 +365,69 @@ void main() {
 
       expect(payload['deliveryType'], 'PICKUP');
       expect(payload.containsKey('deliveryFee'), false);
+      expect(payload.containsKey('estimatedDeliveryTime'), false);
+    });
+
+    test('creates order payload emits ISO datetime for ETA', () {
+      final items = [
+        QuoteLineItem(
+          medicineId: 1,
+          medicationName: 'Paracetamol',
+          quantity: 20,
+          totalSupplyDays: 10,
+          timing: ['MORNING'],
+        ),
+      ];
+
+      final now = DateTime(2026, 7, 14, 18, 0);
+      final arrival = pharmacyEstimatedArrival(45, now);
+      final payload = PharmacyQuoteMapper.toCreateOrderPayload(
+        items,
+        deliveryFee: 5,
+        estimatedDeliveryTime: arrival,
+      );
+
+      expect(payload['estimatedDeliveryTime'], '2026-07-14T18:45:00.000');
+    });
+
+    test('update quote payload emits ISO datetime for ETA', () {
+      final items = [
+        QuoteLineItem(
+          medicineId: 1,
+          medicationName: 'Paracetamol',
+          quantity: 30,
+          totalSupplyDays: 15,
+          timing: ['MORNING'],
+        ),
+      ];
+
+      final now = DateTime(2026, 7, 14, 18, 0);
+      final arrival = pharmacyEstimatedArrival(45, now);
+      final payload = PharmacyQuoteMapper.toUpdateQuotePayload(
+        items,
+        deliveryFee: 5,
+        estimatedDeliveryTime: arrival,
+      );
+
+      expect(payload['estimatedDeliveryTime'], '2026-07-14T18:45:00.000');
+    });
+
+    test('pickup payload omits estimatedDeliveryTime', () {
+      final items = [
+        QuoteLineItem(
+          medicineId: 1,
+          medicationName: 'Paracetamol',
+          quantity: 10,
+          totalSupplyDays: 5,
+          timing: ['MORNING'],
+        ),
+      ];
+
+      final payload = PharmacyQuoteMapper.toCreateOrderPayload(
+        items,
+        deliveryType: 'PICKUP',
+      );
+
       expect(payload.containsKey('estimatedDeliveryTime'), false);
     });
 
