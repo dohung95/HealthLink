@@ -223,10 +223,10 @@ class PharmacyOrderServiceImplTest {
                 .additionalNotes("Needs delivery after 6 PM")
                 .status("IN_REVIEW")
                 .deliveryType("Delivery")
-                .deliveryAddress("12 Nguyen Trai, Hanoi")
-                .deliveryLatitude(21.0285)
-                .deliveryLongitude(105.8542)
-                .deliveryPhoneNumber("0912345678")
+                .deliveryAddress("45 Patient Street")
+                .deliveryLatitude(40.7130)
+                .deliveryLongitude(-74.0055)
+                .deliveryPhoneNumber("0912000000")
                 .deliveryAddressSource("MANUAL")
                 .build();
 
@@ -234,12 +234,12 @@ class PharmacyOrderServiceImplTest {
         PharmacyOrderItemRequest requestedItem = orderItemRequest(1, 2);
         requestedItem.setUnit("box");
         request.setItems(List.of(requestedItem));
-        // Explicitly set delivery fields on request (overrides consultation request defaults)
-        request.setDeliveryAddress("12 Nguyen Trai, Hanoi");
-        request.setDeliveryLatitude(40.7130);
-        request.setDeliveryLongitude(-74.0055);
-        request.setDeliveryPhoneNumber("0912345678");
-        request.setDeliveryAddressSource("MANUAL");
+        request.setDeliveryType("PICKUP");
+        request.setDeliveryAddress("Attacker supplied address");
+        request.setDeliveryLatitude(0.0);
+        request.setDeliveryLongitude(0.0);
+        request.setDeliveryPhoneNumber("0000000000");
+        request.setDeliveryAddressSource("ATTACKER_SUPPLIED");
         request.setEstimatedDeliveryMinutes(45);
         request.setPaymentMethod("COD");
         request.setDeliveryFee(new BigDecimal("4.00"));
@@ -263,6 +263,9 @@ class PharmacyOrderServiceImplTest {
 
         PharmacyOrderResponse response =
                 pharmacyOrderService.createOrderFromConsultationRequest(15, request, "pharmacy-1");
+
+        ArgumentCaptor<PharmacyOrder> orderCaptor = ArgumentCaptor.forClass(PharmacyOrder.class);
+        verify(orderRepository).save(orderCaptor.capture());
 
         verify(notificationService).sendWebSocketNotification(
                 eq(patientUser),
@@ -288,11 +291,12 @@ class PharmacyOrderServiceImplTest {
         assertThat(response.getItems().get(0).getTotalPrice()).isEqualByComparingTo("30.00");
         assertThat(response.getItems().get(0).getUnit()).isEqualTo("tablet");
 
-        assertThat(response.getDeliveryAddress()).isEqualTo("12 Nguyen Trai, Hanoi");
+        assertThat(response.getDeliveryType()).isEqualTo("Delivery");
+        assertThat(response.getDeliveryAddress()).isEqualTo("45 Patient Street");
         assertThat(response.getDeliveryLatitude()).isEqualTo(40.7130);
         assertThat(response.getDeliveryLongitude()).isEqualTo(-74.0055);
-        assertThat(response.getDeliveryPhoneNumber()).isEqualTo("0912345678");
-        assertThat(response.getDeliveryAddressSource()).isEqualTo("MANUAL");
+        assertThat(response.getDeliveryPhoneNumber()).isEqualTo("0912000000");
+        assertThat(orderCaptor.getValue().getDeliveryAddressSource()).isEqualTo("MANUAL");
     }
 
     @Test
@@ -349,6 +353,8 @@ class PharmacyOrderServiceImplTest {
         itemRequest.setSourcePrescriptionItemId(101);
         PharmacyConsultationOrderCreateRequest request = new PharmacyConsultationOrderCreateRequest();
         request.setDeliveryType("Pickup");
+        request.setDeliveryFee(new BigDecimal("99.00"));
+        request.setEstimatedDeliveryTime(LocalDateTime.now().plusHours(2));
         request.setItems(List.of(itemRequest));
 
         when(consultationRequestRepository.findById(15)).thenReturn(Optional.of(consultationRequest));
@@ -372,6 +378,8 @@ class PharmacyOrderServiceImplTest {
         assertThat(response.getItems()).hasSize(1);
         assertThat(response.getItems().get(0).getSourcePrescriptionHeaderId()).isEqualTo(10);
         assertThat(response.getItems().get(0).getSourcePrescriptionItemId()).isEqualTo(101);
+        assertThat(response.getDeliveryFee()).isEqualByComparingTo("0");
+        assertThat(response.getEstimatedDeliveryTime()).isNull();
     }
 
     @Test
@@ -1160,17 +1168,25 @@ class PharmacyOrderServiceImplTest {
                 .patient(patient)
                 .pharmacy(pharmacy)
                 .consultationRequest(consultationRequest)
+                .deliveryType("Delivery")
                 .deliveryAddress("45 Oak Street")
                 .deliveryLatitude(40.7128)
                 .deliveryLongitude(-74.0060)
+                .deliveryPhoneNumber("0912000000")
+                .deliveryAddressSource("MANUAL")
                 .patientConfirmedAt(LocalDateTime.now().minusHours(1))
                 .revisionRequestNotes("Need a different quote")
                 .revisionRequestedAt(LocalDateTime.now().minusHours(2))
                 .build();
         PharmacyConsultationOrderCreateRequest request = new PharmacyConsultationOrderCreateRequest();
-        request.setDeliveryType("Delivery");
+        request.setDeliveryType("Pickup");
         request.setDeliveryFee(new BigDecimal("4.50"));
         request.setEstimatedDeliveryTime(LocalDateTime.now().plusHours(2));
+        request.setDeliveryAddress("Attacker supplied address");
+        request.setDeliveryLatitude(0.0);
+        request.setDeliveryLongitude(0.0);
+        request.setDeliveryPhoneNumber("0000000000");
+        request.setDeliveryAddressSource("ATTACKER_SUPPLIED");
         request.setPaymentMethod("COD");
         request.setPharmacistNotes("Updated quote");
         request.setItems(List.of(orderItemRequest(1, 3)));
@@ -1191,6 +1207,12 @@ class PharmacyOrderServiceImplTest {
         assertThat(response.getDeliveryFee()).isEqualByComparingTo("4.50");
         assertThat(response.getTotalAmount()).isEqualByComparingTo("49.50");
         assertThat(response.getPharmacistNotes()).isEqualTo("Updated quote");
+        assertThat(response.getDeliveryType()).isEqualTo("Delivery");
+        assertThat(response.getDeliveryAddress()).isEqualTo("45 Oak Street");
+        assertThat(response.getDeliveryLatitude()).isEqualTo(40.7128);
+        assertThat(response.getDeliveryLongitude()).isEqualTo(-74.0060);
+        assertThat(response.getDeliveryPhoneNumber()).isEqualTo("0912000000");
+        assertThat(response.getDeliveryAddressSource()).isEqualTo("MANUAL");
         assertThat(order.getPatientConfirmedAt()).isNull();
         assertThat(order.getRevisionResolvedAt()).isNotNull();
         assertThat(order.getPatientConfirmationRequestedAt()).isNotNull();

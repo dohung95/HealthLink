@@ -342,26 +342,12 @@ public class PharmacyOrderServiceImpl implements PharmacyOrderService {
         List<PharmacyOrderItem> orderItems = buildOrderItemsFromRequest(request.getItems(), consultationRequest);
         validateOrderRequestItems(consultationRequest, orderItems);
         BigDecimal medicineAmount = calculateMedicineAmount(orderItems);
-        String deliveryType = normalizeDeliveryType(
-                PharmacyServiceHelper.firstNonBlank(request.getDeliveryType(), consultationRequest.getPreferredDeliveryType())
-        );
-        BigDecimal deliveryFee = BigDecimal.ZERO;
-
-        String deliveryAddress = PharmacyServiceHelper.firstNonBlank(request.getDeliveryAddress(), consultationRequest.getDeliveryAddress());
-        Double deliveryLat = request.getDeliveryLatitude() != null
-                ? request.getDeliveryLatitude()
-                : consultationRequest.getDeliveryLatitude();
-        Double deliveryLon = request.getDeliveryLongitude() != null
-                ? request.getDeliveryLongitude()
-                : consultationRequest.getDeliveryLongitude();
-        String deliveryPhoneNumber = PharmacyServiceHelper.firstNonBlank(
-                request.getDeliveryPhoneNumber(),
-                consultationRequest.getDeliveryPhoneNumber()
-        );
-        String deliveryAddressSource = PharmacyServiceHelper.firstNonBlank(
-                request.getDeliveryAddressSource(),
-                consultationRequest.getDeliveryAddressSource()
-        );
+        String deliveryType = normalizeDeliveryType(consultationRequest.getPreferredDeliveryType());
+        String deliveryAddress = PharmacyServiceHelper.trimToNull(consultationRequest.getDeliveryAddress());
+        Double deliveryLat = consultationRequest.getDeliveryLatitude();
+        Double deliveryLon = consultationRequest.getDeliveryLongitude();
+        String deliveryPhoneNumber = PharmacyServiceHelper.trimToNull(consultationRequest.getDeliveryPhoneNumber());
+        String deliveryAddressSource = PharmacyServiceHelper.trimToNull(consultationRequest.getDeliveryAddressSource());
 
         if (DELIVERY_TYPE_DELIVERY.equals(deliveryType)) {
             if (!pharmacy.isDeliveryAvailable()) {
@@ -379,32 +365,24 @@ public class PharmacyOrderServiceImpl implements PharmacyOrderService {
             }
 
             validateDeliveryRadius(pharmacy, deliveryLat, deliveryLon);
-        } else if (DELIVERY_TYPE_PICKUP.equals(deliveryType)) {
-            deliveryFee = BigDecimal.ZERO;
         } else if (deliveryAddress == null) {
             deliveryAddress = PharmacyServiceHelper.buildPatientAddress(patient);
             deliveryLat = patient != null ? patient.getLatitude() : null;
             deliveryLon = patient != null ? patient.getLongitude() : null;
         }
 
-        // Use delivery fee from request if provided, otherwise fallback
-        BigDecimal actualDeliveryFee;
-        if (DELIVERY_TYPE_PICKUP.equals(deliveryType)) {
-            actualDeliveryFee = BigDecimal.ZERO;
-        } else {
-            actualDeliveryFee = request.getDeliveryFee() != null
-                    ? request.getDeliveryFee()
-                    : deliveryFee;
-        }
-        // Validate delivery fee
+        BigDecimal actualDeliveryFee = DELIVERY_TYPE_PICKUP.equals(deliveryType)
+                ? BigDecimal.ZERO
+                : Optional.ofNullable(request.getDeliveryFee()).orElse(BigDecimal.ZERO);
         if (actualDeliveryFee != null && actualDeliveryFee.compareTo(BigDecimal.ZERO) < 0) {
             throw new BadRequestException("Delivery fee must be greater than or equal to 0");
         }
 
         BigDecimal totalAmount = medicineAmount.add(actualDeliveryFee != null ? actualDeliveryFee : BigDecimal.ZERO);
 
-        LocalDateTime estimatedDeliveryTime =
-                resolveEstimatedDeliveryTime(deliveryType, request);
+        LocalDateTime estimatedDeliveryTime = DELIVERY_TYPE_PICKUP.equals(deliveryType)
+                ? null
+                : resolveEstimatedDeliveryTime(deliveryType, request);
 
         PharmacyOrder order = PharmacyOrder.builder()
                 .orderNumber(generateOrderNumber())
@@ -679,16 +657,13 @@ public class PharmacyOrderServiceImpl implements PharmacyOrderService {
                 order.getConsultationRequest());
         BigDecimal medicineAmount = calculateMedicineAmount(orderItems);
 
-        String deliveryType = normalizeDeliveryType(request.getDeliveryType());
-        BigDecimal deliveryFee = request.getDeliveryFee() != null ? request.getDeliveryFee() : BigDecimal.ZERO;
-
-        String deliveryAddress = PharmacyServiceHelper.trimToNull(request.getDeliveryAddress());
-        if (deliveryAddress == null) {
-            deliveryAddress = order.getDeliveryAddress();
+        String deliveryType = normalizeDeliveryType(order.getDeliveryType());
+        BigDecimal deliveryFee = DELIVERY_TYPE_PICKUP.equals(deliveryType)
+                ? BigDecimal.ZERO
+                : Optional.ofNullable(request.getDeliveryFee()).orElse(BigDecimal.ZERO);
+        if (deliveryFee.compareTo(BigDecimal.ZERO) < 0) {
+            throw new BadRequestException("Delivery fee must be greater than or equal to 0");
         }
-
-        Double deliveryLat = request.getDeliveryLatitude() != null ? request.getDeliveryLatitude() : order.getDeliveryLatitude();
-        Double deliveryLon = request.getDeliveryLongitude() != null ? request.getDeliveryLongitude() : order.getDeliveryLongitude();
 
         BigDecimal totalAmount = medicineAmount.add(deliveryFee);
 
@@ -700,10 +675,9 @@ public class PharmacyOrderServiceImpl implements PharmacyOrderService {
         order.setDeliveryFee(deliveryFee);
         order.setTotalAmount(totalAmount);
         order.setDeliveryType(deliveryType);
-        order.setDeliveryAddress(deliveryAddress);
-        order.setDeliveryLatitude(deliveryLat);
-        order.setDeliveryLongitude(deliveryLon);
-        order.setEstimatedDeliveryTime(request.getEstimatedDeliveryTime());
+        order.setEstimatedDeliveryTime(DELIVERY_TYPE_PICKUP.equals(deliveryType)
+                ? null
+                : request.getEstimatedDeliveryTime());
         order.setNotes(PharmacyServiceHelper.firstNonBlank(request.getNotes(), order.getNotes()));
         order.setPharmacistNotes(PharmacyServiceHelper.firstNonBlank(request.getPharmacistNotes(), order.getPharmacistNotes()));
         order.setPaymentMethod(PharmacyServiceHelper.trimToNull(request.getPaymentMethod()));
