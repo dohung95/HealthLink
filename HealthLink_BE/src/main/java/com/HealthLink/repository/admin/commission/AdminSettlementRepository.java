@@ -5,6 +5,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.math.BigDecimal;
@@ -37,6 +38,12 @@ public interface AdminSettlementRepository extends JpaRepository<Settlement, Int
 
     @Query("SELECT COUNT(s) FROM Settlement s WHERE s.status = 'PENDING'")
     Integer countPendingSettlements();
+
+    @Query("SELECT COALESCE(SUM(s.netAmount), 0) FROM Settlement s WHERE s.status = 'COMPLETED' " +
+           "AND s.recipientType = :recipientType AND s.recipientId = :recipientId")
+    BigDecimal getTotalCompletedNetAmountByRecipient(
+        @Param("recipientType") String recipientType,
+        @Param("recipientId") String recipientId);
 
     @Query("SELECT MAX(s.settlementNumber) FROM Settlement s WHERE s.settlementNumber LIKE :prefix%")
     String findMaxSettlementNumber(String prefix);

@@ -21,6 +21,15 @@ public class FinancialOverviewDto {
     private BigDecimal thisWeekRevenue;
     private BigDecimal thisMonthRevenue;
 
+    // Breakdown theo kỳ (Today / This Month) cho mini chart "Cụm A"
+    private BigDecimal todayPlatformFees;
+    private BigDecimal todayDoctorEarnings;
+    private BigDecimal todayPharmacyEarnings;
+
+    private BigDecimal thisMonthPlatformFees;
+    private BigDecimal thisMonthDoctorEarnings;
+    private BigDecimal thisMonthPharmacyEarnings;
+
     private long totalTransactions;
     private long completedTransactions;
     private long pendingTransactions;

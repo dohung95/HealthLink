@@ -43,4 +43,19 @@ public interface AdminAppointmentRepository extends JpaRepository<Appointment, I
         @Param("doctorId") String doctorId,
         @Param("statuses") List<String> statuses,
         @Param("consultationTypes") List<String> consultationTypes);
+
+    // Sum completed fee by doctor, grouped by year+month, split online vs offline —
+    // used for Commission Management yearly/monthly breakdown
+    // (rows: [year, month, onlineFee, offlineFee, count])
+    @Query("SELECT YEAR(a.appointmentTime), MONTH(a.appointmentTime), " +
+           "COALESCE(SUM(CASE WHEN UPPER(a.consultationType) IN :onlineTypes THEN a.fee ELSE 0 END), 0), " +
+           "COALESCE(SUM(CASE WHEN UPPER(a.consultationType) IN :offlineTypes THEN a.fee ELSE 0 END), 0), " +
+           "COUNT(a) " +
+           "FROM Appointment a WHERE a.doctor.doctorId = :doctorId AND a.status = 'COMPLETED' " +
+           "GROUP BY YEAR(a.appointmentTime), MONTH(a.appointmentTime) " +
+           "ORDER BY YEAR(a.appointmentTime), MONTH(a.appointmentTime)")
+    List<Object[]> sumCompletedFeeByDoctorGroupedByYearMonth(
+        @Param("doctorId") String doctorId,
+        @Param("onlineTypes") List<String> onlineTypes,
+        @Param("offlineTypes") List<String> offlineTypes);
 }
