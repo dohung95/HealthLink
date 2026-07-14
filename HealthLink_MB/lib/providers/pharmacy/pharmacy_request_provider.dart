@@ -86,7 +86,7 @@ class PharmacyRequestProvider extends ChangeNotifier {
     String? deliveryType,
     String? deliveryAddress,
     double? deliveryFee,
-    String? estimatedDeliveryTime,
+    int? estimatedDeliveryMinutes,
     String? deliveryPhoneNumber,
     String? notes,
   }) async {
@@ -102,7 +102,7 @@ class PharmacyRequestProvider extends ChangeNotifier {
         deliveryType: deliveryType,
         deliveryAddress: deliveryAddress,
         deliveryFee: deliveryFee,
-        estimatedDeliveryTime: estimatedDeliveryTime,
+        estimatedDeliveryMinutes: estimatedDeliveryMinutes,
         deliveryPhoneNumber: deliveryPhoneNumber,
         notes: notes,
       );

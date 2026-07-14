@@ -128,7 +128,7 @@ class PharmacyRequestService {
     String? deliveryType,
     String? deliveryAddress,
     double? deliveryFee,
-    String? estimatedDeliveryTime,
+    int? estimatedDeliveryMinutes,
     String? deliveryPhoneNumber,
     String? notes,
   }) async {
@@ -137,8 +137,8 @@ class PharmacyRequestService {
       if (deliveryType != null) 'deliveryType': deliveryType,
       if (deliveryAddress != null) 'deliveryAddress': deliveryAddress,
       if (deliveryFee != null) 'deliveryFee': deliveryFee,
-      if (estimatedDeliveryTime != null)
-        'estimatedDeliveryTime': estimatedDeliveryTime,
+      if (estimatedDeliveryMinutes != null)
+        'estimatedDeliveryMinutes': estimatedDeliveryMinutes,
       if (deliveryPhoneNumber != null)
         'deliveryPhoneNumber': deliveryPhoneNumber,
       if (notes != null) 'notes': notes,

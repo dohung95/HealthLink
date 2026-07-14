@@ -675,9 +675,7 @@ public class PharmacyOrderServiceImpl implements PharmacyOrderService {
         order.setDeliveryFee(deliveryFee);
         order.setTotalAmount(totalAmount);
         order.setDeliveryType(deliveryType);
-        order.setEstimatedDeliveryTime(DELIVERY_TYPE_PICKUP.equals(deliveryType)
-                ? null
-                : request.getEstimatedDeliveryTime());
+        order.setEstimatedDeliveryTime(resolveEstimatedDeliveryTime(deliveryType, request));
         order.setNotes(PharmacyServiceHelper.firstNonBlank(request.getNotes(), order.getNotes()));
         order.setPharmacistNotes(PharmacyServiceHelper.firstNonBlank(request.getPharmacistNotes(), order.getPharmacistNotes()));
         order.setPaymentMethod(PharmacyServiceHelper.trimToNull(request.getPaymentMethod()));
@@ -1449,8 +1447,8 @@ public class PharmacyOrderServiceImpl implements PharmacyOrderService {
         if (minutes == null) {
             throw new BadRequestException("Estimated delivery time is required for delivery orders");
         }
-        if (minutes < 1 || minutes > 999) {
-            throw new BadRequestException("Estimated delivery minutes must be between 1 and 999");
+        if (minutes < 1 || minutes > 720) {
+            throw new BadRequestException("Estimated delivery minutes must be between 1 and 720");
         }
 
         return LocalDateTime.now().plusMinutes(minutes);

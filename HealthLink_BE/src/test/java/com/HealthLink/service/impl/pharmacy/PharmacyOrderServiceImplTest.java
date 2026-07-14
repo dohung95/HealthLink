@@ -948,9 +948,109 @@ class PharmacyOrderServiceImplTest {
         assertThatThrownBy(() ->
                 pharmacyOrderService.createOrderFromConsultationRequest(15, request, "pharmacy-1"))
                 .isInstanceOf(BadRequestException.class)
-                .hasMessage("Estimated delivery minutes must be between 1 and 999");
+                .hasMessage("Estimated delivery minutes must be between 1 and 720");
 
         verify(orderRepository, never()).save(any(PharmacyOrder.class));
+    }
+
+    @Test
+    void createOrderFromConsultationRequest_shouldRejectMinutesAbove720() {
+        User pharmacyUser = User.builder().id("pharmacy-user-1").build();
+        Pharmacy pharmacy = Pharmacy.builder()
+                .pharmacyId("pharmacy-1")
+                .name("Central Pharmacy")
+                .deliveryFee(new BigDecimal("4.00"))
+                .deliveryRadius(10.0)
+                .latitude(40.7128)
+                .longitude(-74.0060)
+                .deliveryAvailable(true)
+                .active(true)
+                .verified(true)
+                .user(pharmacyUser)
+                .build();
+        Patient patient = Patient.builder()
+                .patientId("patient-1")
+                .fullName("Patient One")
+                .address("45 Oak Street")
+                .city("New York")
+                .country("USA")
+                .latitude(40.7128)
+                .longitude(-74.0060)
+                .build();
+        PharmacyConsultationRequest consultationRequest = PharmacyConsultationRequest.builder()
+                .requestId(16)
+                .patient(patient)
+                .pharmacy(pharmacy)
+                .preferredDeliveryType("Delivery")
+                .status("IN_REVIEW")
+                .build();
+        PharmacyConsultationOrderCreateRequest request = new PharmacyConsultationOrderCreateRequest();
+        request.setItems(List.of(orderItemRequest(1, 2)));
+        request.setEstimatedDeliveryMinutes(721);
+        request.setPaymentMethod("COD");
+
+        when(consultationRequestRepository.findById(16)).thenReturn(Optional.of(consultationRequest));
+        when(orderRepository.existsByConsultationRequest_RequestId(16)).thenReturn(false);
+        when(medicineRepository.findById(1)).thenReturn(Optional.of(medicine(1, "Amlodipine 5mg", "tablet")));
+
+        assertThatThrownBy(() ->
+                pharmacyOrderService.createOrderFromConsultationRequest(16, request, "pharmacy-1"))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessage("Estimated delivery minutes must be between 1 and 720");
+
+        verify(orderRepository, never()).save(any(PharmacyOrder.class));
+    }
+
+    @Test
+    void createOrderFromConsultationRequest_shouldAcceptMinutes720() {
+        User pharmacyUser = User.builder().id("pharmacy-user-2").build();
+        Pharmacy pharmacy = Pharmacy.builder()
+                .pharmacyId("pharmacy-2")
+                .name("East Side Pharmacy")
+                .deliveryFee(new BigDecimal("3.50"))
+                .deliveryRadius(8.0)
+                .latitude(40.7300)
+                .longitude(-73.9950)
+                .deliveryAvailable(true)
+                .active(true)
+                .verified(true)
+                .user(pharmacyUser)
+                .build();
+        Patient patient = Patient.builder()
+                .patientId("patient-2")
+                .fullName("Patient Two")
+                .address("100 Main St")
+                .city("New York")
+                .country("USA")
+                .latitude(40.7300)
+                .longitude(-73.9950)
+                .build();
+        PharmacyConsultationRequest consultationRequest = PharmacyConsultationRequest.builder()
+                .requestId(17)
+                .patient(patient)
+                .pharmacy(pharmacy)
+                .preferredDeliveryType("Delivery")
+                .status("IN_REVIEW")
+                .build();
+        PharmacyConsultationOrderCreateRequest request = new PharmacyConsultationOrderCreateRequest();
+        request.setItems(List.of(orderItemRequest(1, 2)));
+        request.setEstimatedDeliveryMinutes(720);
+        request.setDeliveryFee(new BigDecimal("3.50"));
+        request.setPaymentMethod("COD");
+
+        when(consultationRequestRepository.findById(17)).thenReturn(Optional.of(consultationRequest));
+        when(orderRepository.existsByConsultationRequest_RequestId(17)).thenReturn(false);
+        when(medicineRepository.findById(1)).thenReturn(Optional.of(medicine(1, "Amlodipine 5mg", "tablet")));
+        when(inventoryRepository.findByPharmacy_PharmacyIdAndMedicine_MedicineId("pharmacy-2", 1))
+                .thenReturn(Optional.of(PharmacyInventory.builder()
+                        .inventoryId(1).quantity(100).reservedQuantity(0).active(true).build()));
+        when(orderRepository.save(any(PharmacyOrder.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        PharmacyOrderResponse response =
+                pharmacyOrderService.createOrderFromConsultationRequest(17, request, "pharmacy-2");
+
+        assertThat(response.getStatus()).isEqualTo("PENDING");
+        verify(orderRepository).save(any(PharmacyOrder.class));
     }
 
     @Test
@@ -1222,6 +1322,82 @@ class PharmacyOrderServiceImplTest {
     }
 
     @Test
+    void updateOrderQuote_shouldAcceptEstimatedDeliveryMinutes() {
+        User patientUser = User.builder().id("patient-user-1").build();
+        Pharmacy pharmacy = Pharmacy.builder()
+                .pharmacyId("pharmacy-1")
+                .name("Central Pharmacy")
+                .active(true)
+                .verified(true)
+                .build();
+        Patient patient = Patient.builder()
+                .patientId("patient-1")
+                .fullName("Patient One")
+                .user(patientUser)
+                .build();
+        PharmacyConsultationRequest consultationRequest = PharmacyConsultationRequest.builder()
+                .requestId(15)
+                .patient(patient)
+                .pharmacy(pharmacy)
+                .preferredDeliveryType("Delivery")
+                .status("ORDER_CREATED")
+                .build();
+        PharmacyOrder order = PharmacyOrder.builder()
+                .orderId(77)
+                .orderNumber("ORD-20260520-0001")
+                .status("REVISION_REQUESTED")
+                .paymentStatus("PENDING")
+                .patient(patient)
+                .pharmacy(pharmacy)
+                .consultationRequest(consultationRequest)
+                .deliveryType("Delivery")
+                .deliveryAddress("45 Oak Street")
+                .deliveryLatitude(40.7128)
+                .deliveryLongitude(-74.0060)
+                .deliveryPhoneNumber("0912000000")
+                .deliveryAddressSource("MANUAL")
+                .patientConfirmedAt(LocalDateTime.now().minusHours(1))
+                .revisionRequestNotes("Need a different quote")
+                .revisionRequestedAt(LocalDateTime.now().minusHours(2))
+                .build();
+        PharmacyConsultationOrderCreateRequest request = new PharmacyConsultationOrderCreateRequest();
+        request.setDeliveryType("Pickup");
+        request.setDeliveryFee(new BigDecimal("4.50"));
+        request.setEstimatedDeliveryMinutes(120);
+        request.setDeliveryAddress("Attacker supplied address");
+        request.setDeliveryLatitude(0.0);
+        request.setDeliveryLongitude(0.0);
+        request.setDeliveryPhoneNumber("0000000000");
+        request.setDeliveryAddressSource("ATTACKER_SUPPLIED");
+        request.setPaymentMethod("COD");
+        request.setPharmacistNotes("Updated quote via minutes");
+        request.setItems(List.of(orderItemRequest(1, 3)));
+
+        when(orderRepository.findById(77)).thenReturn(Optional.of(order));
+        when(medicineRepository.findById(1)).thenReturn(Optional.of(medicine(1, "Amlodipine 5mg", "tablet")));
+        when(inventoryRepository.findByPharmacy_PharmacyIdAndMedicine_MedicineId("pharmacy-1", 1))
+                .thenReturn(Optional.of(PharmacyInventory.builder()
+                        .inventoryId(1).quantity(100).reservedQuantity(0).active(true).build()));
+        when(orderRepository.save(any(PharmacyOrder.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(deviceTokenRepository.findByUser_IdAndActiveTrue("patient-user-1")).thenReturn(List.of());
+
+        PharmacyOrderResponse response =
+                pharmacyOrderService.updateOrderQuote(77, request, "pharmacy-1");
+
+        assertThat(response.getStatus()).isEqualTo("PENDING");
+        assertThat(response.getPharmacistNotes()).isEqualTo("Updated quote via minutes");
+        assertThat(order.getEstimatedDeliveryTime()).isNotNull();
+        assertThat(order.getEstimatedDeliveryTime())
+                .isAfter(LocalDateTime.now().plusHours(1))
+                .isBefore(LocalDateTime.now().plusHours(3));
+        assertThat(order.getPatientConfirmedAt()).isNull();
+        assertThat(order.getRevisionResolvedAt()).isNotNull();
+        assertThat(order.getPatientConfirmationRequestedAt()).isNotNull();
+        assertThat(order.getPatientConfirmationReason()).isEqualTo("DELIVERY_QUOTE");
+        verify(orderRepository).save(order);
+    }
+
+    @Test
     void updateOrderQuote_shouldAllowNoPrescriptionRevisionToReplaceMedicines() {
         User patientUser = User.builder().id("patient-user-1").build();
         Pharmacy pharmacy = Pharmacy.builder().pharmacyId("pharmacy-1").build();
@@ -1250,6 +1426,7 @@ class PharmacyOrderServiceImplTest {
         PharmacyConsultationOrderCreateRequest request = new PharmacyConsultationOrderCreateRequest();
         request.setDeliveryType("Pickup");
         request.setDeliveryFee(BigDecimal.ZERO);
+        request.setEstimatedDeliveryMinutes(60);
         request.setItems(List.of(replacementRequest));
 
         when(orderRepository.findById(77)).thenReturn(Optional.of(order));
@@ -1285,6 +1462,7 @@ class PharmacyOrderServiceImplTest {
         PharmacyConsultationOrderCreateRequest request = new PharmacyConsultationOrderCreateRequest();
         request.setDeliveryType("Pickup");
         request.setDeliveryFee(BigDecimal.ZERO);
+        request.setEstimatedDeliveryMinutes(60);
         request.setItems(List.of(orderItemRequest(2, 1)));
 
         when(orderRepository.findById(77)).thenReturn(Optional.of(order));

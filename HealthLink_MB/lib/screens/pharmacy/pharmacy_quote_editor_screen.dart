@@ -300,9 +300,7 @@ class _PharmacyQuoteEditorScreenState
 
     final isPickup = _deliveryType == 'PICKUP';
     final deliveryFee = isPickup ? 0.0 : double.parse(_deliveryFeeCtrl.text);
-    final estimatedDeliveryTime = isPickup
-        ? null
-        : pharmacyEstimatedArrival(_estimatedDeliveryMinutes!, DateTime.now());
+    final estimatedDeliveryMinutes = isPickup ? null : _estimatedDeliveryMinutes;
     final notes = _notesCtrl.text.isNotEmpty ? _notesCtrl.text : null;
     bool success = false;
     String? requestError;
@@ -314,7 +312,7 @@ class _PharmacyQuoteEditorScreenState
         final payload = PharmacyQuoteMapper.toCreateOrderPayload(
           _items,
           deliveryFee: deliveryFee,
-          estimatedDeliveryTime: estimatedDeliveryTime,
+          estimatedDeliveryMinutes: estimatedDeliveryMinutes,
           notes: notes,
         );
         success = await provider.createOrderFromRequest(
@@ -322,7 +320,7 @@ class _PharmacyQuoteEditorScreenState
           widget.requestId!,
           payload['items'] as List<Map<String, dynamic>>,
           deliveryFee: payload['deliveryFee'] as double?,
-          estimatedDeliveryTime: payload['estimatedDeliveryTime'] as String?,
+          estimatedDeliveryMinutes: payload['estimatedDeliveryMinutes'] as int?,
           notes: payload['notes'] as String?,
         );
         requestError = provider.error;
@@ -331,7 +329,7 @@ class _PharmacyQuoteEditorScreenState
         final payload = PharmacyQuoteMapper.toUpdateQuotePayload(
           _items,
           deliveryFee: deliveryFee,
-          estimatedDeliveryTime: estimatedDeliveryTime,
+          estimatedDeliveryMinutes: estimatedDeliveryMinutes,
         );
         final orderProvider = context.read<PharmacyOrderProvider>();
         final workflowProvider = context.read<PharmacyWorkflowProvider>();
@@ -340,7 +338,7 @@ class _PharmacyQuoteEditorScreenState
           widget.orderId!,
           payload['items'] as List<Map<String, dynamic>>,
           deliveryFee: payload['deliveryFee'] as double?,
-          estimatedDeliveryTime: payload['estimatedDeliveryTime'] as String?,
+          estimatedDeliveryMinutes: payload['estimatedDeliveryMinutes'] as int?,
         );
         orderError = orderProvider.error;
         if (success) {
