@@ -2,9 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 import 'package:HealthLink/l10n/app_localizations.dart';
+import 'package:HealthLink/models/chat/conversation.dart';
+import 'package:HealthLink/models/chat/message.dart';
 import 'package:HealthLink/providers/auth_provider.dart';
+import 'package:HealthLink/providers/chat/chat_provider.dart';
 import 'package:HealthLink/providers/pharmacy/pharmacy_workflow_provider.dart';
 import 'package:HealthLink/providers/pharmacy/pharmacy_request_provider.dart';
+import 'package:HealthLink/screens/chat/chat_room_screen.dart';
 import 'package:HealthLink/screens/pharmacy/pharmacy_request_detail_screen.dart';
 import 'package:HealthLink/services/pharmacy/pharmacy_request_service.dart';
 import 'package:http/http.dart' as http;
@@ -48,6 +52,96 @@ Widget _buildTestApp({
         ),
       ],
       child: const PharmacyRequestDetailScreen(requestId: '1'),
+    ),
+  );
+}
+
+// ── ChatRoomScreen helpers ─────────────────────────────────────────────
+
+class _PharmacyMockAuth extends AuthProvider {
+  @override
+  String? get accessToken => 'mock-token';
+  @override
+  String? get userId => 'pharm-1';
+  @override
+  bool get isPharmacy => true;
+  @override
+  bool get isPatient => false;
+  @override
+  bool get isDoctor => false;
+}
+
+class _DoctorMockAuth extends AuthProvider {
+  @override
+  String? get accessToken => 'mock-token';
+  @override
+  String? get userId => 'doc-1';
+  @override
+  bool get isDoctor => true;
+  @override
+  bool get isPatient => false;
+  @override
+  bool get isPharmacy => false;
+}
+
+class _GenericMockAuth extends AuthProvider {
+  @override
+  String? get accessToken => 'mock-token';
+  @override
+  String? get userId => 'user-1';
+}
+
+class _EmptyChatProvider extends ChatProvider {
+  @override
+  List<Message> get messages => [];
+  @override
+  bool get isLoadingMessages => false;
+  @override
+  String? get messagesError => null;
+}
+
+Conversation _pharmacyConversation() => Conversation(
+      id: 'pharm-room-1',
+      partnerId: 'pat-1',
+      partnerName: 'Patient 1',
+      appointmentId: null,
+      lastMessage: 'Hello',
+      lastMessageTime: DateTime.now(),
+    );
+
+Conversation _doctorAppointmentConversation() => Conversation(
+      id: 'doc-room-1',
+      partnerId: 'pat-1',
+      partnerName: 'Patient 1',
+      appointmentId: 1,
+      appointmentStatus: 'SCHEDULED',
+      lastMessage: 'Hello',
+      lastMessageTime: DateTime.now(),
+    );
+
+Conversation _genericConversation() => Conversation(
+      id: 'room-1',
+      partnerId: 'pat-1',
+      partnerName: 'Test Patient',
+      lastMessage: 'Hello',
+      lastMessageTime: DateTime.now(),
+    );
+
+Widget _buildChatTestApp({
+  required ChatRoomScreen screen,
+  required AuthProvider auth,
+}) {
+  return MaterialApp(
+    localizationsDelegates: AppLocalizations.localizationsDelegates,
+    supportedLocales: AppLocalizations.supportedLocales,
+    home: MultiProvider(
+      providers: [
+        ChangeNotifierProvider<AuthProvider>.value(value: auth),
+        ChangeNotifierProvider<ChatProvider>.value(
+          value: _EmptyChatProvider(),
+        ),
+      ],
+      child: screen,
     ),
   );
 }
@@ -224,6 +318,77 @@ void main() {
 
       expect(find.text('Exception: Failed to load chat room (404)'), findsOneWidget);
       expect(find.text('Retry'), findsOneWidget);
+    });
+  });
+
+  group('ChatRoomScreen — pharmacy chat (no appointment)', () {
+    testWidgets('shows composer for pharmacy conversation', (tester) async {
+      await tester.pumpWidget(_buildChatTestApp(
+        auth: _PharmacyMockAuth(),
+        screen: ChatRoomScreen(
+          conversation: _pharmacyConversation(),
+          readOnly: false,
+        ),
+      ));
+      await tester.pump();
+
+      expect(find.byKey(const Key('chat-message-input')), findsOneWidget);
+    });
+
+    testWidgets('does not show doctor vitals wait message', (tester) async {
+      await tester.pumpWidget(_buildChatTestApp(
+        auth: _PharmacyMockAuth(),
+        screen: ChatRoomScreen(
+          conversation: _pharmacyConversation(),
+          readOnly: false,
+        ),
+      ));
+      await tester.pump();
+
+      expect(
+        find.text('Waiting for patient to fill medical information...'),
+        findsNothing,
+      );
+    });
+  });
+
+  group('ChatRoomScreen — doctor appointment without vitals', () {
+    testWidgets('shows vitals wait message for doctor', (tester) async {
+      await tester.pumpWidget(_buildChatTestApp(
+        auth: _DoctorMockAuth(),
+        screen: ChatRoomScreen(
+          conversation: _doctorAppointmentConversation(),
+          readOnly: false,
+        ),
+      ));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      expect(
+        find.text('Waiting for patient to fill medical information...'),
+        findsWidgets,
+      );
+    });
+  });
+
+  group('ChatRoomScreen — read-only mode', () {
+    testWidgets('shows banner and suppresses composer', (tester) async {
+      await tester.pumpWidget(_buildChatTestApp(
+        auth: _GenericMockAuth(),
+        screen: ChatRoomScreen(
+          conversation: _genericConversation(),
+          readOnly: true,
+        ),
+      ));
+      await tester.pump();
+
+      expect(
+        find.text('This request has ended. Messages are view-only.'),
+        findsOneWidget,
+      );
+      expect(find.byKey(const Key('chat-message-input')), findsNothing);
+      expect(find.byKey(const Key('chat-send-button')), findsNothing);
+      expect(find.byKey(const Key('chat-video-call-button')), findsNothing);
     });
   });
 }

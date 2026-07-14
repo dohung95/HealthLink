@@ -866,7 +866,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
               builder: (context) {
                 final isBlocked = context.watch<ChatProvider>().isBlocked(conv.id);
                 final isCompleted = conv.appointmentStatus == 'COMPLETED';
-                final isMissingVitals = auth.isPatient && !_hasFilledVitals && !isCompleted;
+                final isMissingVitals = conv.appointmentId != null && auth.isPatient && !_hasFilledVitals && !isCompleted;
                 final isCallDisabled = isBlocked || isCompleted || isMissingVitals;
                 
                 return IconButton(
@@ -971,7 +971,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
     final conv = chat.currentConversation ?? widget.conversation;
     final isBlocked = chat.isBlocked(conv.id);
     final isCompleted = conv.appointmentStatus == 'COMPLETED';
-    final isMissingVitals = !_hasFilledVitals && !isCompleted;
+    final isMissingVitals = conv.appointmentId != null && !_hasFilledVitals && !isCompleted;
     final isCallDisabled = isBlocked || isCompleted || isMissingVitals;
 
     return GestureDetector(
@@ -1274,16 +1274,19 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
       );
     }
 
-    // Checking vitals in progress
-    if (_checkingVitals && !isAppointmentCompleted) {
-      return const Padding(
-        padding: EdgeInsets.all(16.0),
-        child: Center(child: CircularProgressIndicator()),
-      );
-    }
+    final requiresAppointmentVitals = conv.appointmentId != null;
+    final isMissingVitals = requiresAppointmentVitals &&
+        !_hasFilledVitals &&
+        !isAppointmentCompleted;
 
-    // Missing Vitals (Patient & Doctor)
-    if (!_hasFilledVitals && !isAppointmentCompleted) {
+    if (isMissingVitals) {
+      if (_checkingVitals) {
+        return const Padding(
+          padding: EdgeInsets.all(16.0),
+          child: Center(child: CircularProgressIndicator()),
+        );
+      }
+
       if (auth.isPatient) {
         return Container(
         padding: const EdgeInsets.all(16),

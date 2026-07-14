@@ -61,6 +61,8 @@ class PharmacyWorkItem {
   final double? paidAmount;
   final String? revisionReason;
   final DateTime? revisionRequestedAt;
+  final String? requestType;
+  final String? chatRoomId;
   final String? deliveryType;
   final double? deliveryFee;
   final double? medicineAmount;
@@ -91,6 +93,8 @@ class PharmacyWorkItem {
     this.paidAmount,
     this.revisionReason,
     this.revisionRequestedAt,
+    this.requestType,
+    this.chatRoomId,
     this.deliveryType,
     this.deliveryFee,
     this.medicineAmount,
@@ -128,6 +132,8 @@ class PharmacyWorkItem {
       paidAmount: (json['paidAmount'] as num?)?.toDouble(),
       revisionReason: json['revisionReason'] as String?,
       revisionRequestedAt: _parseDateTime(json['revisionRequestedAt']),
+      requestType: json['requestType'] as String?,
+      chatRoomId: json['chatRoomId'] as String?,
       deliveryType: json['deliveryType'] as String?,
       deliveryFee: (json['deliveryFee'] as num?)?.toDouble(),
       medicineAmount: (json['medicineAmount'] as num?)?.toDouble(),
@@ -174,6 +180,8 @@ class PharmacyWorkItem {
       'paidAmount': paidAmount,
       'revisionReason': revisionReason,
       'revisionRequestedAt': revisionRequestedAt?.toIso8601String(),
+      'requestType': requestType,
+      'chatRoomId': chatRoomId,
       'deliveryType': deliveryType,
       'deliveryFee': deliveryFee,
       'medicineAmount': medicineAmount,
