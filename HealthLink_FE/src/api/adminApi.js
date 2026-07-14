@@ -337,6 +337,11 @@ export const commissionApi = {
     return response.data;
   },
 
+  getDashboardMonthly: async (year) => {
+    const response = await adminApi.get('/commission/dashboard/monthly', { params: { year } });
+    return response.data;
+  },
+
   getConfigs: async () => {
     const response = await adminApi.get('/commission/configs');
     return response.data;
@@ -397,6 +402,11 @@ export const commissionApi = {
 
   getPartner: async (type, id) => {
     const response = await adminApi.get(`/commission/partners/${type}/${id}`);
+    return response.data;
+  },
+
+  getPartnerHistory: async (type, id) => {
+    const response = await adminApi.get(`/commission/partners/${type}/${id}/history`);
     return response.data;
   },
 

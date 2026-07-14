@@ -8,10 +8,8 @@ import java.math.BigDecimal;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class AdminMonthlyCommissionDto {
+public class AdminYearlyCommissionDto {
     private Integer year;
-    private Integer month;
-    private String monthName;
     private BigDecimal grossAmount;
     private BigDecimal commissionAmount;
     private BigDecimal netAmount;

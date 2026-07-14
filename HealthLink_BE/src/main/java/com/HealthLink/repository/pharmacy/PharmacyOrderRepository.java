@@ -83,4 +83,15 @@ public interface PharmacyOrderRepository extends JpaRepository<PharmacyOrder, In
         @Param("pharmacyId") String pharmacyId,
         @Param("statuses") List<String> statuses);
 
+    // Sum total amount by pharmacy, grouped by year+month — used for Commission Management
+    // yearly/monthly breakdown (rows: [year, month, totalAmount, count])
+    @Query("SELECT YEAR(o.createdAt), MONTH(o.createdAt), COALESCE(SUM(o.totalAmount), 0), COUNT(o) " +
+           "FROM PharmacyOrder o WHERE o.pharmacy.pharmacyId = :pharmacyId " +
+           "AND UPPER(o.status) IN :statuses " +
+           "GROUP BY YEAR(o.createdAt), MONTH(o.createdAt) " +
+           "ORDER BY YEAR(o.createdAt), MONTH(o.createdAt)")
+    List<Object[]> sumTotalAmountByPharmacyGroupedByYearMonth(
+        @Param("pharmacyId") String pharmacyId,
+        @Param("statuses") List<String> statuses);
+
     }

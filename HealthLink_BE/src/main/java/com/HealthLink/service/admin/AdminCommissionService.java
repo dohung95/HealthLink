@@ -30,7 +30,10 @@ public interface AdminCommissionService {
     List<AdminSettlementDto> getSettlementsByRecipient(String type, String id);
 
     AdminCommissionDashboardDto getDashboard();
+    List<AdminMonthlyCommissionDto> getDashboardMonthly(int year);
     List<AdminRecipientSummaryDto> getRecipientSummaries(String type, int limit);
+
+    AdminPartnerCommissionHistoryDto getPartnerCommissionHistory(String partnerType, String partnerId);
 
     BigDecimal getCommissionRate(String serviceType, String recipientId, String recipientType);
 

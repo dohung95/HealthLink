@@ -3,6 +3,10 @@ import NavbarAdmin from "./NavbarAdmin";
 import { commissionApi, financialApi } from "../../../api/adminApi";
 import Toast from "./Toast";
 import useToast from "../useToast";
+import {
+  Bar, BarChart, Line, ComposedChart,
+  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
+} from "recharts";
 import "bootstrap/dist/css/bootstrap.min.css";
 import "bootstrap-icons/font/bootstrap-icons.css";
 import "../Css/Admin.css";
@@ -14,6 +18,11 @@ const SERVICE_TYPE_LABELS = {
   'PHARMACY_ORDER': 'Pharmacy Order'
 };
 
+// Same convention as FinancialReports.jsx / DashboardCharts.jsx
+const AXIS_MARGIN = { top: 24, right: 16, left: 8, bottom: 34 };
+const AXIS_LABEL_STYLE = { fontSize: "12px", fill: "#6b7280" };
+const Y_AXIS_LABEL_STYLE = { ...AXIS_LABEL_STYLE, textAnchor: "start" };
+
 export default function CommissionManagement() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [activeTab, setActiveTab] = useState('overview'); // overview, partners, configs, transactions
@@ -23,6 +32,16 @@ export default function CommissionManagement() {
 
   // Dashboard data
   const [dashboard, setDashboard] = useState(null);
+
+  // Overview — By Month chart
+  const currentYear = new Date().getFullYear();
+  const [overviewYear, setOverviewYear] = useState(currentYear);
+  const [overviewMonthly, setOverviewMonthly] = useState([]);
+  const [loadingOverviewMonthly, setLoadingOverviewMonthly] = useState(false);
+  const overviewYearOptions = [];
+  for (let y = 2024; y <= currentYear + 1; y++) {
+    overviewYearOptions.push(y);
+  }
 
   // Global configs
   const [configs, setConfigs] = useState([]);
@@ -50,6 +69,9 @@ export default function CommissionManagement() {
     totalPages: 0
   });
   const [expandedPartnerId, setExpandedPartnerId] = useState(null);
+  const [partnerHistoryCache, setPartnerHistoryCache] = useState({}); // partnerId -> AdminPartnerCommissionHistoryDto
+  const [loadingPartnerHistory, setLoadingPartnerHistory] = useState(null); // partnerId currently loading
+  const [partnerHistoryYear, setPartnerHistoryYear] = useState({}); // partnerId -> selected year for its chart
   const [selectedPartner, setSelectedPartner] = useState(null);
   const [showPartnerModal, setShowPartnerModal] = useState(false);
   const [partnerForm, setPartnerForm] = useState({
@@ -145,6 +167,45 @@ export default function CommissionManagement() {
       loadPartners();
     }
   }, [activeTab, loadPartners]);
+
+  // Load Overview "By Month" chart data
+  const loadOverviewMonthly = useCallback(async (year) => {
+    try {
+      setLoadingOverviewMonthly(true);
+      const data = await commissionApi.getDashboardMonthly(year);
+      setOverviewMonthly(data || []);
+    } catch (err) {
+      setError(err.response?.data?.error || err.message || 'Failed to load monthly commission data');
+    } finally {
+      setLoadingOverviewMonthly(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (activeTab === 'overview') {
+      loadOverviewMonthly(overviewYear);
+    }
+  }, [activeTab, overviewYear, loadOverviewMonthly]);
+
+  // Fetch a partner's yearly/monthly history the first time its row is expanded
+  const loadPartnerHistory = useCallback(async (partner) => {
+    if (partnerHistoryCache[partner.partnerId]) {
+      return;
+    }
+    try {
+      setLoadingPartnerHistory(partner.partnerId);
+      const data = await commissionApi.getPartnerHistory(partner.partnerType, partner.partnerId);
+      setPartnerHistoryCache((prev) => ({ ...prev, [partner.partnerId]: data }));
+      const years = (data.yearlyBreakdown || []).map((y) => y.year);
+      if (years.length > 0) {
+        setPartnerHistoryYear((prev) => ({ ...prev, [partner.partnerId]: Math.max(...years) }));
+      }
+    } catch (err) {
+      showToast({ title: 'Error', message: err.response?.data?.error || err.message, type: 'error' });
+    } finally {
+      setLoadingPartnerHistory(null);
+    }
+  }, [partnerHistoryCache, showToast]);
 
   // Load transactions
   const loadTransactions = useCallback(async () => {
@@ -651,6 +712,59 @@ export default function CommissionManagement() {
                     </div>
                   </div>
                 </div>
+
+                {/* By Month — drill-down into a selected year */}
+                <div className="admin-card p-3 mb-4">
+                  <div className="d-flex justify-content-between align-items-center mb-3">
+                    <h6 className="mb-0">
+                      <i className="bi bi-calendar-month me-2 text-info"></i>
+                      Revenue &amp; Commission — By Month
+                    </h6>
+                    <select
+                      className="form-select form-select-sm"
+                      style={{ width: "100px" }}
+                      value={overviewYear}
+                      onChange={(e) => setOverviewYear(parseInt(e.target.value))}
+                    >
+                      {overviewYearOptions.map((y) => (
+                        <option key={y} value={y}>{y}</option>
+                      ))}
+                    </select>
+                  </div>
+                  {loadingOverviewMonthly ? (
+                    <div className="text-center py-4">
+                      <div className="spinner-border spinner-border-sm text-primary"></div>
+                    </div>
+                  ) : (
+                    <ResponsiveContainer width="100%" height={300}>
+                      <ComposedChart data={overviewMonthly} margin={AXIS_MARGIN}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" vertical={false} />
+                        <XAxis
+                          dataKey="monthName"
+                          stroke="#94a3b8"
+                          tick={{ fontSize: 12, fill: '#64748b' }}
+                          axisLine={{ stroke: '#e5e7eb' }}
+                          tickLine={false}
+                          label={{ value: "(Month)", position: "insideBottomRight", offset: -10, style: AXIS_LABEL_STYLE }}
+                        />
+                        <YAxis
+                          stroke="#94a3b8"
+                          tick={{ fontSize: 12, fill: '#64748b' }}
+                          tickFormatter={(value) => `$${value >= 1000 ? (value / 1000).toFixed(1) + 'k' : value}`}
+                          axisLine={false}
+                          tickLine={false}
+                          label={{ value: "Amount ($)", position: "top", offset: 15, dx: -38, style: Y_AXIS_LABEL_STYLE }}
+                        />
+                        <Tooltip
+                          contentStyle={{ backgroundColor: "#fff", border: "none", borderRadius: "12px", boxShadow: "0 10px 40px rgba(0,0,0,0.15)", padding: "12px 16px" }}
+                          formatter={(value, name) => [formatAmount(value), name]}
+                        />
+                        <Bar dataKey="grossAmount" name="Gross Revenue" fill="#10b981" radius={[4, 4, 0, 0]} maxBarSize={40} />
+                        <Line type="monotone" dataKey="commissionAmount" name="Platform Commission" stroke="#f59e0b" strokeWidth={2} dot={{ r: 3 }} />
+                      </ComposedChart>
+                    </ResponsiveContainer>
+                  )}
+                </div>
               </>
             )}
 
@@ -721,7 +835,13 @@ export default function CommissionManagement() {
                             <React.Fragment key={partner.partnerId}>
                               <tr
                                 style={{ cursor: 'pointer' }}
-                                onClick={() => setExpandedPartnerId(expandedPartnerId === partner.partnerId ? null : partner.partnerId)}
+                                onClick={() => {
+                                  const willExpand = expandedPartnerId !== partner.partnerId;
+                                  setExpandedPartnerId(willExpand ? partner.partnerId : null);
+                                  if (willExpand) {
+                                    loadPartnerHistory(partner);
+                                  }
+                                }}
                               >
                                 <td>
                                   <i className={`bi ${expandedPartnerId === partner.partnerId ? 'bi-chevron-down' : 'bi-chevron-right'}`}></i>
@@ -947,6 +1067,104 @@ export default function CommissionManagement() {
                                           </div>
                                         </div>
                                       )}
+
+                                      {/* Revenue History — all-time / by-year summary + one monthly chart */}
+                                      <div className="col-12">
+                                        <div className="card border-0 shadow-sm">
+                                          <div className="card-header bg-dark bg-opacity-10 py-2 d-flex justify-content-between align-items-center">
+                                            <h6 className="mb-0">
+                                              <i className="bi bi-graph-up me-2"></i>Revenue History
+                                            </h6>
+                                            {partnerHistoryCache[partner.partnerId]?.yearlyBreakdown?.length > 0 && (
+                                              <select
+                                                className="form-select form-select-sm"
+                                                style={{ width: "100px" }}
+                                                value={partnerHistoryYear[partner.partnerId] || ''}
+                                                onChange={(e) => setPartnerHistoryYear((prev) => ({ ...prev, [partner.partnerId]: parseInt(e.target.value) }))}
+                                              >
+                                                {partnerHistoryCache[partner.partnerId].yearlyBreakdown.map((y) => (
+                                                  <option key={y.year} value={y.year}>{y.year}</option>
+                                                ))}
+                                              </select>
+                                            )}
+                                          </div>
+                                          <div className="card-body py-3">
+                                            {loadingPartnerHistory === partner.partnerId ? (
+                                              <div className="text-center py-3">
+                                                <div className="spinner-border spinner-border-sm text-primary"></div>
+                                              </div>
+                                            ) : (() => {
+                                              const history = partnerHistoryCache[partner.partnerId];
+                                              if (!history || !history.monthlyBreakdown?.length) {
+                                                return <p className="text-muted mb-0">No revenue history yet</p>;
+                                              }
+                                              const allTimeGross = history.yearlyBreakdown.reduce((s, y) => s + Number(y.grossAmount || 0), 0);
+                                              const allTimeCommission = history.yearlyBreakdown.reduce((s, y) => s + Number(y.commissionAmount || 0), 0);
+                                              const allTimeNet = history.yearlyBreakdown.reduce((s, y) => s + Number(y.netAmount || 0), 0);
+                                              const selectedYear = partnerHistoryYear[partner.partnerId]
+                                                || Math.max(...history.yearlyBreakdown.map((y) => y.year));
+                                              const chartData = history.monthlyBreakdown
+                                                .filter((m) => m.year === selectedYear)
+                                                .map((m) => ({ ...m, label: m.monthName }));
+                                              return (
+                                                <>
+                                                  <div className="d-flex flex-wrap gap-4 mb-3">
+                                                    <div>
+                                                      <div className="text-muted small">All-Time Gross</div>
+                                                      <strong>{formatAmount(allTimeGross)}</strong>
+                                                    </div>
+                                                    <div>
+                                                      <div className="text-muted small">All-Time Commission</div>
+                                                      <strong className="text-success">{formatAmount(allTimeCommission)}</strong>
+                                                    </div>
+                                                    <div>
+                                                      <div className="text-muted small">All-Time Net Earnings</div>
+                                                      <strong className="text-primary">{formatAmount(allTimeNet)}</strong>
+                                                    </div>
+                                                    <div className="d-flex flex-wrap gap-2 align-items-center">
+                                                      <span className="text-muted small">By Year:</span>
+                                                      {history.yearlyBreakdown.map((y) => (
+                                                        <span key={y.year} className="badge bg-light text-dark border">
+                                                          {y.year}: {formatAmount(y.grossAmount)}
+                                                        </span>
+                                                      ))}
+                                                    </div>
+                                                  </div>
+                                                  {chartData.length === 0 ? (
+                                                    <p className="text-muted mb-0">No activity in {selectedYear}</p>
+                                                  ) : (
+                                                    <ResponsiveContainer width="100%" height={220}>
+                                                      <BarChart data={chartData} margin={{ top: 5, right: 10, left: 8, bottom: 28 }}>
+                                                        <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" vertical={false} />
+                                                        <XAxis
+                                                          dataKey="label"
+                                                          stroke="#94a3b8"
+                                                          tick={{ fontSize: 10, fill: '#64748b' }}
+                                                          axisLine={{ stroke: '#e5e7eb' }}
+                                                          tickLine={false}
+                                                        />
+                                                        <YAxis
+                                                          stroke="#94a3b8"
+                                                          tick={{ fontSize: 10, fill: '#64748b' }}
+                                                          tickFormatter={(value) => `$${value >= 1000 ? (value / 1000).toFixed(1) + 'k' : value}`}
+                                                          axisLine={false}
+                                                          tickLine={false}
+                                                          width={45}
+                                                        />
+                                                        <Tooltip
+                                                          contentStyle={{ backgroundColor: "#fff", border: "none", borderRadius: "10px", boxShadow: "0 10px 40px rgba(0,0,0,0.15)", padding: "8px 12px" }}
+                                                          formatter={(value, name) => [formatAmount(value), name]}
+                                                        />
+                                                        <Bar dataKey="netAmount" name="Net Earnings" fill="#0ea5e9" radius={[4, 4, 0, 0]} maxBarSize={30} />
+                                                      </BarChart>
+                                                    </ResponsiveContainer>
+                                                  )}
+                                                </>
+                                              );
+                                            })()}
+                                          </div>
+                                        </div>
+                                      </div>
                                     </div>
                                   </td>
                                 </tr>
