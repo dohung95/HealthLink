@@ -6,6 +6,68 @@ import 'package:HealthLink/utils/pharmacy/pharmacy_quote_mapper.dart';
 
 void main() {
   group('PharmacyQuoteMapper - toSubmissionItem', () {
+    test('derives frequency for new non-prescription timings', () {
+      for (final entry in {
+        1: (['MORNING'], 'QD'),
+        2: (['MORNING', 'EVENING'], 'BID'),
+        3: (['MORNING', 'AFTERNOON', 'EVENING'], 'TID'),
+      }.entries) {
+        final payload = PharmacyQuoteMapper.toSubmissionItem(QuoteLineItem(
+          medicineId: entry.key,
+          medicationName: 'Medicine ${entry.key}',
+          timing: entry.value.$1,
+        ));
+        expect(payload['frequency'], entry.value.$2);
+      }
+    });
+
+    test('preserves prescription frequency and legacy timings', () {
+      final payload = PharmacyQuoteMapper.toSubmissionItem(QuoteLineItem(
+        medicineId: 1,
+        medicationName: 'Prescription medicine',
+        frequency: 'QHS',
+        timing: ['NIGHT'],
+        locked: true,
+      ));
+
+      expect(payload['frequency'], 'QHS');
+      expect(payload['timing'], 'NIGHT');
+    });
+
+    test('preserves an unchanged legacy non-prescription item', () {
+      final payload = PharmacyQuoteMapper.toSubmissionItem(QuoteLineItem(
+        medicineId: 2,
+        medicationName: 'Legacy medicine',
+        frequency: 'QHS',
+        timing: ['NIGHT'],
+      ));
+
+      expect(payload['frequency'], 'QHS');
+      expect(payload['timing'], 'NIGHT');
+    });
+
+    test('derives frequency after a legacy timing is edited', () {
+      final payload = PharmacyQuoteMapper.toSubmissionItem(QuoteLineItem(
+        medicineId: 3,
+        medicationName: 'Edited legacy medicine',
+        frequency: 'QHS',
+        timing: ['MORNING'],
+      ));
+
+      expect(payload['frequency'], 'QD');
+      expect(payload['timing'], 'MORNING');
+    });
+
+    test('rejects a new item without editable timing before submission', () {
+      expect(
+        () => PharmacyQuoteMapper.toSubmissionItem(QuoteLineItem(
+          medicineId: 4,
+          medicationName: 'Unscheduled medicine',
+        )),
+        throwsArgumentError,
+      );
+    });
+
     test('maps prescription source IDs correctly', () {
       final item = QuoteLineItem(
         medicineId: 1,
@@ -49,6 +111,7 @@ void main() {
         unitPrice: 8000,
         quantity: 14,
         totalSupplyDays: 7,
+        timing: ['MORNING'],
       );
 
       final payload = PharmacyQuoteMapper.toSubmissionItem(item);
@@ -82,8 +145,10 @@ void main() {
         timing: [],
       );
 
-      final payload = PharmacyQuoteMapper.toSubmissionItem(item);
-      expect(payload['timing'], null);
+      expect(
+        () => PharmacyQuoteMapper.toSubmissionItem(item),
+        throwsArgumentError,
+      );
     });
 
     test('handles null timing list', () {
@@ -94,8 +159,10 @@ void main() {
         totalSupplyDays: 5,
       );
 
-      final payload = PharmacyQuoteMapper.toSubmissionItem(item);
-      expect(payload['timing'], null);
+      expect(
+        () => PharmacyQuoteMapper.toSubmissionItem(item),
+        throwsArgumentError,
+      );
     });
   });
 
@@ -218,6 +285,7 @@ void main() {
           medicationName: 'Paracetamol',
           quantity: 20,
           totalSupplyDays: 10,
+          timing: ['MORNING'],
         ),
       ];
 
@@ -243,6 +311,7 @@ void main() {
           medicationName: 'Paracetamol',
           quantity: 30,
           totalSupplyDays: 15,
+          timing: ['MORNING'],
         ),
       ];
 
@@ -264,6 +333,7 @@ void main() {
           medicationName: 'Paracetamol',
           quantity: 10,
           totalSupplyDays: 5,
+          timing: ['MORNING'],
         ),
       ];
 
@@ -285,6 +355,7 @@ void main() {
         unitPrice: 5000,
         quantity: 10,
         totalSupplyDays: 5,
+        timing: ['MORNING'],
       );
 
       final payload = PharmacyQuoteMapper.toSubmissionItem(item);

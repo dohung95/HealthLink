@@ -1,6 +1,7 @@
 import '../../models/pharmacy/pharmacy_inventory_item.dart';
 import '../../models/pharmacy/pharmacy_order_item.dart';
 import '../../models/pharmacy/pharmacy_quote_draft.dart';
+import 'pharmacy_medication_schedule.dart';
 
 class PharmacyQuoteMapper {
   PharmacyQuoteMapper._();
@@ -13,8 +14,23 @@ class PharmacyQuoteMapper {
       'totalSupplyDays': item.totalSupplyDays,
     };
     if (item.route != null) map['route'] = item.route;
-    if (item.frequency != null) map['frequency'] = item.frequency;
-    if (item.timing.isNotEmpty) map['timing'] = item.timing.join(',');
+
+    final hasLegacyNight = item.timing.any(
+      (timing) => timing.trim().toUpperCase() == 'NIGHT',
+    );
+    final isPrescription = item.locked ||
+        item.sourcePrescriptionHeaderId != null ||
+        item.sourcePrescriptionItemId != null;
+    if (isPrescription || hasLegacyNight) {
+      if (item.frequency != null) map['frequency'] = item.frequency;
+      if (item.timing.isNotEmpty) map['timing'] = item.timing.join(',');
+    } else {
+      final normalizedTimings =
+          PharmacyMedicationSchedule.normalizeTimings(item.timing);
+      map['frequency'] =
+          PharmacyMedicationSchedule.deriveFrequency(normalizedTimings);
+      map['timing'] = normalizedTimings.join(',');
+    }
     if (item.notes != null) map['notes'] = item.notes;
     if (item.sourcePrescriptionHeaderId != null) {
       map['sourcePrescriptionHeaderId'] = item.sourcePrescriptionHeaderId;
