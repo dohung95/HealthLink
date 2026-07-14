@@ -199,7 +199,7 @@ class _PharmacyRequestDetailScreenState
                 )
               : _buildContent(provider.currentRequest!, theme),
       bottomNavigationBar:
-          _buildActions(provider.currentRequest!, theme),
+          _buildActions(provider.currentRequest!, theme, provider),
     );
   }
 
@@ -333,8 +333,21 @@ class _PharmacyRequestDetailScreenState
     );
   }
 
+  bool _hasChatRoom(
+    PharmacyConsultationRequest request,
+    PharmacyRequestProvider provider,
+  ) {
+    final requestRoomId = request.chatRoomId?.trim();
+    if (requestRoomId != null && requestRoomId.isNotEmpty) return true;
+
+    final loadedRoomId = provider.chatRoomId?.trim() ?? provider.chatRoom?.id.trim();
+    return loadedRoomId != null && loadedRoomId.isNotEmpty;
+  }
+
   Widget? _buildActions(
-      PharmacyConsultationRequest? request, ThemeData theme) {
+      PharmacyConsultationRequest? request,
+      ThemeData theme,
+      PharmacyRequestProvider provider) {
     if (request == null) return null;
 
     final actions = <Widget>[];
@@ -362,15 +375,19 @@ class _PharmacyRequestDetailScreenState
     } else if (request.status == 'IN_REVIEW' &&
         request.requestType?.toUpperCase() == 'CONSULTATION' &&
         request.pharmacyOrderId == null) {
-      actions.addAll([
-        Expanded(
-          child: OutlinedButton.icon(
-            onPressed: _openChat,
-            icon: const Icon(Icons.chat),
-            label: const Text('Chat'),
+      if (_hasChatRoom(request, provider)) {
+        actions.add(
+          Expanded(
+            child: OutlinedButton.icon(
+              onPressed: _openChat,
+              icon: const Icon(Icons.chat),
+              label: const Text('Chat'),
+            ),
           ),
-        ),
-        const SizedBox(width: 12),
+        );
+        actions.add(const SizedBox(width: 12));
+      }
+      actions.add(
         Expanded(
           child: FilledButton.icon(
             onPressed: _showCreateOrderDialog,
@@ -378,7 +395,7 @@ class _PharmacyRequestDetailScreenState
             label: const Text('Create Order'),
           ),
         ),
-      ]);
+      );
     } else if (request.status == 'NEED_MORE_INFO' ||
         request.requestType == 'DELIVERY_CONTACT_REVIEW') {
       actions.add(

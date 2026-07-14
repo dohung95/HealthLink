@@ -65,6 +65,7 @@ void main() {
               '{"requestId":1,"patientId":"pat-1","patientName":"Patient 1",'
               '"status":"IN_REVIEW","pharmacyId":"pharm-1",'
               '"requestType":"CONSULTATION",'
+              '"chatRoomId":"room-1",'
               '"createdAt":"2026-07-13T10:00:00"}',
               200,
             );
@@ -80,6 +81,28 @@ void main() {
       await tester.pump();
 
       expect(find.text('Chat'), findsOneWidget);
+      expect(find.text('Create Order'), findsOneWidget);
+    });
+
+    testWidgets('IN_REVIEW consultation without a chat room hides Chat',
+        (tester) async {
+      final provider = PharmacyRequestProvider(
+        requestService: PharmacyRequestService(
+          client: MockClient((request) async => http.Response(
+                '{"requestId":1,"patientId":"pat-1","patientName":"Patient 1",'
+                '"status":"IN_REVIEW","pharmacyId":"pharm-1",'
+                '"requestType":"CONSULTATION",'
+                '"createdAt":"2026-07-13T10:00:00"}',
+                200,
+              )),
+        ),
+      );
+
+      await provider.fetchRequestDetail('mock-token', '1');
+      await tester.pumpWidget(_buildTestApp(requestProvider: provider));
+      await tester.pump();
+
+      expect(find.text('Chat'), findsNothing);
       expect(find.text('Create Order'), findsOneWidget);
     });
 
@@ -182,6 +205,7 @@ void main() {
               '{"requestId":1,"patientId":"pat-1","patientName":"Patient 1",'
               '"status":"IN_REVIEW","pharmacyId":"pharm-1",'
               '"requestType":"CONSULTATION",'
+              '"chatRoomId":"room-1",'
               '"createdAt":"2026-07-13T10:00:00"}',
               200,
             );
