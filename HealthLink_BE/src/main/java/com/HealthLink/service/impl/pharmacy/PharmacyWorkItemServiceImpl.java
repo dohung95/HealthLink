@@ -462,7 +462,14 @@ public class PharmacyWorkItemServiceImpl implements PharmacyWorkItemService {
                 actions.add(ACTION_CREATE_ORDER);
                 yield List.copyOf(actions);
             }
-            case STAGE_REVISION_REQUESTED -> List.of(ACTION_UPDATE_QUOTE);
+            case STAGE_REVISION_REQUESTED -> {
+                List<String> actions = new ArrayList<>();
+                actions.add(ACTION_UPDATE_QUOTE);
+                if (PharmacyServiceHelper.canSendPharmacyChat(request)) {
+                    actions.add(ACTION_CHAT);
+                }
+                yield List.copyOf(actions);
+            }
             case STAGE_AWAITING_PAYMENT -> List.of(ACTION_VIEW_ONLY);
             case STAGE_PREPARING -> cancellableOrderActions(order);
             case STAGE_READY -> cancellableOrderActions(order);
@@ -513,19 +520,6 @@ public class PharmacyWorkItemServiceImpl implements PharmacyWorkItemService {
             return List.of();
         }
         return List.of(ACTION_CHAT, ACTION_VIDEO_CALL);
-    }
-
-    private List<String> actionsWithChatIfAvailable(
-            List<String> baseActions,
-            PharmacyConsultationRequest request
-    ) {
-        List<String> actions = new ArrayList<>(baseActions);
-        if (request != null
-                && request.getChatRoomId() != null
-                && !actions.contains(ACTION_CHAT)) {
-            actions.add(ACTION_CHAT);
-        }
-        return List.copyOf(actions);
     }
 
     private List<String> deriveOrderActions(String stage, PharmacyOrder order) {

@@ -801,8 +801,97 @@ class PharmacyWorkItemServiceImplTest {
         assertThat(item.getRequestId()).isEqualTo(41);
         assertThat(item.getOrderId()).isEqualTo(601);
         assertThat(item.getRevisionRequestNotes()).isEqualTo(order.getRevisionRequestNotes());
+        assertThat(item.getAvailableActions()).containsExactly("UPDATE_QUOTE", "CHAT");
+    }
+
+    @Test
+    void getWorkItemsByPharmacy_shouldExposeFullActionsForInitialConsultation() {
+        Pharmacy p = pharmacy("PH001");
+        Patient pat = patient("P001", "Xena");
+        PharmacyConsultationRequest req = PharmacyConsultationRequest.builder()
+                .requestId(50)
+                .patient(pat)
+                .pharmacy(p)
+                .status("IN_REVIEW")
+                .chatRoomId("initial-chat")
+                .build();
+
+        when(requestRepository.findByPharmacy_PharmacyIdOrderByCreatedAtDesc("PH001"))
+                .thenReturn(List.of(req));
+        when(orderRepository.findByPharmacy_PharmacyIdAndConsultationRequestIsNull("PH001"))
+                .thenReturn(Collections.emptyList());
+
+        List<PharmacyWorkItemResponse> items = workItemService.getWorkItemsByPharmacy("PH001");
+
+        assertThat(items).hasSize(1);
+        PharmacyWorkItemResponse item = items.get(0);
+        assertThat(item.getWorkflowStage()).isEqualTo("CONSULTING");
+        assertThat(item.getAvailableActions()).containsExactly("CHAT", "VIDEO_CALL", "CREATE_ORDER");
+    }
+
+    @Test
+    void getWorkItemsByPharmacy_shouldExposeUpdateQuoteOnlyForConsultationRevisionWithoutRoom() {
+        Pharmacy p = pharmacy("PH001");
+        Patient pat = patient("P001", "Yuki");
+        PharmacyOrder order = PharmacyOrder.builder()
+                .orderId(603)
+                .orderNumber("ORD-603")
+                .status("REVISION_REQUESTED")
+                .paymentStatus("PENDING")
+                .createdAt(LocalDateTime.now())
+                .revisionRequestedAt(LocalDateTime.now())
+                .revisionRequestNotes("Please change medication")
+                .build();
+        PharmacyConsultationRequest req = PharmacyConsultationRequest.builder()
+                .requestId(42)
+                .patient(pat)
+                .pharmacy(p)
+                .status("IN_REVIEW")
+                .order(order)
+                .build();
+
+        when(requestRepository.findByPharmacy_PharmacyIdOrderByCreatedAtDesc("PH001"))
+                .thenReturn(List.of(req));
+        when(orderRepository.findByPharmacy_PharmacyIdAndConsultationRequestIsNull("PH001"))
+                .thenReturn(Collections.emptyList());
+
+        List<PharmacyWorkItemResponse> items = workItemService.getWorkItemsByPharmacy("PH001");
+
+        assertThat(items).hasSize(1);
+        PharmacyWorkItemResponse item = items.get(0);
+        assertThat(item.getWorkflowStage()).isEqualTo("REVISION_REQUESTED");
         assertThat(item.getAvailableActions()).containsExactly("UPDATE_QUOTE");
-        assertThat(item.getAvailableActions()).doesNotContain("CHAT", "VIDEO_CALL", "CREATE_ORDER");
+    }
+
+    @Test
+    void getWorkItemsByPharmacy_shouldExcludeChatForPostUpdateQuotePendingOrder() {
+        Pharmacy p = pharmacy("PH001");
+        Patient pat = patient("P001", "Zara");
+        PharmacyOrder order = PharmacyOrder.builder()
+                .orderId(604)
+                .orderNumber("ORD-604")
+                .status("PENDING")
+                .paymentStatus("PENDING")
+                .createdAt(LocalDateTime.now())
+                .build();
+        PharmacyConsultationRequest req = PharmacyConsultationRequest.builder()
+                .requestId(43)
+                .patient(pat)
+                .pharmacy(p)
+                .requestType("ORDER_REQUEST")
+                .status("PENDING")
+                .order(order)
+                .build();
+
+        when(requestRepository.findByPharmacy_PharmacyIdOrderByCreatedAtDesc("PH001"))
+                .thenReturn(List.of(req));
+        when(orderRepository.findByPharmacy_PharmacyIdAndConsultationRequestIsNull("PH001"))
+                .thenReturn(Collections.emptyList());
+
+        List<PharmacyWorkItemResponse> items = workItemService.getWorkItemsByPharmacy("PH001");
+
+        assertThat(items).hasSize(1);
+        assertThat(items.get(0).getAvailableActions()).doesNotContain("CHAT");
     }
 
     @Test
