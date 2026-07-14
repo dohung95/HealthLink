@@ -9,7 +9,6 @@ class PharmacyQuoteMapper {
   static Map<String, dynamic> toSubmissionItem(QuoteLineItem item) {
     final map = <String, dynamic>{
       'medicineId': item.medicineId,
-      'medicationName': item.medicationName,
       'quantity': item.quantity,
       'totalSupplyDays': item.totalSupplyDays,
     };
@@ -82,7 +81,7 @@ class PharmacyQuoteMapper {
     String? deliveryType,
     String? deliveryAddress,
     double? deliveryFee,
-    DateTime? estimatedDeliveryTime,
+    int? estimatedDeliveryMinutes,
     String? deliveryPhoneNumber,
     String? notes,
   }) {
@@ -92,9 +91,8 @@ class PharmacyQuoteMapper {
     if (deliveryType != null) payload['deliveryType'] = deliveryType;
     if (deliveryAddress != null) payload['deliveryAddress'] = deliveryAddress;
     if (deliveryFee != null) payload['deliveryFee'] = deliveryFee;
-    if (estimatedDeliveryTime != null) {
-      payload['estimatedDeliveryTime'] =
-          estimatedDeliveryTime.toIso8601String();
+    if (estimatedDeliveryMinutes != null) {
+      payload['estimatedDeliveryMinutes'] = estimatedDeliveryMinutes;
     }
     if (deliveryPhoneNumber != null) {
       payload['deliveryPhoneNumber'] = deliveryPhoneNumber;
@@ -106,15 +104,14 @@ class PharmacyQuoteMapper {
   static Map<String, dynamic> toUpdateQuotePayload(
     List<QuoteLineItem> items, {
     double? deliveryFee,
-    DateTime? estimatedDeliveryTime,
+    int? estimatedDeliveryMinutes,
   }) {
     final payload = <String, dynamic>{
       'items': toSubmissionItems(items),
     };
     if (deliveryFee != null) payload['deliveryFee'] = deliveryFee;
-    if (estimatedDeliveryTime != null) {
-      payload['estimatedDeliveryTime'] =
-          estimatedDeliveryTime.toIso8601String();
+    if (estimatedDeliveryMinutes != null) {
+      payload['estimatedDeliveryMinutes'] = estimatedDeliveryMinutes;
     }
     return payload;
   }
