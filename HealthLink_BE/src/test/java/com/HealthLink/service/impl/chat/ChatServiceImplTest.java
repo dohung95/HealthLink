@@ -327,4 +327,122 @@ class ChatServiceImplTest {
         verify(messageRepository, times(1)).save(any());
         verify(messagingTemplate, times(2)).convertAndSendToUser(anyString(), anyString(), any());
     }
+
+    private String sharedRoomId = "room-shared";
+    private String sharedSenderId = "user-dr-shared";
+    private String sharedReceiverId = "user-pat-shared";
+
+    private PharmacyConsultationRequest requestWithOrder(String orderStatus) {
+        return PharmacyConsultationRequest.builder()
+                .chatRoomId(sharedRoomId)
+                .order(PharmacyOrder.builder().status(orderStatus).build())
+                .build();
+    }
+
+    private PharmacyConsultationRequest consultationRequest(String status, String chatRoomId, PharmacyOrder order) {
+        return PharmacyConsultationRequest.builder()
+                .requestType("CONSULTATION")
+                .status(status)
+                .chatRoomId(chatRoomId)
+                .order(order)
+                .build();
+    }
+
+    private SendMessageRequest sendRequest() {
+        return SendMessageRequest.builder()
+                .chatRoomId(sharedRoomId)
+                .receiverId(sharedReceiverId)
+                .content("Hello")
+                .build();
+    }
+
+    @Test
+    void sendMessage_whenSharedRoomHasEditableConsultation_savesMessage() {
+        ChatRoom chatRoom = ChatRoom.builder()
+                .chatRoomId(sharedRoomId)
+                .user1Id(sharedSenderId)
+                .user2Id(sharedReceiverId)
+                .build();
+
+        PharmacyConsultationRequest completed = requestWithOrder("COMPLETED");
+        PharmacyConsultationRequest active = consultationRequest("IN_REVIEW", sharedRoomId, null);
+        User receiver = User.builder().id(sharedReceiverId).username("Patient").build();
+
+        when(chatRoomRepository.findById(sharedRoomId)).thenReturn(Optional.of(chatRoom));
+        when(pharmacyConsultationRequestRepository.findAllByChatRoomId(sharedRoomId))
+                .thenReturn(List.of(completed, active));
+        when(userRepository.findById(sharedReceiverId)).thenReturn(Optional.of(receiver));
+        when(messageRepository.save(any())).thenReturn(Message.builder().build());
+
+        service.sendMessage(sendRequest(), sharedSenderId);
+
+        verify(messageRepository, times(1)).save(any());
+        verify(messagingTemplate, times(2)).convertAndSendToUser(anyString(), anyString(), any());
+    }
+
+    @Test
+    void sendMessage_whenSharedRoomHasRevisionRequest_savesMessage() {
+        ChatRoom chatRoom = ChatRoom.builder()
+                .chatRoomId(sharedRoomId)
+                .user1Id(sharedSenderId)
+                .user2Id(sharedReceiverId)
+                .build();
+
+        PharmacyConsultationRequest completed = requestWithOrder("COMPLETED");
+        PharmacyConsultationRequest revision = requestWithOrder("REVISION_REQUESTED");
+        User receiver = User.builder().id(sharedReceiverId).username("Patient").build();
+
+        when(chatRoomRepository.findById(sharedRoomId)).thenReturn(Optional.of(chatRoom));
+        when(pharmacyConsultationRequestRepository.findAllByChatRoomId(sharedRoomId))
+                .thenReturn(List.of(completed, revision));
+        when(userRepository.findById(sharedReceiverId)).thenReturn(Optional.of(receiver));
+        when(messageRepository.save(any())).thenReturn(Message.builder().build());
+
+        service.sendMessage(sendRequest(), sharedSenderId);
+
+        verify(messageRepository, times(1)).save(any());
+        verify(messagingTemplate, times(2)).convertAndSendToUser(anyString(), anyString(), any());
+    }
+
+    @Test
+    void sendMessage_whenEmptySharedRoomList_savesMessage() {
+        ChatRoom chatRoom = ChatRoom.builder()
+                .chatRoomId(sharedRoomId)
+                .user1Id(sharedSenderId)
+                .user2Id(sharedReceiverId)
+                .build();
+
+        User receiver = User.builder().id(sharedReceiverId).username("Patient").build();
+
+        when(chatRoomRepository.findById(sharedRoomId)).thenReturn(Optional.of(chatRoom));
+        when(pharmacyConsultationRequestRepository.findAllByChatRoomId(sharedRoomId))
+                .thenReturn(List.of());
+        when(userRepository.findById(sharedReceiverId)).thenReturn(Optional.of(receiver));
+        when(messageRepository.save(any())).thenReturn(Message.builder().build());
+
+        service.sendMessage(sendRequest(), sharedSenderId);
+
+        verify(messageRepository, times(1)).save(any());
+        verify(messagingTemplate, times(2)).convertAndSendToUser(anyString(), anyString(), any());
+    }
+
+    @Test
+    void sendMessage_whenAllLinkedRequestsLocked_throwsBusinessException() {
+        ChatRoom chatRoom = ChatRoom.builder()
+                .chatRoomId(sharedRoomId)
+                .user1Id(sharedSenderId)
+                .user2Id(sharedReceiverId)
+                .build();
+
+        when(chatRoomRepository.findById(sharedRoomId)).thenReturn(Optional.of(chatRoom));
+        when(pharmacyConsultationRequestRepository.findAllByChatRoomId(sharedRoomId))
+                .thenReturn(List.of(requestWithOrder("PENDING"), requestWithOrder("COMPLETED")));
+
+        assertThatThrownBy(() -> service.sendMessage(sendRequest(), sharedSenderId))
+                .isInstanceOf(BusinessException.class)
+                .hasMessage("This pharmacy conversation is now read-only.");
+
+        verify(messageRepository, never()).save(any());
+        verify(messagingTemplate, never()).convertAndSendToUser(anyString(), anyString(), any());
+    }
 }
