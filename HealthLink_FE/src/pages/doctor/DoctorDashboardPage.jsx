@@ -195,7 +195,9 @@ const DoctorDashboardPage = () => {
     refreshChatUnreadCount();
 
     const unsub = stompChatService.subscribeToChat(() => {
-      refreshChatUnreadCount();
+      setTimeout(() => {
+        refreshChatUnreadCount();
+      }, 1000);
     });
 
     const handleReadUpdate = () => {

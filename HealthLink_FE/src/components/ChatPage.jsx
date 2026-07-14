@@ -1,15 +1,16 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { getOrCreateRoom, getMyRooms, getRoomMessages, getRoomMedia, sendMessage as apiSendMessage, markAsRead, uploadMedia, toggleBlock } from '../api/chatApi';
+import { getOrCreateRoom, getMyRooms, getRoomMessages, getRoomMedia, sendMessage as apiSendMessage, markAsRead, uploadMedia, toggleBlock, getRoomById } from '../api/chatApi';
 import stompChatService from '../services/stompChatService';
 import { getGeminiResponse } from '../services/geminiService';
 import { checkKeywordAndGetBotReply, checkSymptomAndGetSpecialty, getDoctorsBySpecialty } from '../AI_BOT/BotBrain';
 import { doctorService } from '../api/doctorApi';
-import { vitalSignApi } from '../api/vitalSignApi';
 import { toast } from 'sonner';
 import BasicProfileModal from './BasicProfileModal';
-import PreConsultationVitalsModal from './PreConsultationVitalsModal';
+// [DEPRECATED - 2026-07-14] Patient không tự nhập vitals nữa — bác sĩ nhập thay.
+// Giữ import để dễ phục hồi: import { vitalSignApi } from '../api/vitalSignApi';
+// import PreConsultationVitalsModal from './PreConsultationVitalsModal';
 
 // ─── Bot cố định ──────────────
 const BOT_USER = {
@@ -22,18 +23,34 @@ const BOT_USER = {
 // ─── Helper functions ────────────────────────────────────────────────
 function formatTime(isoString) {
     if (!isoString) return '...';
-    const d = new Date(isoString);
-    return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    const dTime = safeParseDate(isoString);
+    if (dTime === 0) return '...';
+    return new Date(dTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+}
+
+function safeParseDate(val) {
+    if (!val) return 0;
+    if (Array.isArray(val) && val.length >= 6) {
+        return new Date(val[0], val[1] - 1, val[2], val[3], val[4], val[5]).getTime();
+    }
+    const parsed = new Date(val).getTime();
+    return isNaN(parsed) ? 0 : parsed;
 }
 
 function formatRelative(isoString) {
     if (!isoString) return '';
-    const d = new Date(isoString);
+    const dTime = safeParseDate(isoString);
+    if (dTime === 0) return '';
+    const d = new Date(dTime);
+    
     const now = new Date();
-    const diffMs = now - d;
+    let diffMs = now.getTime() - dTime;
+    if (diffMs < 0) diffMs = 0; // fallback cho trường hợp lệch timezone hoặc giờ server bị tương lai
+
     const m = Math.floor(diffMs / 60000);
     const h = Math.floor(diffMs / 3600000);
     const day = Math.floor(diffMs / 86400000);
+    
     if (m < 1) return 'just now';
     if (m < 60) return `${m} minutes ago`;
     if (h < 24) return `${h} hours ago`;
@@ -288,7 +305,9 @@ function ChatMessage({ message, currentUserId, isNew = false, onImageClick, onNa
     }, [isNew, fullText]);
 
     const timeStr = message.timestamp
-        ? new Date(message.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric' })
+        ? (safeParseDate(message.timestamp) !== 0 
+            ? new Date(safeParseDate(message.timestamp)).toLocaleString([], { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric' })
+            : '...')
         : (message.createdAt ? formatTime(message.createdAt) : '...');
 
     const imageUrl = getFullUrl(message.imageUrl);
@@ -530,48 +549,33 @@ export default function ChatPage({ showBot = true }) {
     const [latestBotMsgId, setLatestBotMsgId] = useState(null);
     const [lightboxImage, setLightboxImage] = useState(null);
 
-    const [hasFilledVitals, setHasFilledVitals] = useState(true);
-    const [showVitalsModal, setShowVitalsModal] = useState(false);
+    // [DEPRECATED - 2026-07-14] Patient vitals state — bỏ vì bác sĩ nhập thay.
+    // const [hasFilledVitals, setHasFilledVitals] = useState(true);
+    // const [showVitalsModal, setShowVitalsModal] = useState(false);
 
-    useEffect(() => {
-        if (currentRoom?.appointmentId) {
-            vitalSignApi.getLatestAppointmentVitalSign(currentRoom.appointmentId)
-                .then(res => {
-                    if (res && res.vitalSignId) {
-                        setHasFilledVitals(true);
-                    } else {
-                        setHasFilledVitals(false);
-                    }
-                })
-                .catch(() => {
-                    setHasFilledVitals(false);
-                });
-        } else {
-            setHasFilledVitals(true);
-        }
-    }, [currentRoom?.appointmentId]);
+    // [DEPRECATED - 2026-07-14] Vitals check effect — bỏ.
+    // useEffect(() => {
+    //     if (currentRoom?.appointmentId) {
+    //         vitalSignApi.getLatestAppointmentVitalSign(currentRoom.appointmentId)
+    //             .then(res => setHasFilledVitals(!!(res && res.vitalSignId)))
+    //             .catch(() => setHasFilledVitals(false));
+    //     } else { setHasFilledVitals(true); }
+    // }, [currentRoom?.appointmentId]);
 
-    // Poll vitals every 5s if not filled
-    useEffect(() => {
-        let interval;
-        if (!hasFilledVitals && currentRoom?.appointmentId) {
-            interval = setInterval(() => {
-                vitalSignApi.getLatestAppointmentVitalSign(currentRoom.appointmentId)
-                    .then(res => {
-                        if (res && res.vitalSignId) {
-                            setHasFilledVitals(true);
-                        }
-                    })
-                    .catch(() => { });
-            }, 2000);
-        }
-        return () => { if (interval) clearInterval(interval); };
-    }, [hasFilledVitals, currentRoom?.appointmentId]);
+    // [DEPRECATED - 2026-07-14] Vitals polling effect — bỏ.
+    // useEffect(() => {
+    //     let interval;
+    //     if (!hasFilledVitals && currentRoom?.appointmentId) {
+    //         interval = setInterval(() => {
+    //             vitalSignApi.getLatestAppointmentVitalSign(currentRoom.appointmentId)
+    //                 .then(res => { if (res && res.vitalSignId) setHasFilledVitals(true); })
+    //                 .catch(() => {});
+    //         }, 2000);
+    //     }
+    //     return () => { if (interval) clearInterval(interval); };
+    // }, [hasFilledVitals, currentRoom?.appointmentId]);
 
-    const handleVitalsSaved = () => {
-        setHasFilledVitals(true);
-        setShowVitalsModal(false);
-    };
+    // [DEPRECATED] const handleVitalsSaved = () => { setHasFilledVitals(true); setShowVitalsModal(false); };
 
     const [page, setPage] = useState(0);
     const [hasMore, setHasMore] = useState(true);
@@ -996,20 +1000,24 @@ export default function ChatPage({ showBot = true }) {
                         return {
                             ...room,
                             lastMessage: newMsg.content || "[Ảnh]",
-                            lastMessageAt: newMsg.timestamp,
+                            lastMessageAt: newMsg.timestamp || newMsg.createdAt || new Date().toISOString(),
                             unreadCount: isRoomActive ? 0 : (room.unreadCount || 0) + 1
                         };
                     }
                     return room;
                 });
 
-                updated.sort((a, b) => new Date(b.lastMessageAt || 0).getTime() - new Date(a.lastMessageAt || 0).getTime());
+                updated.sort((a, b) => {
+                    const validA = safeParseDate(a.lastMessageAt);
+                    const validB = safeParseDate(b.lastMessageAt);
+                    return validB - validA;
+                });
 
                 // Show notification if it's a new message in another room and not muted
                 if (!isRoomActive && newMsg.senderId !== currentUserId) {
                     const localMutedRooms = JSON.parse(localStorage.getItem('muted_rooms') || '[]');
                     if (!localMutedRooms.includes(newMsg.chatRoomId)) {
-                        toast.info(`New message from ${isNewRoom ? 'someone' : (updated.find(r => r.chatRoomId === newMsg.chatRoomId)?.user1Id.startsWith(currentUserId) ? updated.find(r => r.chatRoomId === newMsg.chatRoomId)?.user2DisplayName : updated.find(r => r.chatRoomId === newMsg.chatRoomId)?.user1DisplayName) || 'someone'}`);
+                        // toast.info(`New message from ${isNewRoom ? 'someone' : (updated.find(r => r.chatRoomId === newMsg.chatRoomId)?.user1Id.startsWith(currentUserId) ? updated.find(r => r.chatRoomId === newMsg.chatRoomId)?.user2DisplayName : updated.find(r => r.chatRoomId === newMsg.chatRoomId)?.user1DisplayName) || 'someone'}`);
                     }
                 }
 
@@ -1351,13 +1359,9 @@ export default function ChatPage({ showBot = true }) {
     const isAppointmentCompleted = currentRoom?.appointmentStatus?.toUpperCase() === 'COMPLETED';
     const isBlocked = currentRoom?.blockedBy || isAppointmentCompleted;
     const isBlockedByMe = currentRoom?.blockedBy === currentUserId;
-    const shouldBlockForPatientVitals =
-      Boolean(isPatient && !hasFilledVitals && !isAppointmentCompleted && currentRoom?.appointmentId);
-    const videoCallDisabled = isBlocked || (isPatient && !hasFilledVitals);
-
-    console.log('[DEBUG ChatPage] currentRoom:', currentRoom);
-    console.log('[DEBUG ChatPage] isAppointmentCompleted:', isAppointmentCompleted);
-    console.log('[DEBUG ChatPage] isBlocked:', isBlocked);
+    // [DEPRECATED] const shouldBlockForPatientVitals = Boolean(isPatient && !hasFilledVitals && ...);
+    // [UPDATED] videoCallDisabled chỉ dựa vào blocked/completed — không còn dựa vào vitals.
+    const videoCallDisabled = isBlocked;
 
     return (
         <div className="container-fluid h-100 py-3">
@@ -1403,6 +1407,11 @@ export default function ChatPage({ showBot = true }) {
                                         const partnerId = isUser1 ? r.user2Id : r.user1Id;
                                         setChatPartner({ userId: partnerId, displayName: isUser1 ? r.user2DisplayName : r.user1DisplayName });
                                         setCurrentRoom(r);
+                                        // Fetch latest room state when clicking
+                                        getRoomById(r.chatRoomId).then(freshRoom => {
+                                            setCurrentRoom(freshRoom);
+                                            setRoomList(prevRooms => prevRooms.map(room => room.chatRoomId === freshRoom.chatRoomId ? freshRoom : room));
+                                        }).catch(err => console.error("Error refreshing room state:", err));
                                     }}
                                     isActive={currentRoom?.chatRoomId === room.chatRoomId}
                                     isMuted={mutedRooms.includes(room.chatRoomId)}
@@ -1451,9 +1460,7 @@ export default function ChatPage({ showBot = true }) {
                                         title={
                                           isBlocked
                                             ? 'Cannot call when chat is blocked or appointment completed'
-                                            : isPatient && !hasFilledVitals
-                                              ? 'Fill vital signs before calling'
-                                              : 'Video Call'
+                                            : 'Video Call'
                                         }
                                     >
                                         <i className={`bi bi-camera-video ${videoCallDisabled ? 'text-muted' : 'text-primary'} fs-5`}></i>
@@ -1505,7 +1512,6 @@ export default function ChatPage({ showBot = true }) {
                                     onNavigate={handleBotNavigate}
                                     onCallClick={handleVideoCallFromChat}
                                     isBlocked={isBlocked}
-                                    hasFilledVitals={!isPatient || hasFilledVitals}
                                 />
                             </div>
                         ))}
@@ -1546,24 +1552,14 @@ export default function ChatPage({ showBot = true }) {
                     </div>
 
                     {/* Input box */}
-                    {shouldBlockForPatientVitals ? (
-                        <div className="p-3 border-top bg-light text-center">
-                            <div className="text-warning mb-2 fw-semibold">
-                                <i className="bi bi-exclamation-triangle-fill me-2"></i>
-                                Please fill in your health information before starting the chat.
-                            </div>
-                            <button className="btn btn-primary btn-sm" onClick={() => setShowVitalsModal(true)}>
-                                Fill Health Info
-                            </button>
-                        </div>
-                    ) : isBlocked ? (
+                    {isBlocked ? (
                         <div className="p-3 border-top bg-light text-center">
                             <span className="text-muted fst-italic">
                                 {isBlockedByMe
                                     ? 'You blocked this user.'
                                     : isAppointmentCompleted
-                                        ? 'This appointment is completed. The conversation is read-only.'
-                                        : 'You cannot reply to this conversation.'}
+                                        ? 'Cuộc hẹn đã kết thúc. Đoạn chat này hiện ở chế độ chỉ đọc.'
+                                        : 'Cuộc hẹn chưa bắt đầu. Chat sẽ tự động mở khi đến giờ khám.'}
                             </span>
                         </div>
                     ) : (
@@ -1927,7 +1923,7 @@ export default function ChatPage({ showBot = true }) {
                 role={(currentRoom?.user1Id === currentUserId ? currentRoom?.user2Specialty : currentRoom?.user1Specialty) || ''}
             />
 
-            {/* --- PreConsultationVitals Modal --- */}
+            {/* [DEPRECATED - 2026-07-14] Patient vitals flow bỏ.
             <PreConsultationVitalsModal
                 isOpen={showVitalsModal}
                 appointment={{ appointmentId: currentRoom?.appointmentId }}
@@ -1935,6 +1931,7 @@ export default function ChatPage({ showBot = true }) {
                 onClose={() => setShowVitalsModal(false)}
                 onSaved={handleVitalsSaved}
             />
+            */}
         </div>
     );
 }

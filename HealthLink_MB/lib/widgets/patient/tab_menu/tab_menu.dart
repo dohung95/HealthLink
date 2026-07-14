@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../../../l10n/app_localizations.dart';
+import '../../../providers/chat/chat_provider.dart';
 
 String _getLocalizedTabLabel(BuildContext context, String label) {
   final l10n = AppLocalizations.of(context)!;
@@ -57,6 +59,8 @@ class MobileTabMenu extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final unreadCount = context.watch<ChatProvider>().totalUnreadCount;
+
     return Container(
       decoration: BoxDecoration(
         color: Theme.of(context).colorScheme.surface,
@@ -113,12 +117,37 @@ class MobileTabMenu extends StatelessWidget {
                         ),
                       )
                     else
-                      Icon(
-                        item.icon,
-                        size: 24,
-                        color: isActive
-                            ? Theme.of(context).colorScheme.primary
-                            : Theme.of(context).colorScheme.outline,
+                      Stack(
+                        clipBehavior: Clip.none,
+                        children: [
+                          Icon(
+                            item.icon,
+                            size: 24,
+                            color: isActive
+                                ? Theme.of(context).colorScheme.primary
+                                : Theme.of(context).colorScheme.outline,
+                          ),
+                          if (item.label == 'Chat' && unreadCount > 0)
+                            Positioned(
+                              right: -4,
+                              top: -4,
+                              child: Container(
+                                padding: const EdgeInsets.all(4),
+                                decoration: const BoxDecoration(
+                                  color: Colors.red,
+                                  shape: BoxShape.circle,
+                                ),
+                                child: Text(
+                                  unreadCount > 99 ? '99+' : unreadCount.toString(),
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 8,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                            ),
+                        ],
                       ),
                     const SizedBox(height: 4),
                     Text(
@@ -165,6 +194,8 @@ class DesktopTabMenu extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final unreadCount = context.watch<ChatProvider>().totalUnreadCount;
+
     return Container(
       width: 256,
       color: Theme.of(context).colorScheme.surface,
@@ -203,6 +234,7 @@ class DesktopTabMenu extends StatelessWidget {
                 index == currentIndex,
                 index,
                 isHome: items[index].label == 'Home',
+                unreadCount: items[index].label == 'Chat' ? unreadCount : 0,
               ),
             ),
           ),
@@ -230,6 +262,7 @@ class DesktopTabMenu extends StatelessWidget {
     bool isActive,
     int index, {
     bool isHome = false,
+    int unreadCount = 0,
   }) {
     final colorScheme = Theme.of(context).colorScheme;
     return Container(
@@ -269,6 +302,23 @@ class DesktopTabMenu extends StatelessWidget {
         selected: isActive,
         selectedTileColor: colorScheme.surfaceContainerHighest,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(100)),
+        trailing: unreadCount > 0
+            ? Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: colorScheme.error,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  unreadCount > 99 ? '99+' : unreadCount.toString(),
+                  style: TextStyle(
+                    color: colorScheme.onError,
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              )
+            : null,
         onTap: index >= 0 ? () => onTabChanged(index) : null,
       ),
     );

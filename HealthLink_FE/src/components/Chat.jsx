@@ -232,7 +232,7 @@ export default function Chat() {
                 const welcomeMsg = {
                     messageId: `bot_welcome_${Date.now()}`,
                     senderId: BOT_USER.userId,
-                    content: 'Xin chào! Tôi là trợ lý AI của HealthLink. Bạn có thể mô tả triệu chứng, hỏi về các chuyên khoa hoặc nhờ tôi tìm bác sĩ giúp bạn nhé!',
+                    content: "Hello! I am HealthLink's AI Assistant. You can describe your symptoms, ask about medical specialties, or let me help you find a doctor!",
                     timestamp: new Date().toISOString(),
                 };
                 setLatestBotMsgId(welcomeMsg.messageId);
@@ -409,11 +409,11 @@ export default function Chat() {
                             </p>
                         )}
                         {messages.map(msg => (
-                            <ChatMessage 
-                                key={msg.messageId} 
-                                message={msg} 
+                            <ChatMessage
+                                key={msg.messageId}
+                                message={msg}
                                 isNew={msg.messageId === latestBotMsgId}
-                                onNavigate={handleBotNavigate} 
+                                onNavigate={handleBotNavigate}
                             />
                         ))}
                         {isBotTyping && <TypingIndicator />}
