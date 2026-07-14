@@ -11,11 +11,19 @@ class DoctorReviewsScreen extends StatefulWidget {
   State<DoctorReviewsScreen> createState() => _DoctorReviewsScreenState();
 }
 
+const _pageSize = 10;
+
 class _DoctorReviewsScreenState extends State<DoctorReviewsScreen> {
   bool _isLoading = true;
+  bool _isLoadingPage = false;
   String? _error;
   Map<String, dynamic> _stats = {};
   List<dynamic> _reviews = [];
+
+  int _page = 0;
+  int _totalPages = 1;
+  bool _hasNext = false;
+  bool _hasPrevious = false;
 
   @override
   void initState() {
@@ -23,9 +31,10 @@ class _DoctorReviewsScreenState extends State<DoctorReviewsScreen> {
     _loadData();
   }
 
-  Future<void> _loadData() async {
+  Future<void> _loadData({bool keepStats = false}) async {
     setState(() {
-      _isLoading = true;
+      _isLoading = !keepStats;
+      _isLoadingPage = keepStats;
       _error = null;
     });
 
@@ -34,20 +43,27 @@ class _DoctorReviewsScreenState extends State<DoctorReviewsScreen> {
       final token = auth.accessToken;
       if (token == null) throw Exception('Not authenticated');
 
-      final results = await Future.wait<Map<String, dynamic>>([
-        DoctorService.getReviewStats(token),
-        DoctorService.getReviews(token, page: 0, size: 20),
-      ]);
+      final futures = <Future>[
+        DoctorService.getReviews(token, page: _page, size: _pageSize),
+      ];
+      if (!keepStats) {
+        futures.add(DoctorService.getReviewStats(token));
+      }
+      final results = await Future.wait(futures);
 
       if (mounted) {
         setState(() {
-          _stats = results[0];
-          final reviewsData = results[1];
+          final reviewsData = results[0] as Map<String, dynamic>;
+          if (!keepStats) _stats = results[1] as Map<String, dynamic>;
           _reviews = reviewsData['reviews'] as List<dynamic>? ??
               reviewsData['content'] as List<dynamic>? ??
               reviewsData['items'] as List<dynamic>? ??
               [];
+          _totalPages = (reviewsData['totalPages'] as num?)?.toInt() ?? 1;
+          _hasNext = reviewsData['hasNext'] as bool? ?? (_page < _totalPages - 1);
+          _hasPrevious = reviewsData['hasPrevious'] as bool? ?? (_page > 0);
           _isLoading = false;
+          _isLoadingPage = false;
         });
       }
     } catch (e) {
@@ -55,9 +71,16 @@ class _DoctorReviewsScreenState extends State<DoctorReviewsScreen> {
         setState(() {
           _error = e.toString();
           _isLoading = false;
+          _isLoadingPage = false;
         });
       }
     }
+  }
+
+  void _goToPage(int page) {
+    if (page == _page || page < 0) return;
+    setState(() => _page = page);
+    _loadData(keepStats: true);
   }
 
   @override
@@ -74,7 +97,10 @@ class _DoctorReviewsScreenState extends State<DoctorReviewsScreen> {
           : _error != null
               ? _buildErrorWidget()
               : RefreshIndicator(
-                  onRefresh: _loadData,
+                  onRefresh: () {
+                    _page = 0;
+                    return _loadData();
+                  },
                   child: CustomScrollView(
                     slivers: [
                       SliverToBoxAdapter(
@@ -91,7 +117,14 @@ class _DoctorReviewsScreenState extends State<DoctorReviewsScreen> {
                           ),
                         ),
                       ),
-                      if (_reviews.isEmpty)
+                      if (_isLoadingPage)
+                        const SliverToBoxAdapter(
+                          child: Padding(
+                            padding: EdgeInsets.symmetric(vertical: 24),
+                            child: Center(child: CircularProgressIndicator()),
+                          ),
+                        )
+                      else if (_reviews.isEmpty)
                         const SliverFillRemaining(
                           child: Center(
                             child: Text('No reviews yet'),
@@ -106,9 +139,35 @@ class _DoctorReviewsScreenState extends State<DoctorReviewsScreen> {
                             childCount: _reviews.length,
                           ),
                         ),
+                      if (!_isLoadingPage && _totalPages > 1)
+                        SliverToBoxAdapter(child: _buildPagination()),
                     ],
                   ),
                 ),
+    );
+  }
+
+  Widget _buildPagination() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 16),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          TextButton.icon(
+            onPressed: _hasPrevious ? () => _goToPage(_page - 1) : null,
+            icon: const Icon(Icons.chevron_left, size: 18),
+            label: const Text('Previous'),
+          ),
+          const SizedBox(width: 8),
+          Text('Page ${_page + 1} of $_totalPages'),
+          const SizedBox(width: 8),
+          TextButton.icon(
+            onPressed: _hasNext ? () => _goToPage(_page + 1) : null,
+            icon: const Icon(Icons.chevron_right, size: 18),
+            label: const Text('Next'),
+          ),
+        ],
+      ),
     );
   }
 
@@ -243,9 +302,96 @@ class _DoctorReviewsScreenState extends State<DoctorReviewsScreen> {
               );
             }),
           ],
+          const SizedBox(height: 20),
+          Container(
+            padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.12),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                _buildResponseStat('${_stats['totalReplied'] ?? 0}', 'Replied', Colors.white),
+                Container(width: 1, height: 32, color: Colors.white.withOpacity(0.25)),
+                _buildResponseStat('${_stats['totalPendingReply'] ?? 0}', 'Pending', Colors.amber.shade200),
+              ],
+            ),
+          ),
         ],
       ),
     );
+  }
+
+  Widget _buildResponseStat(String value, String label, Color color) {
+    return Column(
+      children: [
+        Text(value, style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: color)),
+        const SizedBox(height: 2),
+        Text(label, style: TextStyle(fontSize: 12, color: Colors.white.withOpacity(0.85))),
+      ],
+    );
+  }
+
+  Future<void> _openReplyDialog(dynamic review) async {
+    final reviewId = (review['reviewId'] as num?)?.toInt();
+    if (reviewId == null) return;
+    final existingReply = review['doctorReply'] as String?;
+    final controller = TextEditingController(text: existingReply ?? '');
+    bool submitting = false;
+
+    final submitted = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          title: Text(existingReply == null ? 'Reply to review' : 'Edit reply'),
+          content: TextField(
+            controller: controller,
+            maxLines: 4,
+            maxLength: 1000,
+            autofocus: true,
+            decoration: const InputDecoration(
+              hintText: 'Write your reply... (minimum 5 characters)',
+              border: OutlineInputBorder(),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: submitting ? null : () => Navigator.pop(ctx, false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: submitting || controller.text.trim().length < 5
+                  ? null
+                  : () async {
+                      setDialogState(() => submitting = true);
+                      try {
+                        final auth = context.read<AuthProvider>();
+                        final token = auth.accessToken;
+                        if (token == null) throw Exception('Not authenticated');
+                        await DoctorService.replyToReview(token, reviewId, controller.text.trim());
+                        if (ctx.mounted) Navigator.pop(ctx, true);
+                      } catch (e) {
+                        setDialogState(() => submitting = false);
+                        if (ctx.mounted) {
+                          ScaffoldMessenger.of(ctx).showSnackBar(
+                            SnackBar(content: Text(e.toString().replaceFirst('Exception: ', ''))),
+                          );
+                        }
+                      }
+                    },
+              child: submitting
+                  ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                  : const Text('Submit'),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (submitted == true) {
+      _loadData();
+    }
   }
 
   Widget _buildReviewCard(ThemeData theme, dynamic review) {
@@ -255,6 +401,10 @@ class _DoctorReviewsScreenState extends State<DoctorReviewsScreen> {
     final createdAt = DateTime.tryParse(
         (review['reviewDate'] ?? review['createdAt'])?.toString() ?? '');
     final dateFormat = DateFormat('dd MMM yyyy');
+    final doctorReply = review['doctorReply'] as String?;
+    final doctorReplyDate = DateTime.tryParse(review['doctorReplyDate']?.toString() ?? '');
+    final adminReply = review['adminReply'] as String?;
+    final adminReplyDate = DateTime.tryParse(review['adminReplyDate']?.toString() ?? '');
 
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -334,6 +484,75 @@ class _DoctorReviewsScreenState extends State<DoctorReviewsScreen> {
               ),
             ),
           ],
+          if (doctorReply != null && doctorReply.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: theme.colorScheme.primary.withOpacity(0.06),
+                borderRadius: BorderRadius.circular(8),
+                border: Border(left: BorderSide(color: theme.colorScheme.primary, width: 3)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(Icons.reply, size: 14, color: theme.colorScheme.primary),
+                      const SizedBox(width: 6),
+                      Text('Your reply', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: theme.colorScheme.primary)),
+                      if (doctorReplyDate != null) ...[
+                        const Spacer(),
+                        Text(dateFormat.format(doctorReplyDate), style: TextStyle(fontSize: 11, color: theme.colorScheme.onSurfaceVariant)),
+                      ],
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Text(doctorReply, style: const TextStyle(fontSize: 13)),
+                ],
+              ),
+            ),
+          ],
+          if (adminReply != null && adminReply.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.amber.withOpacity(0.08),
+                borderRadius: BorderRadius.circular(8),
+                border: const Border(left: BorderSide(color: Colors.amber, width: 3)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      const Icon(Icons.verified, size: 14, color: Colors.amber),
+                      const SizedBox(width: 6),
+                      const Text('HealthLink response', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.amber)),
+                      if (adminReplyDate != null) ...[
+                        const Spacer(),
+                        Text(dateFormat.format(adminReplyDate), style: TextStyle(fontSize: 11, color: theme.colorScheme.onSurfaceVariant)),
+                      ],
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Text(adminReply, style: const TextStyle(fontSize: 13)),
+                ],
+              ),
+            ),
+          ],
+          const SizedBox(height: 10),
+          Align(
+            alignment: Alignment.centerRight,
+            child: TextButton.icon(
+              onPressed: () => _openReplyDialog(review),
+              icon: Icon(doctorReply != null && doctorReply.isNotEmpty ? Icons.edit_outlined : Icons.reply, size: 16),
+              label: Text(doctorReply != null && doctorReply.isNotEmpty ? 'Edit Reply' : 'Reply'),
+            ),
+          ),
         ],
       ),
     );

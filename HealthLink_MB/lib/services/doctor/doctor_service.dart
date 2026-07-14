@@ -238,12 +238,14 @@ class DoctorService {
     return null;
   }
 
-  /// Cập nhật ghi chú tư vấn
+  /// Cập nhật ghi chú tư vấn. Khớp `ConsultationNotesRequest` bên BE
+  /// (diagnosis, doctorNotes, treatmentPlan) — không phải "notes".
   static Future<void> updateConsultationNotes(
     String token,
     int appointmentId, {
     required String diagnosis,
-    required String notes,
+    required String doctorNotes,
+    String treatmentPlan = '',
   }) async {
     final res = await http
         .put(
@@ -251,7 +253,8 @@ class DoctorService {
           headers: _authHeaders(token),
           body: jsonEncode({
             'diagnosis': diagnosis,
-            'notes': notes,
+            'doctorNotes': doctorNotes,
+            'treatmentPlan': treatmentPlan,
           }),
         )
         .timeout(ApiConfig.connectTimeout);
@@ -259,6 +262,30 @@ class DoctorService {
     if (res.statusCode != 200) {
       throw Exception(_extractErrorMessage(res.body) ?? 'Failed to update notes: ${res.statusCode}');
     }
+  }
+
+  /// Lấy danh sách hồ sơ sức khoẻ bệnh nhân đã chia sẻ với bác sĩ, có thể lọc
+  /// theo appointment cụ thể. Khớp `DoctorHealthRecordController.getSharedWithMe`.
+  static Future<List<Map<String, dynamic>>> getSharedWithMe(
+    String token, {
+    int? appointmentId,
+  }) async {
+    final uri = Uri.parse('${ApiConfig.baseUrl}/doctor/health-records/shared-with-me').replace(
+      queryParameters: {
+        if (appointmentId != null) 'appointmentId': appointmentId.toString(),
+      },
+    );
+    final res = await http.get(uri, headers: _authHeaders(token)).timeout(ApiConfig.connectTimeout);
+
+    if (res.statusCode == 200) {
+      final data = jsonDecode(res.body);
+      if (data is List) {
+        return data.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+      }
+      return [];
+    }
+
+    throw Exception(_extractErrorMessage(res.body) ?? 'Failed to load shared records: ${res.statusCode}');
   }
 
   // ══════════════════════════════════════════════════════════════════════════
@@ -416,6 +443,27 @@ class DoctorService {
     }
 
     throw Exception('Failed to load review stats: ${res.statusCode}');
+  }
+
+  /// Trả lời một đánh giá của bệnh nhân
+  static Future<Map<String, dynamic>> replyToReview(
+    String token,
+    int reviewId,
+    String reply,
+  ) async {
+    final res = await http
+        .post(
+          Uri.parse('${ApiConfig.baseUrl}/doctor/reviews/$reviewId/reply'),
+          headers: _authHeaders(token),
+          body: jsonEncode({'reply': reply}),
+        )
+        .timeout(ApiConfig.connectTimeout);
+
+    if (res.statusCode == 200) {
+      return jsonDecode(res.body) as Map<String, dynamic>;
+    }
+
+    throw Exception(_extractErrorMessage(res.body) ?? 'Failed to submit reply: ${res.statusCode}');
   }
 
   // ══════════════════════════════════════════════════════════════════════════
