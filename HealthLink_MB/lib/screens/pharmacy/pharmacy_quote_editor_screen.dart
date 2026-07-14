@@ -8,6 +8,12 @@ import '../../providers/pharmacy/pharmacy_request_provider.dart';
 import '../../utils/pharmacy/pharmacy_quote_mapper.dart';
 import '../../widgets/pharmacy/pharmacy_medicine_picker.dart';
 import '../../widgets/pharmacy/pharmacy_order_item_editor.dart';
+import '../../widgets/pharmacy/quote/pharmacy_quote_delivery_step.dart';
+import '../../widgets/pharmacy/quote/pharmacy_quote_review_step.dart';
+import '../../widgets/pharmacy/quote/pharmacy_quote_step_header.dart';
+
+export '../../widgets/pharmacy/quote/pharmacy_quote_step_header.dart'
+    show PharmacyQuoteStep;
 
 enum QuoteEditorMode { createFromRequest, updateQuote }
 
@@ -30,19 +36,24 @@ class PharmacyQuoteEditorScreen extends StatefulWidget {
 
 class _PharmacyQuoteEditorScreenState
     extends State<PharmacyQuoteEditorScreen> {
-  final _formKey = GlobalKey<FormState>();
   final List<QuoteLineItem> _items = [];
   bool _isDirty = false;
   bool _isSubmitting = false;
   bool _hasLoaded = false;
+  PharmacyQuoteStep _step = PharmacyQuoteStep.medicines;
+  String? _validationError;
+  String? _submitError;
 
   String? _deliveryType;
   final _deliveryFeeCtrl = TextEditingController();
   final _deliveryAddressCtrl = TextEditingController();
   final _deliveryPhoneCtrl = TextEditingController();
+  final _etaCtrl = TextEditingController();
   final _notesCtrl = TextEditingController();
 
   DateTime? _estimatedDeliveryTime;
+  double? _deliveryLatitudeValue;
+  double? _deliveryLongitudeValue;
 
   @override
   void initState() {
@@ -55,6 +66,7 @@ class _PharmacyQuoteEditorScreenState
     _deliveryFeeCtrl.dispose();
     _deliveryAddressCtrl.dispose();
     _deliveryPhoneCtrl.dispose();
+    _etaCtrl.dispose();
     _notesCtrl.dispose();
     super.dispose();
   }
@@ -72,6 +84,7 @@ class _PharmacyQuoteEditorScreenState
       if (!mounted) return;
       await requestProvider
           .fetchPrescriptions(auth.accessToken!, widget.requestId!);
+      _hydrateFromRequest();
     } else if (widget.mode == QuoteEditorMode.updateQuote &&
         widget.orderId != null) {
       await orderProvider
@@ -87,10 +100,10 @@ class _PharmacyQuoteEditorScreenState
     final order = context.read<PharmacyOrderProvider>().currentOrder;
     if (order == null) return;
 
-    _deliveryType = order.deliveryType;
-    if (order.deliveryFee != null) {
-      _deliveryFeeCtrl.text = order.deliveryFee!.toStringAsFixed(2);
-    }
+    _deliveryType = order.deliveryType?.toUpperCase();
+    _deliveryFeeCtrl.text = order.deliveryType?.toUpperCase() == 'PICKUP'
+        ? '0'
+        : (order.deliveryFee?.toStringAsFixed(2) ?? '');
     if (order.deliveryAddress != null) {
       _deliveryAddressCtrl.text = order.deliveryAddress!;
     }
@@ -98,6 +111,9 @@ class _PharmacyQuoteEditorScreenState
       _deliveryPhoneCtrl.text = order.deliveryPhoneNumber!;
     }
     _estimatedDeliveryTime = order.estimatedDeliveryTime;
+    _etaCtrl.text = order.estimatedDeliveryTime?.toIso8601String() ?? '';
+    _deliveryLatitudeValue = order.deliveryLatitude;
+    _deliveryLongitudeValue = order.deliveryLongitude;
 
     final items = order.items
         .map((oi) => PharmacyQuoteMapper.fromOrderItem(oi))
@@ -106,10 +122,27 @@ class _PharmacyQuoteEditorScreenState
     if (items.isNotEmpty) _isDirty = true;
   }
 
+  void _hydrateFromRequest() {
+    if (widget.mode != QuoteEditorMode.createFromRequest) return;
+    final request = context.read<PharmacyRequestProvider>().currentRequest;
+    if (request == null) return;
+    _deliveryType =
+        (request.deliveryType ?? request.preferredDeliveryType)?.toUpperCase();
+    _deliveryAddressCtrl.text = request.deliveryAddress ?? '';
+    _deliveryPhoneCtrl.text = request.deliveryPhoneNumber ?? '';
+    _notesCtrl.text = request.additionalNotes ?? '';
+    if (_deliveryType == 'PICKUP') {
+      _deliveryFeeCtrl.text = '0';
+      _estimatedDeliveryTime = null;
+      _etaCtrl.clear();
+    }
+  }
+
   void _addItem(QuoteLineItem item) {
     setState(() {
       _items.add(item);
       _isDirty = true;
+      _validationError = null;
     });
   }
 
@@ -117,6 +150,7 @@ class _PharmacyQuoteEditorScreenState
     setState(() {
       _items[index] = item;
       _isDirty = true;
+      _validationError = null;
     });
   }
 
@@ -179,37 +213,56 @@ class _PharmacyQuoteEditorScreenState
     );
   }
 
-  bool _validate() {
+  bool _validateMedicines() {
     if (_items.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Add at least one medicine')),
-      );
+      _validationError = 'Add at least one medicine';
       return false;
     }
     for (final item in _items) {
       if (item.quantity <= 0) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(const SnackBar(content: Text('Quantity must be > 0')));
+        _validationError = 'Quantity must be > 0';
         return false;
       }
       if (item.totalSupplyDays <= 0) {
-        ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Total supply days must be > 0')));
+        _validationError = 'Total supply days must be > 0';
+        return false;
+      }
+      if (!item.locked && item.timing.isEmpty) {
+        _validationError = 'Select at least one medicine timing';
         return false;
       }
     }
-    if (_deliveryType == 'DELIVERY') {
-      if (_deliveryFeeCtrl.text.isEmpty) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(const SnackBar(content: Text('Delivery fee required')));
-        return false;
-      }
+    _validationError = null;
+    return true;
+  }
+
+  bool _validateDelivery() {
+    if (_deliveryType == 'PICKUP') {
+      _validationError = null;
+      return true;
     }
+    if (_deliveryType != 'DELIVERY') {
+      _validationError = 'Patient delivery type is not available';
+      return false;
+    }
+    final fee = double.tryParse(_deliveryFeeCtrl.text);
+    if (fee == null || fee < 0) {
+      _validationError = 'Enter a non-negative delivery fee';
+      return false;
+    }
+    if (_estimatedDeliveryTime == null) {
+      _validationError = 'Enter an estimated delivery time';
+      return false;
+    }
+    _validationError = null;
     return true;
   }
 
   Future<void> _submit() async {
-    if (!_validate()) return;
+    if (!_validateMedicines() || !_validateDelivery()) {
+      setState(() {});
+      return;
+    }
 
     setState(() => _isSubmitting = true);
     final auth = context.read<AuthProvider>();
@@ -218,7 +271,10 @@ class _PharmacyQuoteEditorScreenState
       return;
     }
 
-    final deliveryFee = double.tryParse(_deliveryFeeCtrl.text);
+    final isPickup = _deliveryType == 'PICKUP';
+    final deliveryFee = isPickup ? 0.0 : double.parse(_deliveryFeeCtrl.text);
+    final estimatedDeliveryTime = isPickup ? null : _estimatedDeliveryTime;
+    final notes = _notesCtrl.text.isNotEmpty ? _notesCtrl.text : null;
     final provider = context.read<PharmacyRequestProvider>();
 
     bool success = false;
@@ -227,26 +283,16 @@ class _PharmacyQuoteEditorScreenState
           widget.requestId != null) {
         final payload = PharmacyQuoteMapper.toCreateOrderPayload(
           _items,
-          deliveryType: _deliveryType,
-          deliveryAddress: _deliveryAddressCtrl.text.isNotEmpty
-              ? _deliveryAddressCtrl.text
-              : null,
           deliveryFee: deliveryFee,
-          estimatedDeliveryTime: _estimatedDeliveryTime,
-          deliveryPhoneNumber: _deliveryPhoneCtrl.text.isNotEmpty
-              ? _deliveryPhoneCtrl.text
-              : null,
-          notes: _notesCtrl.text.isNotEmpty ? _notesCtrl.text : null,
+          estimatedDeliveryTime: estimatedDeliveryTime,
+          notes: notes,
         );
         success = await provider.createOrderFromRequest(
           auth.accessToken!,
           widget.requestId!,
           payload['items'] as List<Map<String, dynamic>>,
-          deliveryType: payload['deliveryType'] as String?,
-          deliveryAddress: payload['deliveryAddress'] as String?,
           deliveryFee: payload['deliveryFee'] as double?,
           estimatedDeliveryTime: payload['estimatedDeliveryTime'] as String?,
-          deliveryPhoneNumber: payload['deliveryPhoneNumber'] as String?,
           notes: payload['notes'] as String?,
         );
       } else if (widget.mode == QuoteEditorMode.updateQuote &&
@@ -254,7 +300,7 @@ class _PharmacyQuoteEditorScreenState
         final payload = PharmacyQuoteMapper.toUpdateQuotePayload(
           _items,
           deliveryFee: deliveryFee,
-          estimatedDeliveryTime: _estimatedDeliveryTime,
+          estimatedDeliveryTime: estimatedDeliveryTime,
         );
         final orderProvider = context.read<PharmacyOrderProvider>();
         success = await orderProvider.updateQuote(
@@ -281,11 +327,9 @@ class _PharmacyQuoteEditorScreenState
         );
         Navigator.pop(context, true);
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(provider.error ?? 'Submission failed'),
-          ),
-        );
+        setState(() {
+          _submitError = provider.error ?? 'Submission failed';
+        });
       }
     }
   }
@@ -363,24 +407,61 @@ class _PharmacyQuoteEditorScreenState
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
-      child: Form(
-        key: _formKey,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          PharmacyQuoteStepHeader(currentStep: _step),
+          const SizedBox(height: 16),
+          if (_step == PharmacyQuoteStep.medicines) ...[
             _buildSummarySection(theme),
             const SizedBox(height: 16),
             if (widget.mode == QuoteEditorMode.createFromRequest)
               _buildPrescriptionsSection(theme),
             const SizedBox(height: 16),
             _buildMedicinesSection(theme),
-            const SizedBox(height: 16),
-            _buildDeliverySection(theme),
+          ] else if (_step == PharmacyQuoteStep.delivery) ...[
+            PharmacyQuoteDeliveryStep(
+              fulfillmentType: _deliveryType,
+              address: _deliveryAddressCtrl.text,
+              phone: _deliveryPhoneCtrl.text,
+              latitude: _deliveryLatitudeValue,
+              longitude: _deliveryLongitudeValue,
+              feeController: _deliveryFeeCtrl,
+              etaController: _etaCtrl,
+              onFeeChanged: (_) => _markDirty(),
+              onEtaChanged: (value) {
+                _estimatedDeliveryTime = DateTime.tryParse(value);
+                _markDirty();
+              },
+            ),
             const SizedBox(height: 16),
             _buildNotesSection(theme),
-            const SizedBox(height: 80),
+          ] else ...[
+            PharmacyQuoteReviewStep(
+              isCreate: widget.mode == QuoteEditorMode.createFromRequest,
+              items: _items,
+              fulfillmentType: _deliveryType,
+              address: _deliveryAddressCtrl.text,
+              phone: _deliveryPhoneCtrl.text,
+              deliveryFee: _deliveryType == 'PICKUP'
+                  ? 0
+                  : (double.tryParse(_deliveryFeeCtrl.text) ?? 0),
+              eta: _deliveryType == 'PICKUP' ? null : _estimatedDeliveryTime,
+              notes: _notesCtrl.text,
+              error: _submitError,
+              isSubmitting: _isSubmitting,
+              onSubmit: _submit,
+            ),
           ],
-        ),
+          if (_validationError != null) ...[
+            const SizedBox(height: 12),
+            Text(
+              _validationError!,
+              style: TextStyle(color: theme.colorScheme.error),
+            ),
+          ],
+          const SizedBox(height: 80),
+        ],
       ),
     );
   }
@@ -526,70 +607,6 @@ class _PharmacyQuoteEditorScreenState
     );
   }
 
-  Widget _buildDeliverySection(ThemeData theme) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Delivery',
-                style: theme.textTheme.titleSmall
-                    ?.copyWith(fontWeight: FontWeight.bold)),
-            const SizedBox(height: 8),
-            DropdownButtonFormField<String>(
-              initialValue: _deliveryType,
-              decoration: const InputDecoration(
-                labelText: 'Delivery Type',
-                isDense: true,
-                border: OutlineInputBorder(),
-              ),
-              items: ['PICKUP', 'DELIVERY']
-                  .map((t) => DropdownMenuItem(value: t, child: Text(t)))
-                  .toList(),
-              onChanged: (v) => setState(() => _deliveryType = v),
-            ),
-            if (_deliveryType == 'DELIVERY') ...[
-              const SizedBox(height: 8),
-              TextFormField(
-                controller: _deliveryFeeCtrl,
-                decoration: const InputDecoration(
-                  labelText: 'Delivery Fee',
-                  prefixText: '\$',
-                  isDense: true,
-                  border: OutlineInputBorder(),
-                ),
-                keyboardType: TextInputType.number,
-                onChanged: (_) => _markDirty(),
-              ),
-              const SizedBox(height: 8),
-              TextFormField(
-                controller: _deliveryAddressCtrl,
-                decoration: const InputDecoration(
-                  labelText: 'Delivery Address',
-                  isDense: true,
-                  border: OutlineInputBorder(),
-                ),
-                onChanged: (_) => _markDirty(),
-              ),
-              const SizedBox(height: 8),
-              TextFormField(
-                controller: _deliveryPhoneCtrl,
-                decoration: const InputDecoration(
-                  labelText: 'Delivery Phone',
-                  isDense: true,
-                  border: OutlineInputBorder(),
-                ),
-                keyboardType: TextInputType.phone,
-                onChanged: (_) => _markDirty(),
-              ),
-            ],
-          ],
-        ),
-      ),
-    );
-  }
-
   Widget _buildNotesSection(ThemeData theme) {
     return Card(
       child: Padding(
@@ -617,26 +634,70 @@ class _PharmacyQuoteEditorScreenState
   }
 
   Widget _buildBottomBar(ThemeData theme) {
+    final isReview = _step == PharmacyQuoteStep.review;
+    if (isReview) {
+      return SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Align(
+            alignment: Alignment.centerLeft,
+            child: OutlinedButton.icon(
+              onPressed: _isSubmitting ? null : _goBack,
+              icon: const Icon(Icons.arrow_back),
+              label: const Text('Back'),
+            ),
+          ),
+        ),
+      );
+    }
     return SafeArea(
       child: Padding(
         padding: const EdgeInsets.all(16),
-        child: SizedBox(
-          width: double.infinity,
-          child: FilledButton(
-            onPressed: _isSubmitting ? null : _submit,
-            child: _isSubmitting
-                ? const SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : Text(widget.mode == QuoteEditorMode.createFromRequest
-                    ? 'Submit Quote'
-                    : 'Update Quote'),
-          ),
+        child: Row(
+          children: [
+            if (_step != PharmacyQuoteStep.medicines)
+              OutlinedButton.icon(
+                onPressed: _isSubmitting ? null : _goBack,
+                icon: const Icon(Icons.arrow_back),
+                label: const Text('Back'),
+              ),
+            if (_step != PharmacyQuoteStep.medicines) const SizedBox(width: 12),
+            Expanded(
+              child: FilledButton.icon(
+                onPressed: _isSubmitting ? null : _goNext,
+                icon: const Icon(Icons.arrow_forward),
+                label: const Text('Next'),
+              ),
+            ),
+          ],
         ),
       ),
     );
+  }
+
+  void _goNext() {
+    final valid = _step == PharmacyQuoteStep.medicines
+        ? _validateMedicines()
+        : _validateDelivery();
+    setState(() {
+      _validationError = valid ? null : _validationError;
+      if (valid) {
+        _submitError = null;
+        _step = _step == PharmacyQuoteStep.medicines
+            ? PharmacyQuoteStep.delivery
+            : PharmacyQuoteStep.review;
+      }
+    });
+  }
+
+  void _goBack() {
+    setState(() {
+      _validationError = null;
+      _submitError = null;
+      _step = _step == PharmacyQuoteStep.review
+          ? PharmacyQuoteStep.delivery
+          : PharmacyQuoteStep.medicines;
+    });
   }
 
   void _markDirty() {

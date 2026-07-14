@@ -11,15 +11,7 @@ import 'package:HealthLink/screens/pharmacy/pharmacy_quote_editor_screen.dart';
 
 import 'package:HealthLink/widgets/pharmacy/pharmacy_medicine_picker.dart';
 import 'package:HealthLink/widgets/pharmacy/pharmacy_order_item_editor.dart';
-
-class _MockNavigationObserver extends NavigatorObserver {
-  final List<String> pushedRoutes = [];
-
-  @override
-  void didPush(Route<dynamic> route, Route<dynamic>? previousRoute) {
-    pushedRoutes.add(route.settings.name ?? route.settings.toString());
-  }
-}
+import 'package:HealthLink/widgets/pharmacy/quote/pharmacy_quote_delivery_step.dart';
 
 class _FakeLoadingOrderProvider extends PharmacyOrderProvider {
   @override
@@ -69,6 +61,22 @@ Widget _buildTestApp({
 
 void main() {
   group('PharmacyQuoteEditorScreen - createFromRequest', () {
+    testWidgets('starts on Medicines and exposes the three wizard steps',
+        (tester) async {
+      await tester.pumpWidget(_buildTestApp(
+        child: const PharmacyQuoteEditorScreen(
+          mode: QuoteEditorMode.createFromRequest,
+          requestId: '101',
+        ),
+      ));
+
+      expect(find.text('Medicines'), findsWidgets);
+      expect(find.text('Delivery'), findsOneWidget);
+      expect(find.text('Review'), findsOneWidget);
+      expect(find.text('Create order'), findsNothing);
+      expect(find.text('Next'), findsOneWidget);
+    });
+
     testWidgets('renders summary, prescriptions, and medicines sections',
         (tester) async {
       await tester.pumpWidget(_buildTestApp(
@@ -80,7 +88,7 @@ void main() {
 
       expect(find.text('Create Order'), findsOneWidget);
       expect(find.text('Summary'), findsOneWidget);
-      expect(find.text('Medicines'), findsOneWidget);
+      expect(find.text('Medicines'), findsWidgets);
       expect(find.text('No medicines added yet'), findsOneWidget);
     });
 
@@ -93,10 +101,26 @@ void main() {
         ),
       ));
 
-      await tester.tap(find.text('Submit Quote'));
+      await tester.tap(find.text('Next'));
       await tester.pumpAndSettle();
 
       expect(find.text('Add at least one medicine'), findsOneWidget);
+    });
+
+    testWidgets('does not overflow at a narrow viewport', (tester) async {
+      tester.view.physicalSize = const Size(320, 640);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(_buildTestApp(
+        child: const PharmacyQuoteEditorScreen(
+          mode: QuoteEditorMode.createFromRequest,
+          requestId: '101',
+        ),
+      ));
+
+      expect(tester.takeException(), isNull);
     });
   });
 
@@ -216,6 +240,54 @@ void main() {
 
       expect(changed, isNotNull);
       expect(changed!.quantity, 20);
+    });
+  });
+
+  group('PharmacyQuoteDeliveryStep', () {
+    testWidgets('pickup shows patient fields and hides fee and ETA controls',
+        (tester) async {
+      await tester.pumpWidget(MaterialApp(
+        home: Scaffold(
+          body: PharmacyQuoteDeliveryStep(
+            fulfillmentType: 'PICKUP',
+            address: 'Patient address',
+            phone: '0900000000',
+            latitude: 10.1,
+            longitude: 106.2,
+            feeController: TextEditingController(text: '0'),
+            etaController: TextEditingController(),
+            onFeeChanged: (_) {},
+            onEtaChanged: (_) {},
+          ),
+        ),
+      ));
+
+      expect(find.text('Patient address'), findsOneWidget);
+      expect(find.text('0900000000'), findsOneWidget);
+      expect(find.byType(TextFormField), findsNothing);
+    });
+
+    testWidgets('delivery exposes only fee and ETA as editable fields',
+        (tester) async {
+      await tester.pumpWidget(MaterialApp(
+        home: Scaffold(
+          body: PharmacyQuoteDeliveryStep(
+            fulfillmentType: 'DELIVERY',
+            address: 'Patient address',
+            phone: '0900000000',
+            latitude: 10.1,
+            longitude: 106.2,
+            feeController: TextEditingController(),
+            etaController: TextEditingController(),
+            onFeeChanged: (_) {},
+            onEtaChanged: (_) {},
+          ),
+        ),
+      ));
+
+      expect(find.byType(TextFormField), findsNWidgets(2));
+      expect(find.text('Patient address'), findsOneWidget);
+      expect(find.text('0900000000'), findsOneWidget);
     });
   });
 }
