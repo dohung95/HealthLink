@@ -80,6 +80,14 @@ class _Orders extends PharmacyOrderProvider {
   }
 
   @override
+  List<PharmacyOrder> get historyOrders {
+    final terminal = _items.where(
+      (order) => order.status == 'COMPLETED' || order.status == 'CANCELLED',
+    );
+    return terminal.toList(growable: false);
+  }
+
+  @override
   Future<void> fetchOrders(String token, String pharmacyId) async {}
 }
 

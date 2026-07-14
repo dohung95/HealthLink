@@ -154,9 +154,17 @@ void main() {
       expect(PharmacyWorkflow.canProgressOrder(order), true);
     });
 
-    test('null paymentStatus returns true', () {
+    test('null paymentStatus returns false for fulfillment status', () {
       final order = _order(
         status: 'READY',
+        paymentStatus: null,
+      );
+      expect(PharmacyWorkflow.canProgressOrder(order), false);
+    });
+
+    test('null paymentStatus non-fulfillment status returns true', () {
+      final order = _order(
+        status: 'PENDING',
         paymentStatus: null,
       );
       expect(PharmacyWorkflow.canProgressOrder(order), true);

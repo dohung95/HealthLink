@@ -3,7 +3,6 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
 import '../../models/pharmacy/pharmacy_order.dart';
-import '../../models/pharmacy/pharmacy_work_item.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/pharmacy/pharmacy_inventory_provider.dart';
 import '../../providers/pharmacy/pharmacy_order_provider.dart';
@@ -706,13 +705,4 @@ class _PharmacyOrderDetailScreenState extends State<PharmacyOrderDetailScreen> {
   }
 
   static String _currency(double amount) => '\$${amount.toStringAsFixed(2)}';
-}
-
-class _StatusAction {
-  const _StatusAction(this.label, this.value, this.icon, this.color);
-
-  final String label;
-  final String value;
-  final IconData icon;
-  final Color color;
 }
