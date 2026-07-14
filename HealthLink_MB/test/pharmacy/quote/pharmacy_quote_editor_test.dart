@@ -7,6 +7,7 @@ import 'package:HealthLink/providers/auth_provider.dart';
 import 'package:HealthLink/providers/pharmacy/pharmacy_inventory_provider.dart';
 import 'package:HealthLink/providers/pharmacy/pharmacy_order_provider.dart';
 import 'package:HealthLink/providers/pharmacy/pharmacy_request_provider.dart';
+import 'package:HealthLink/providers/pharmacy/pharmacy_workflow_provider.dart';
 import 'package:HealthLink/screens/pharmacy/pharmacy_quote_editor_screen.dart';
 
 import 'package:HealthLink/widgets/pharmacy/pharmacy_medicine_picker.dart';
@@ -16,6 +17,24 @@ import 'package:HealthLink/widgets/pharmacy/quote/pharmacy_quote_delivery_step.d
 class _FakeLoadingOrderProvider extends PharmacyOrderProvider {
   @override
   bool get isLoading => true;
+}
+
+class _FakeRefreshOrderProvider extends PharmacyOrderProvider {
+  int refreshCount = 0;
+
+  @override
+  Future<void> refreshOrders(String token, String pharmacyId) async {
+    refreshCount++;
+  }
+}
+
+class _FakeRefreshWorkflowProvider extends PharmacyWorkflowProvider {
+  int refreshCount = 0;
+
+  @override
+  Future<void> refresh(String token, String pharmacyId) async {
+    refreshCount++;
+  }
 }
 
 Widget _buildTestApp({
@@ -60,6 +79,32 @@ Widget _buildTestApp({
 }
 
 void main() {
+  test('selects update error from the order provider', () {
+    expect(
+      pharmacyQuoteSubmissionError(
+        isUpdate: true,
+        requestError: 'request error',
+        orderError: 'order error',
+      ),
+      'order error',
+    );
+  });
+
+  test('refreshes shared order and workflow state after an update', () async {
+    final orderProvider = _FakeRefreshOrderProvider();
+    final workflowProvider = _FakeRefreshWorkflowProvider();
+
+    await refreshPharmacyQuoteState(
+      orderProvider: orderProvider,
+      workflowProvider: workflowProvider,
+      token: 'token',
+      pharmacyId: 'pharmacy-1',
+    );
+
+    expect(orderProvider.refreshCount, 1);
+    expect(workflowProvider.refreshCount, 1);
+  });
+
   group('PharmacyQuoteEditorScreen - createFromRequest', () {
     testWidgets('starts on Medicines and exposes the three wizard steps',
         (tester) async {

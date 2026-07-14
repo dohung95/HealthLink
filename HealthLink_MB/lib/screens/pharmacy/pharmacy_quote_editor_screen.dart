@@ -5,6 +5,7 @@ import '../../providers/auth_provider.dart';
 import '../../providers/pharmacy/pharmacy_inventory_provider.dart';
 import '../../providers/pharmacy/pharmacy_order_provider.dart';
 import '../../providers/pharmacy/pharmacy_request_provider.dart';
+import '../../providers/pharmacy/pharmacy_workflow_provider.dart';
 import '../../utils/pharmacy/pharmacy_quote_mapper.dart';
 import '../../widgets/pharmacy/pharmacy_medicine_picker.dart';
 import '../../widgets/pharmacy/pharmacy_order_item_editor.dart';
@@ -16,6 +17,26 @@ export '../../widgets/pharmacy/quote/pharmacy_quote_step_header.dart'
     show PharmacyQuoteStep;
 
 enum QuoteEditorMode { createFromRequest, updateQuote }
+
+String pharmacyQuoteSubmissionError({
+  required bool isUpdate,
+  String? requestError,
+  String? orderError,
+}) {
+  return (isUpdate ? orderError : requestError) ?? 'Submission failed';
+}
+
+Future<void> refreshPharmacyQuoteState({
+  required PharmacyOrderProvider orderProvider,
+  required PharmacyWorkflowProvider workflowProvider,
+  required String token,
+  required String pharmacyId,
+}) async {
+  await Future.wait([
+    orderProvider.refreshOrders(token, pharmacyId),
+    workflowProvider.refresh(token, pharmacyId),
+  ]);
+}
 
 class PharmacyQuoteEditorScreen extends StatefulWidget {
   final QuoteEditorMode mode;
@@ -275,12 +296,13 @@ class _PharmacyQuoteEditorScreenState
     final deliveryFee = isPickup ? 0.0 : double.parse(_deliveryFeeCtrl.text);
     final estimatedDeliveryTime = isPickup ? null : _estimatedDeliveryTime;
     final notes = _notesCtrl.text.isNotEmpty ? _notesCtrl.text : null;
-    final provider = context.read<PharmacyRequestProvider>();
-
     bool success = false;
+    String? requestError;
+    String? orderError;
     try {
       if (widget.mode == QuoteEditorMode.createFromRequest &&
           widget.requestId != null) {
+        final provider = context.read<PharmacyRequestProvider>();
         final payload = PharmacyQuoteMapper.toCreateOrderPayload(
           _items,
           deliveryFee: deliveryFee,
@@ -295,6 +317,7 @@ class _PharmacyQuoteEditorScreenState
           estimatedDeliveryTime: payload['estimatedDeliveryTime'] as String?,
           notes: payload['notes'] as String?,
         );
+        requestError = provider.error;
       } else if (widget.mode == QuoteEditorMode.updateQuote &&
           widget.orderId != null) {
         final payload = PharmacyQuoteMapper.toUpdateQuotePayload(
@@ -303,6 +326,7 @@ class _PharmacyQuoteEditorScreenState
           estimatedDeliveryTime: estimatedDeliveryTime,
         );
         final orderProvider = context.read<PharmacyOrderProvider>();
+        final workflowProvider = context.read<PharmacyWorkflowProvider>();
         success = await orderProvider.updateQuote(
           auth.accessToken!,
           widget.orderId!,
@@ -310,6 +334,19 @@ class _PharmacyQuoteEditorScreenState
           deliveryFee: payload['deliveryFee'] as double?,
           estimatedDeliveryTime: payload['estimatedDeliveryTime'] as String?,
         );
+        orderError = orderProvider.error;
+        if (success) {
+          final pharmacyId = auth.pharmacyProfile?['pharmacyId']?.toString() ??
+              auth.userId;
+          if (pharmacyId != null) {
+            await refreshPharmacyQuoteState(
+              orderProvider: orderProvider,
+              workflowProvider: workflowProvider,
+              token: auth.accessToken!,
+              pharmacyId: pharmacyId,
+            );
+          }
+        }
       }
     } catch (_) {
       success = false;
@@ -328,7 +365,11 @@ class _PharmacyQuoteEditorScreenState
         Navigator.pop(context, true);
       } else {
         setState(() {
-          _submitError = provider.error ?? 'Submission failed';
+          _submitError = pharmacyQuoteSubmissionError(
+            isUpdate: widget.mode == QuoteEditorMode.updateQuote,
+            requestError: requestError,
+            orderError: orderError,
+          );
         });
       }
     }

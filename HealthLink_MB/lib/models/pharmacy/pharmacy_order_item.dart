@@ -1,6 +1,8 @@
 class PharmacyOrderItem {
   final int? orderItemId;
   final int? medicineId;
+  final int? sourcePrescriptionHeaderId;
+  final int? sourcePrescriptionItemId;
   final String medicationName;
   final int? totalSupplyDays;
   final int quantity;
@@ -15,6 +17,8 @@ class PharmacyOrderItem {
   const PharmacyOrderItem({
     this.orderItemId,
     this.medicineId,
+    this.sourcePrescriptionHeaderId,
+    this.sourcePrescriptionItemId,
     required this.medicationName,
     this.totalSupplyDays,
     required this.quantity,
@@ -31,6 +35,8 @@ class PharmacyOrderItem {
     return PharmacyOrderItem(
       orderItemId: json['orderItemId'] as int?,
       medicineId: json['medicineId'] as int?,
+      sourcePrescriptionHeaderId: json['sourcePrescriptionHeaderId'] as int?,
+      sourcePrescriptionItemId: json['sourcePrescriptionItemId'] as int?,
       medicationName: json['medicationName'] as String? ?? '',
       totalSupplyDays: json['totalSupplyDays'] as int?,
       quantity: json['quantity'] as int? ?? 1,
@@ -47,6 +53,8 @@ class PharmacyOrderItem {
   Map<String, dynamic> toJson() {
     return {
       'medicineId': medicineId,
+      'sourcePrescriptionHeaderId': sourcePrescriptionHeaderId,
+      'sourcePrescriptionItemId': sourcePrescriptionItemId,
       'medicationName': medicationName,
       'totalSupplyDays': totalSupplyDays,
       'quantity': quantity,

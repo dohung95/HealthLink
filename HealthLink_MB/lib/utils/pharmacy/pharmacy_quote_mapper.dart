@@ -61,6 +61,8 @@ class PharmacyQuoteMapper {
   static QuoteLineItem fromOrderItem(PharmacyOrderItem orderItem) {
     return QuoteLineItem(
       medicineId: orderItem.medicineId,
+      sourcePrescriptionHeaderId: orderItem.sourcePrescriptionHeaderId,
+      sourcePrescriptionItemId: orderItem.sourcePrescriptionItemId,
       medicationName: orderItem.medicationName,
       quantity: orderItem.quantity,
       totalSupplyDays: orderItem.totalSupplyDays ?? 30,
@@ -70,7 +72,8 @@ class PharmacyQuoteMapper {
           ? orderItem.timing!.split(',')
           : [],
       notes: orderItem.notes,
-      locked: orderItem.medicineId != null,
+      locked: orderItem.sourcePrescriptionHeaderId != null ||
+          orderItem.sourcePrescriptionItemId != null,
     );
   }
 

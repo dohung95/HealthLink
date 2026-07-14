@@ -209,7 +209,7 @@ void main() {
   });
 
   group('PharmacyQuoteMapper - fromOrderItem', () {
-    test('maps order item to line item', () {
+    test('keeps a medicineId-only order item editable', () {
       final orderItem = PharmacyOrderItem(
         orderItemId: 1,
         medicineId: 1,
@@ -235,7 +235,27 @@ void main() {
       expect(lineItem.frequency, 'BID');
       expect(lineItem.timing, ['MORNING', 'EVENING']);
       expect(lineItem.notes, 'After meals');
+      expect(lineItem.locked, false);
+    });
+
+    test('locks an order item with prescription source markers', () {
+      final orderItem = PharmacyOrderItem(
+        orderItemId: 1,
+        medicineId: 1,
+        sourcePrescriptionHeaderId: 100,
+        sourcePrescriptionItemId: 200,
+        medicationName: 'Paracetamol',
+        totalSupplyDays: 10,
+        quantity: 20,
+        frequency: 'BID',
+        timing: 'MORNING,EVENING',
+      );
+
+      final lineItem = PharmacyQuoteMapper.fromOrderItem(orderItem);
+
       expect(lineItem.locked, true);
+      expect(lineItem.sourcePrescriptionHeaderId, 100);
+      expect(lineItem.sourcePrescriptionItemId, 200);
     });
 
     test('marks item without medicineId as unlocked', () {
