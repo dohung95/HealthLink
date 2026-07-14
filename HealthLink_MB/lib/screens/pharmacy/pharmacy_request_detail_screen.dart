@@ -90,28 +90,25 @@ class _PharmacyRequestDetailScreenState
     final auth = context.read<AuthProvider>();
     if (auth.accessToken == null) return;
     final provider = context.read<PharmacyRequestProvider>();
-    await provider.fetchChatRoomId(auth.accessToken!, widget.requestId);
+    await provider.fetchChatRoom(
+        auth.accessToken!, widget.requestId, auth.userId!);
     if (!mounted) return;
-    final roomId = provider.chatRoomId;
-    if (roomId != null) {
+    final room = provider.chatRoom;
+    if (room != null) {
       Navigator.push(
         context,
         MaterialPageRoute(
           builder: (_) => ChatRoomScreen(
-            conversation: Conversation(
-              id: roomId,
-              partnerId: provider.currentRequest?.patientId ?? '',
-              partnerName: provider.currentRequest?.patientName ?? 'Patient',
-              lastMessage: '',
-              lastMessageTime: DateTime.now(),
-              isLastMessageRead: true,
-            ),
+            conversation: room,
           ),
         ),
       );
     } else if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Chat room is not available')),
+        SnackBar(
+          content: Text(provider.chatError ?? 'Chat room is not available'),
+          action: SnackBarAction(label: 'Retry', onPressed: _openChat),
+        ),
       );
     }
   }
@@ -362,7 +359,9 @@ class _PharmacyRequestDetailScreenState
           ),
         ),
       ]);
-    } else if (request.status == 'IN_REVIEW') {
+    } else if (request.status == 'IN_REVIEW' &&
+        request.requestType?.toUpperCase() == 'CONSULTATION' &&
+        request.pharmacyOrderId == null) {
       actions.addAll([
         Expanded(
           child: OutlinedButton.icon(

@@ -64,6 +64,7 @@ void main() {
             return http.Response(
               '{"requestId":1,"patientId":"pat-1","patientName":"Patient 1",'
               '"status":"IN_REVIEW","pharmacyId":"pharm-1",'
+              '"requestType":"CONSULTATION",'
               '"createdAt":"2026-07-13T10:00:00"}',
               200,
             );
@@ -80,6 +81,25 @@ void main() {
 
       expect(find.text('Chat'), findsOneWidget);
       expect(find.text('Create Order'), findsOneWidget);
+    });
+
+    testWidgets('IN_REVIEW order request does not show Chat button', (tester) async {
+      final provider = PharmacyRequestProvider(
+        requestService: PharmacyRequestService(
+          client: MockClient((request) async => http.Response(
+                '{"requestId":1,"patientId":"pat-1","patientName":"Patient 1",'
+                '"status":"IN_REVIEW","requestType":"ORDER_REQUEST",'
+                '"pharmacyId":"pharm-1","createdAt":"2026-07-13T10:00:00"}',
+                200,
+              )),
+        ),
+      );
+
+      await provider.fetchRequestDetail('mock-token', '1');
+      await tester.pumpWidget(_buildTestApp(requestProvider: provider));
+      await tester.pump();
+
+      expect(find.text('Chat'), findsNothing);
     });
 
     testWidgets('PENDING status does not show Chat button', (tester) async {
@@ -161,6 +181,7 @@ void main() {
             return http.Response(
               '{"requestId":1,"patientId":"pat-1","patientName":"Patient 1",'
               '"status":"IN_REVIEW","pharmacyId":"pharm-1",'
+              '"requestType":"CONSULTATION",'
               '"createdAt":"2026-07-13T10:00:00"}',
               200,
             );
@@ -177,7 +198,8 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(seconds: 1));
 
-      expect(find.text('Chat room is not available'), findsOneWidget);
+      expect(find.text('Exception: Failed to load chat room (404)'), findsOneWidget);
+      expect(find.text('Retry'), findsOneWidget);
     });
   });
 }

@@ -514,26 +514,20 @@ class _PharmacyOrderDetailScreenState
 
     // Resolve the real chat room ID via the request endpoint
     final requestProvider = context.read<PharmacyRequestProvider>();
-    await requestProvider.fetchChatRoomId(
+    await requestProvider.fetchChatRoom(
       auth.accessToken!,
       order.pharmacyRequestId.toString(),
+      auth.userId!,
     );
     if (!mounted) return;
 
-    final roomId = requestProvider.chatRoomId;
-    if (roomId != null) {
+    final room = requestProvider.chatRoom;
+    if (room != null) {
       Navigator.push(
         context,
         MaterialPageRoute(
           builder: (_) => ChatRoomScreen(
-            conversation: Conversation(
-              id: roomId,
-              partnerId: order.patientId,
-              partnerName: order.patientName,
-              lastMessage: '',
-              lastMessageTime: DateTime.now(),
-              isLastMessageRead: true,
-            ),
+            conversation: room,
             readOnly: true,
             title: 'Chat history',
             readOnlyMessage:
@@ -543,7 +537,13 @@ class _PharmacyOrderDetailScreenState
       );
     } else if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Chat room is not available')),
+        SnackBar(
+          content: Text(requestProvider.chatError ?? 'Chat room is not available'),
+          action: SnackBarAction(
+            label: 'Retry',
+            onPressed: () => _openChatHistory(order),
+          ),
+        ),
       );
     }
   }
