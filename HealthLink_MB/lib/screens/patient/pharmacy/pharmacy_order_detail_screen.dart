@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
+import '../../../models/chat/conversation.dart';
 import '../../../providers/auth_provider.dart';
 import '../../../services/patient/patient_pharmacy/pharmacy_service.dart';
 import '../../../l10n/app_localizations.dart';
+import '../../chat/chat_room_screen.dart';
 
 class PharmacyOrderDetailScreen extends StatefulWidget {
   final Map<String, dynamic> order;
@@ -18,6 +20,9 @@ class _PharmacyOrderDetailScreenState extends State<PharmacyOrderDetailScreen> {
   final _currencyFormat = NumberFormat.currency(locale: 'en_US', symbol: '\$');
   Map<String, dynamic>? _orderDetails;
   bool _isLoading = true;
+  Conversation? _chatRoom;
+  bool _chatLoading = false;
+  String? _chatError;
 
   @override
   void initState() {
@@ -45,14 +50,61 @@ class _PharmacyOrderDetailScreenState extends State<PharmacyOrderDetailScreen> {
           _isLoading = false;
         });
       }
+      _tryLoadChat(details);
     } catch (e) {
       debugPrint('Error fetching order details: $e');
       if (mounted) {
         setState(() => _isLoading = false);
-        // Fallback to widget.order if API fails or is not complete
         _orderDetails = widget.order;
       }
+      _tryLoadChat(widget.order);
     }
+  }
+
+  Future<void> _tryLoadChat(Map<String, dynamic> data) async {
+    final requestId = data['pharmacyRequestId']?.toString();
+    if (requestId == null || requestId.isEmpty) return;
+
+    final token = Provider.of<AuthProvider>(context, listen: false).accessToken;
+    final userId = Provider.of<AuthProvider>(context, listen: false).userId;
+    if (token == null || userId == null) return;
+
+    bool loading = true;
+    setState(() => _chatLoading = true);
+    try {
+      final room = await PharmacyService.getChatRoom(token, requestId, userId);
+      if (mounted) setState(() { _chatRoom = room; _chatLoading = false; });
+      loading = false;
+    } catch (e) {
+      if (mounted) {
+        final msg = e.toString();
+        // 404 business error means no chat room exists — hide the action entirely
+        if (msg.contains('404')) {
+          if (loading) setState(() => _chatLoading = false);
+          return;
+        }
+        setState(() { _chatLoading = false; _chatError = msg; });
+      }
+      loading = false;
+    }
+    if (loading && mounted) setState(() => _chatLoading = false);
+  }
+
+  void _openChat() {
+    if (_chatRoom == null) return;
+    final status = (_orderDetails ?? widget.order)['status'] ?? 'PENDING';
+    final readOnly = status != 'REVISION_REQUESTED';
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => ChatRoomScreen(
+          conversation: _chatRoom!,
+          readOnly: readOnly,
+          title: readOnly ? 'Chat history' : null,
+          readOnlyMessage: readOnly ? 'This request has ended. Messages are view-only.' : null,
+        ),
+      ),
+    );
   }
 
   String _getFilterLabel(String val, AppLocalizations l10n) {
@@ -68,7 +120,6 @@ class _PharmacyOrderDetailScreenState extends State<PharmacyOrderDetailScreen> {
   }
 
   String _displayName(Map<String, dynamic> item) {
-    // Ưu tiên đối tượng lồng nhau nếu có (Cart format)
     if (item.containsKey('product') || item.containsKey('medicine')) {
       final m = item['product'] ?? item['medicine'];
       final brand = (m['brandName'] ?? '') as String;
@@ -79,8 +130,7 @@ class _PharmacyOrderDetailScreenState extends State<PharmacyOrderDetailScreen> {
       if (brand.isNotEmpty) return brand;
       if (generic.isNotEmpty) return generic;
     }
-    
-    // Dữ liệu trả về từ API Order Detail (phẳng)
+
     final directName = (item['medicationName'] ?? item['name'] ?? '') as String;
     return directName.isNotEmpty ? directName : 'N/A';
   }
@@ -122,7 +172,6 @@ class _PharmacyOrderDetailScreenState extends State<PharmacyOrderDetailScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Header
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -155,7 +204,6 @@ class _PharmacyOrderDetailScreenState extends State<PharmacyOrderDetailScreen> {
                   ),
                   const SizedBox(height: 24),
 
-                  // Order Details Card
                   Card(
                     elevation: 0,
                     shape: RoundedRectangleBorder(
@@ -171,9 +219,9 @@ class _PharmacyOrderDetailScreenState extends State<PharmacyOrderDetailScreen> {
                           Text(l10n.orderDetails, style: tt.titleMedium?.copyWith(fontWeight: FontWeight.w600)),
                           const Divider(height: 24),
                           _buildDetailRow(
-                            l10n.orderDeliveryType, 
-                            data['deliveryType'] == 'Pickup' ? l10n.orderDeliveryTypePickup : l10n.orderDeliveryTypeDelivery, 
-                            tt, cs
+                            l10n.orderDeliveryType,
+                            data['deliveryType'] == 'Pickup' ? l10n.orderDeliveryTypePickup : l10n.orderDeliveryTypeDelivery,
+                            tt, cs,
                           ),
                           if (data['deliveryAddress'] != null)
                             _buildDetailRow(l10n.retailDeliveryAddress, data['deliveryAddress'], tt, cs),
@@ -181,8 +229,8 @@ class _PharmacyOrderDetailScreenState extends State<PharmacyOrderDetailScreen> {
                             _buildDetailRow(l10n.retailReceiverPhone, data['deliveryPhoneNumber'], tt, cs),
                           if (data['estimatedDeliveryTime'] != null)
                             _buildDetailRow(
-                                l10n.orderEstDelivery, 
-                                DateFormat('MMM dd, yyyy - HH:mm').format(DateTime.parse(data['estimatedDeliveryTime']).toLocal()), 
+                                l10n.orderEstDelivery,
+                                DateFormat('MMM dd, yyyy - HH:mm').format(DateTime.parse(data['estimatedDeliveryTime']).toLocal()),
                                 tt, cs),
                           _buildDetailRow(l10n.pharmacyStepPayment, paymentStatus == 'PAID' ? l10n.paymentStatusPaid : l10n.paymentStatusUnpaid, tt, cs),
                         ],
@@ -191,7 +239,6 @@ class _PharmacyOrderDetailScreenState extends State<PharmacyOrderDetailScreen> {
                   ),
                   const SizedBox(height: 24),
 
-                  // Items Card
                   if (items.isNotEmpty) ...[
                     Card(
                       elevation: 0,
@@ -232,7 +279,7 @@ class _PharmacyOrderDetailScreenState extends State<PharmacyOrderDetailScreen> {
                                         crossAxisAlignment: CrossAxisAlignment.start,
                                         children: [
                                           Text(_displayName(item), style: tt.bodyMedium?.copyWith(fontWeight: FontWeight.w500)),
-                                          if (qty > 1) // Hiển thị đơn giá để user dễ hiểu
+                                          if (qty > 1)
                                             Text('${qty} x ${_currencyFormat.format(price)}', style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant)),
                                           if (item['instructions'] != null && item['instructions'].toString().isNotEmpty)
                                             Text(item['instructions'], style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant)),
@@ -250,6 +297,58 @@ class _PharmacyOrderDetailScreenState extends State<PharmacyOrderDetailScreen> {
                             const SizedBox(height: 8),
                             _buildSummaryRow(l10n.orderTotal, _currencyFormat.format(totalAmount), tt, cs, isBold: true),
                           ],
+                        ),
+                      ),
+                    ),
+                  ],
+
+                  if (_chatRoom != null || _chatLoading || _chatError != null) ...[
+                    const SizedBox(height: 24),
+                    Card(
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        side: BorderSide(color: cs.outlineVariant.withOpacity(0.5)),
+                      ),
+                      color: cs.surfaceContainerLowest,
+                      child: InkWell(
+                        onTap: _chatRoom != null ? _openChat : null,
+                        borderRadius: BorderRadius.circular(12),
+                        child: Padding(
+                          padding: const EdgeInsets.all(16),
+                          child: Row(
+                            children: [
+                              Icon(
+                                _chatRoom != null && status != 'REVISION_REQUESTED'
+                                    ? Icons.history
+                                    : Icons.chat,
+                                color: cs.primary,
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      status == 'REVISION_REQUESTED'
+                                          ? 'Chat with pharmacy'
+                                          : 'Chat history',
+                                      style: tt.titleSmall?.copyWith(fontWeight: FontWeight.w600),
+                                    ),
+                                    if (_chatError != null && _chatRoom == null)
+                                      Text('Chat not available', style: tt.bodySmall?.copyWith(color: cs.error)),
+                                  ],
+                                ),
+                              ),
+                              if (_chatLoading)
+                                SizedBox(
+                                  width: 20, height: 20,
+                                  child: CircularProgressIndicator(strokeWidth: 2, color: cs.primary),
+                                ),
+                              if (_chatRoom != null && !_chatLoading)
+                                Icon(Icons.arrow_forward, color: cs.primary),
+                            ],
+                          ),
                         ),
                       ),
                     ),

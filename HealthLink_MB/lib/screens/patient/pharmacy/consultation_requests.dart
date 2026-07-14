@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
+import '../../../models/chat/conversation.dart';
 import '../../../providers/auth_provider.dart';
 import '../../../services/patient/patient_pharmacy/pharmacy_service.dart';
 import '../../../l10n/app_localizations.dart';
+import '../../chat/chat_room_screen.dart';
 
 class ConsultationRequestsScreen extends StatefulWidget {
   const ConsultationRequestsScreen({super.key});
@@ -15,6 +17,7 @@ class ConsultationRequestsScreen extends StatefulWidget {
 class _ConsultationRequestsScreenState extends State<ConsultationRequestsScreen> with AutomaticKeepAliveClientMixin {
   List<dynamic> _requests = [];
   bool _isLoading = true;
+  final Set<String> _loadingChat = {};
 
   @override
   bool get wantKeepAlive => true;
@@ -46,6 +49,36 @@ class _ConsultationRequestsScreenState extends State<ConsultationRequestsScreen>
     } catch (e) {
       setState(() => _isLoading = false);
       debugPrint('Error loading consultation requests: $e');
+    }
+  }
+
+  Future<void> _openChat(String requestId) async {
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final token = authProvider.accessToken;
+    final userId = authProvider.userId;
+    if (token == null || userId == null) return;
+
+    setState(() => _loadingChat.add(requestId));
+    try {
+      final room = await PharmacyService.getChatRoom(token, requestId, userId);
+      if (!mounted) return;
+      setState(() => _loadingChat.remove(requestId));
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => ChatRoomScreen(conversation: room),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _loadingChat.remove(requestId));
+      final errMsg = e.toString();
+      if (errMsg.contains('404')) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(errMsg)),
+      );
     }
   }
 
@@ -125,6 +158,11 @@ class _ConsultationRequestsScreenState extends State<ConsultationRequestsScreen>
 
                             final isCancelled = (status == 'CANCELLED' || status == 'REJECTED');
                             final hasViewAction = (status == 'ORDER_CREATED');
+                            final requestType = req['requestType'] ?? '';
+                            final chatRoomId = req['chatRoomId']?.toString() ?? '';
+                            final hasChatAction = !isCancelled && status == 'IN_REVIEW' && requestType == 'CONSULTATION' && chatRoomId.isNotEmpty;
+                            final requestId = req['requestId']?.toString() ?? '';
+                            final isChatLoading = _loadingChat.contains(requestId);
 
                             // Translated Status Text
                             String displayStatusText = status;
@@ -145,6 +183,9 @@ class _ConsultationRequestsScreenState extends State<ConsultationRequestsScreen>
                               statusBgColor: statusBgColor,
                               statusTextColor: statusTextColor,
                               hasViewAction: hasViewAction,
+                              chatActionLabel: hasChatAction ? 'Chat with pharmacy' : null,
+                              chatLoading: isChatLoading,
+                              onChatTap: hasChatAction ? () => _openChat(requestId) : null,
                               colorScheme: colorScheme,
                               textTheme: textTheme,
                             );
@@ -173,6 +214,9 @@ class _ConsultationRequestsScreenState extends State<ConsultationRequestsScreen>
     required Color statusTextColor,
     Color? pharmacyIconColor,
     bool hasViewAction = false,
+    String? chatActionLabel,
+    bool chatLoading = false,
+    VoidCallback? onChatTap,
     required ColorScheme colorScheme,
     required TextTheme textTheme,
   }) {
@@ -280,12 +324,10 @@ class _ConsultationRequestsScreenState extends State<ConsultationRequestsScreen>
                             ),
                           ),
 
-                          // Nút Action (Chỉ hiện nếu hasViewAction = true)
+                          // Nút Action
                           if (hasViewAction)
                             InkWell(
-                              onTap: () {
-                                // Xử lý View Order
-                              },
+                              onTap: () {},
                               child: Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
@@ -295,6 +337,30 @@ class _ConsultationRequestsScreenState extends State<ConsultationRequestsScreen>
                                   ),
                                   const SizedBox(width: 4),
                                   Icon(Icons.arrow_forward, size: 16, color: colorScheme.primary),
+                                ],
+                              ),
+                            ),
+                          if (chatActionLabel != null && onChatTap != null)
+                            InkWell(
+                              onTap: chatLoading ? null : onChatTap,
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  if (chatLoading)
+                                    SizedBox(
+                                      width: 14, height: 14,
+                                      child: CircularProgressIndicator(strokeWidth: 2, color: colorScheme.primary),
+                                    ),
+                                  if (chatLoading) const SizedBox(width: 4),
+                                  if (!chatLoading) Icon(Icons.chat, size: 16, color: colorScheme.primary),
+                                  if (!chatLoading) const SizedBox(width: 4),
+                                  Text(
+                                    chatActionLabel,
+                                    style: textTheme.labelMedium?.copyWith(
+                                      color: chatLoading ? colorScheme.outline : colorScheme.primary,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
                                 ],
                               ),
                             ),
