@@ -376,7 +376,7 @@ class PatientAppointment {
     if (isHomeVisit) return false;
     final s = status.trim().toLowerCase();
     if (s == 'in_consultation' || s == 'inconsultation' || s == 'in_progress') return true;
-    
+
     if (s == 'scheduled' || s == 'confirmed') {
       return !now.isBefore(appointmentTime);
     }

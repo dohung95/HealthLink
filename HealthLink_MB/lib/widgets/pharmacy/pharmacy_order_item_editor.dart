@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
 import '../../models/pharmacy/pharmacy_quote_draft.dart';
+import '../../utils/pharmacy/pharmacy_medication_schedule.dart';
 
 const List<String> _routeOptions = ['ORAL', 'TOPICAL', 'IV', 'IM', 'SUBCUTANEOUS', 'INHALATION', 'RECTAL', 'OPHTHALMIC', 'OTIC'];
-const List<String> _frequencyOptions = ['QD', 'BID', 'TID', 'QID', 'PRN', 'QHS', 'Q4H', 'Q6H', 'Q8H', 'Q12H'];
-const List<String> _timingOptions = ['MORNING', 'AFTERNOON', 'EVENING', 'NIGHT'];
 
 class PharmacyOrderItemEditor extends StatefulWidget {
   final QuoteLineItem item;
@@ -149,44 +148,30 @@ class _PharmacyOrderItemEditorState extends State<PharmacyOrderItemEditor> {
                     onChanged: (v) => _emit(_item.copyWith(route: v)),
                   ),
                 ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: DropdownButtonFormField<String>(
-                    initialValue: _item.frequency,
-                    decoration: const InputDecoration(
-                      labelText: 'Frequency',
-                      isDense: true,
-                      border: OutlineInputBorder(),
-                    ),
-                    items: _frequencyOptions
-                        .map((f) => DropdownMenuItem(value: f, child: Text(f)))
-                        .toList(),
-                    onChanged: (v) => _emit(_item.copyWith(frequency: v)),
-                  ),
-                ),
               ],
             ),
+            const SizedBox(height: 8),
+            Text('Frequency: ${_frequencyLabel()}'),
             const SizedBox(height: 8),
             Wrap(
               spacing: 6,
               runSpacing: 4,
-              children: _timingOptions.map((t) {
+              children: [
+                ...PharmacyMedicationSchedule.supportedTimings.map((t) {
                 final selected = _item.timing.contains(t);
                 return FilterChip(
                   label: Text(t, style: const TextStyle(fontSize: 12)),
                   selected: selected,
-                  onSelected: (v) {
-                    final updated = List<String>.from(_item.timing);
-                    if (v) {
-                      updated.add(t);
-                    } else {
-                      updated.remove(t);
-                    }
-                    _emit(_item.copyWith(timing: updated));
-                  },
+                  onSelected: _item.locked ? null : (v) => _toggleTiming(t, v),
                   visualDensity: VisualDensity.compact,
                 );
-              }).toList(),
+              }),
+                if (_hasLegacyNight)
+                  const InputChip(
+                    label: Text('Night (legacy)'),
+                    onPressed: null,
+                  ),
+              ],
             ),
             const SizedBox(height: 4),
             TextFormField(
@@ -210,5 +195,35 @@ class _PharmacyOrderItemEditorState extends State<PharmacyOrderItemEditor> {
     final price = '\$${_item.unitPrice!.toStringAsFixed(0)}';
     if (_item.unit != null) return '$price /${_item.unit}';
     return price;
+  }
+
+  bool get _hasLegacyNight => _item.timing.any(
+        (timing) => timing.trim().toUpperCase() == 'NIGHT',
+      );
+
+  String _frequencyLabel() {
+    if (_item.locked || _hasLegacyNight) return _item.frequency ?? 'Not set';
+    try {
+      return PharmacyMedicationSchedule.deriveFrequency(_item.timing);
+    } on ArgumentError {
+      return 'Select timing';
+    }
+  }
+
+  void _toggleTiming(String timing, bool selected) {
+    final updated = _item.timing
+        .where((value) =>
+            PharmacyMedicationSchedule.supportedTimings.contains(
+              value.trim().toUpperCase(),
+            ))
+        .map((value) => value.trim().toUpperCase())
+        .toSet()
+        .toList();
+    if (selected) {
+      updated.add(timing);
+    } else {
+      updated.remove(timing);
+    }
+    _emit(_item.copyWith(timing: updated));
   }
 }

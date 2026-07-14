@@ -13,7 +13,10 @@ import {
   getWorkflowToastId,
   suppressWorkflowToast,
 } from '../../utils/notificationToastPolicy';
+import { createPortal } from 'react-dom';
 import ConfirmModal from '../ConfirmModal';
+import MiniChatBox from '../chat/MiniChatBox';
+import { getPatientPharmacyChatMode } from './pharmacy-chat-policy';
 import RetailPharmacyStore from './pharmacy-store/RetailPharmacyStore';
 import DeliveryContactEditor from './pharmacy-store/DeliveryContactEditor';
 import { canEditDeliveryAddress, canEditDeliveryPhone, isDeliveryContactLocked } from './pharmacy-store/deliveryContactPolicy';
@@ -895,6 +898,7 @@ function ConnectStep({ request, pharmacy, geolocation, userId, onRequestUpdated,
 function RequestsView({ userId }) {
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [chatRequest, setChatRequest] = useState(null);
 
   useEffect(() => {
     if (!userId) { setLoading(false); return; }
@@ -942,9 +946,23 @@ function RequestsView({ userId }) {
                 <i className="bi bi-box-seam me-1"></i>View Order
               </Link>
             )}
+            {getPatientPharmacyChatMode({ request: req }) === 'editable' && (
+              <button className="btn btn-sm btn-outline-primary" onClick={() => setChatRequest(req)} type="button">
+                <i className="bi bi-chat-dots me-1"></i>Chat with pharmacy
+              </button>
+            )}
           </div>
         </div>
       ))}
+      {chatRequest && createPortal(
+        <MiniChatBox
+          chatRoomId={chatRequest.chatRoomId}
+          partnerName="Pharmacy"
+          readOnly={false}
+          onClose={() => setChatRequest(null)}
+        />,
+        document.body
+      )}
     </div>
   );
 }
@@ -1135,6 +1153,8 @@ function OrderDetailView({ orderId, navigate }) {
   const [newDeliveryPhone, setNewDeliveryPhone] = useState('');
   const [deliveryContactReason, setDeliveryContactReason] = useState('');
   const [savingDeliveryContact, setSavingDeliveryContact] = useState(false);
+  const [linkedRequest, setLinkedRequest] = useState(null);
+  const [activeChatRequest, setActiveChatRequest] = useState(null);
 
   const loadOrder = useCallback(async () => {
     if (!orderId) return;
@@ -1153,6 +1173,16 @@ function OrderDetailView({ orderId, navigate }) {
   useEffect(() => {
     loadOrder();
   }, [loadOrder]);
+
+  useEffect(() => {
+    if (!order?.pharmacyRequestId) {
+      setLinkedRequest(null);
+      return;
+    }
+    pharmacyApi.getConsultationRequestById(order.pharmacyRequestId)
+      .then(setLinkedRequest)
+      .catch(() => setLinkedRequest(null));
+  }, [order?.pharmacyRequestId, order?.status]);
 
   useEffect(() => {
     const handleOffline = () => setConfirmedForPayment(false);
@@ -1395,6 +1425,8 @@ function OrderDetailView({ orderId, navigate }) {
   const deliveryOrder = String(order.deliveryType || '').toUpperCase() === 'DELIVERY';
   const deliveryContactLocked = isDeliveryContactLocked(order);
   const canEditAnyDeliveryContact = canEditDeliveryAddress(order) || canEditDeliveryPhone(order);
+  const chatMode = getPatientPharmacyChatMode({ request: linkedRequest, order });
+  const showChatButton = chatMode === 'editable' || chatMode === 'readOnly';
 
   return (
     <div>
@@ -1728,8 +1760,30 @@ function OrderDetailView({ orderId, navigate }) {
               </div>
             </div>
           )}
+
+          {showChatButton && linkedRequest && (
+            <div className="card shadow-sm mb-3">
+              <div className="card-body text-center">
+                <h6 className="fw-semibold mb-3">{chatMode === 'editable' ? 'Chat with pharmacy' : 'Chat history'}</h6>
+                <button className={`btn w-100 ${chatMode === 'editable' ? 'btn-primary' : 'btn-outline-secondary'}`}
+                  onClick={() => setActiveChatRequest(linkedRequest)} type="button">
+                  <i className="bi bi-chat-dots me-2"></i>
+                  {chatMode === 'editable' ? 'Chat with pharmacy' : 'View chat history'}
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
+      {activeChatRequest && createPortal(
+        <MiniChatBox
+          chatRoomId={activeChatRequest.chatRoomId}
+          partnerName="Pharmacy"
+          readOnly={chatMode === 'readOnly'}
+          onClose={() => setActiveChatRequest(null)}
+        />,
+        document.body
+      )}
       <ConfirmModal
         isOpen={showCancelConfirm}
         onClose={handleCloseCancelConfirm}

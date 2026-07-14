@@ -112,10 +112,10 @@ export default function PartnerPinWizardModal({ initialRetryAfterSeconds = 60, o
 
   if (!open) return null;
   const inputProps = state.step === 'otp'
-    ? { id: 'partner-pin-otp', label: 'OTP code', value: state.otp, onChange: (otp) => setState((current) => ({ ...current, otp, error: '' })), autoComplete: 'one-time-code' }
+    ? { id: 'partner-pin-otp', label: 'OTP code', value: state.otp, onChange: (otp) => setState((current) => ({ ...current, otp, error: '' })), autoComplete: 'one-time-code', masked: false }
     : state.step === 'pin'
-      ? { id: 'partner-pin-value', label: 'Withdrawal PIN', value: state.pin, onChange: (pin) => setState((current) => ({ ...current, pin, error: '' })), autoComplete: 'new-password' }
-      : { id: 'partner-pin-confirm', label: 'Confirm withdrawal PIN', value: state.confirmPin, onChange: (confirmPin) => setState((current) => ({ ...current, confirmPin, error: '' })), autoComplete: 'new-password' };
+      ? { id: 'partner-pin-value', label: 'Withdrawal PIN', value: state.pin, onChange: (pin) => setState((current) => ({ ...current, pin, error: '' })), autoComplete: 'new-password', masked: true, allowReveal: true }
+      : { id: 'partner-pin-confirm', label: 'Confirm withdrawal PIN', value: state.confirmPin, onChange: (confirmPin) => setState((current) => ({ ...current, confirmPin, error: '' })), autoComplete: 'new-password', masked: true, allowReveal: true };
 
   return createPortal(
     <div className="partner-pin-modal-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) close(); }}>

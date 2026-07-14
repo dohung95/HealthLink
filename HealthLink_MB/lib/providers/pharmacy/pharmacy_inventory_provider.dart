@@ -112,7 +112,7 @@ class PharmacyInventoryProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> refresh(String token, String pharmacyId) async {
+  Future<void> refresh(String token) async {
     if (_isLoading) return;
     _isLoading = true;
     _error = null;
@@ -123,7 +123,6 @@ class PharmacyInventoryProvider extends ChangeNotifier {
     try {
       final result = await _inventoryService.getInventory(
         token,
-        pharmacyId,
         filter: _filter.toServiceFilter(page: _page),
       );
       _items = result.items;
@@ -137,7 +136,7 @@ class PharmacyInventoryProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> loadMore(String token, String pharmacyId) async {
+  Future<void> loadMore(String token) async {
     if (_isLoading || !_hasMore) return;
     _isLoading = true;
     _error = null;
@@ -146,7 +145,6 @@ class PharmacyInventoryProvider extends ChangeNotifier {
     try {
       final result = await _inventoryService.getInventory(
         token,
-        pharmacyId,
         filter: _filter.toServiceFilter(page: _page),
       );
       final existingIds = _items.map((e) => e.inventoryId).toSet();
@@ -168,7 +166,6 @@ class PharmacyInventoryProvider extends ChangeNotifier {
   Future<bool> updateItem(
     String token,
     PharmacyInventoryItem updatedItem,
-    String pharmacyId,
   ) async {
     _isLoading = true;
     _error = null;

@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../../config/api_config.dart';
+import '../../models/chat/conversation.dart';
 import '../../models/pharmacy/pharmacy_consultation_request.dart';
 import '../../models/pharmacy/pharmacy_work_item.dart';
 
@@ -127,7 +128,7 @@ class PharmacyRequestService {
     String? deliveryType,
     String? deliveryAddress,
     double? deliveryFee,
-    String? estimatedDeliveryTime,
+    int? estimatedDeliveryMinutes,
     String? deliveryPhoneNumber,
     String? notes,
   }) async {
@@ -136,8 +137,8 @@ class PharmacyRequestService {
       if (deliveryType != null) 'deliveryType': deliveryType,
       if (deliveryAddress != null) 'deliveryAddress': deliveryAddress,
       if (deliveryFee != null) 'deliveryFee': deliveryFee,
-      if (estimatedDeliveryTime != null)
-        'estimatedDeliveryTime': estimatedDeliveryTime,
+      if (estimatedDeliveryMinutes != null)
+        'estimatedDeliveryMinutes': estimatedDeliveryMinutes,
       if (deliveryPhoneNumber != null)
         'deliveryPhoneNumber': deliveryPhoneNumber,
       if (notes != null) 'notes': notes,
@@ -179,8 +180,8 @@ class PharmacyRequestService {
         'Failed to load work items (${res.statusCode}): ${res.body}');
   }
 
-  Future<String?> getChatRoomId(
-      String token, String requestId) async {
+  Future<Conversation> getChatRoom(
+      String token, String requestId, String currentUserId) async {
     final res = await _client
         .get(
           Uri.parse(ApiConfig.pharmacyRequestChatRoom(requestId)),
@@ -190,9 +191,8 @@ class PharmacyRequestService {
 
     if (res.statusCode == 200) {
       final data = jsonDecode(res.body) as Map<String, dynamic>;
-      return data['chatRoomId']?.toString() ??
-          data['roomId']?.toString();
+      return Conversation.fromJson(data, currentUserId);
     }
-    return null;
+    throw Exception('Failed to load chat room (${res.statusCode})');
   }
 }

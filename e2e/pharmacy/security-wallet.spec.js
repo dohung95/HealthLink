@@ -23,10 +23,12 @@ async function completePinWizard(page) {
   await page.getByLabel('OTP code').fill('123456');
   await page.getByRole('button', { name: 'Continue' }).click();
   await expect(page.getByText('Step 2/3')).toBeVisible();
-  await page.getByLabel('Withdrawal PIN', { exact: true }).fill('654321');
+  await page.waitForTimeout(300);
+  // Use ID selector for the PIN input (more reliable than getByLabel in portal)
+  await page.locator('#partner-pin-value').fill('654321');
   await page.getByRole('button', { name: 'Continue' }).click();
   await expect(page.getByText('Step 3/3')).toBeVisible();
-  await page.getByRole('textbox', { name: 'Confirm withdrawal PIN' }).fill('654321');
+  await page.locator('#partner-pin-confirm').fill('654321');
   await page.getByRole('button', { name: 'Save PIN' }).click();
 }
 
@@ -99,7 +101,7 @@ test('restores the withdrawal form after configuring a required PIN', async ({ p
   await completePinWizard(page);
   await expect(page.getByLabel('Withdrawal Amount')).toHaveValue('20');
   await expect(page.getByLabel('PayPal Email')).toHaveValue('payout@pharmacy.test');
-  await expect(page.getByLabel('Withdrawal PIN', { exact: true })).toBeVisible();
+  await expect(page.locator('#withdrawal-pin')).toBeVisible();
 });
 
 test('uses registered PayPal email and sends configured PIN with withdrawal', async ({ page }) => {
@@ -116,13 +118,13 @@ test('uses registered PayPal email and sends configured PIN with withdrawal', as
   await expect(page.getByLabel('PayPal Email')).toHaveValue('payout@pharmacy.test');
   await expect(page.getByLabel('PayPal Email')).toBeDisabled();
   await page.getByLabel('Withdrawal Amount').fill('20');
-  await page.getByLabel('Withdrawal PIN', { exact: true }).fill('654321');
+  await page.locator('#withdrawal-pin').fill('654321');
   await page.getByRole('button', { name: 'Confirm Withdrawal' }).click();
   await expect.poll(() => settlementPayload).toMatchObject({ amount: 20, paypalEmail: 'payout@pharmacy.test', pin: '654321' });
   await expect(page.getByRole('dialog', { name: 'Withdraw funds' })).toHaveCount(0);
   await page.getByRole('button', { name: 'Withdraw via PayPal' }).click();
   await expect(page.getByLabel('Withdrawal Amount')).toHaveValue('');
-  await expect(page.getByLabel('Withdrawal PIN', { exact: true })).toHaveValue('');
+  await expect(page.locator('#withdrawal-pin')).toHaveValue('');
   await page.getByLabel('Withdrawal Amount').fill('20');
   await page.getByRole('button', { name: 'Confirm Withdrawal' }).click();
   await expect(page.getByText('Enter your six-digit withdrawal PIN.')).toBeVisible();
@@ -158,7 +160,7 @@ test('keeps the withdrawal dialog open while a withdrawal is in flight', async (
   await page.getByRole('button', { name: /withdraw/i }).click();
   const dialog = page.getByRole('dialog', { name: 'Withdraw funds' });
   await page.getByLabel('Withdrawal Amount').fill('20');
-  await page.getByLabel('Withdrawal PIN', { exact: true }).fill('654321');
+  await page.locator('#withdrawal-pin').fill('654321');
   await page.getByRole('button', { name: 'Confirm Withdrawal' }).click();
   await expect(page.getByText('Processing...')).toBeVisible();
   await expect(dialog).toBeVisible();

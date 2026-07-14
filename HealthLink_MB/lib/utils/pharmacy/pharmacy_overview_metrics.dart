@@ -57,41 +57,6 @@ class PharmacyOverviewMetrics {
     return total;
   }
 
-  static Map<String, double> revenueByWeek(List<PharmacyOrder> orders) {
-    return _bucketRevenue(orders, (d) {
-      final weekDay = d.weekday;
-      final weekStart = d.subtract(Duration(days: weekDay - 1));
-      return '${weekStart.year}-${weekStart.month.toString().padLeft(2, '0')}-${weekStart.day.toString().padLeft(2, '0')}';
-    });
-  }
-
-  static Map<String, double> revenueByMonth(List<PharmacyOrder> orders) {
-    return _bucketRevenue(
-        orders, (d) => '${d.year}-${d.month.toString().padLeft(2, '0')}');
-  }
-
-  static Map<String, double> revenueByYear(List<PharmacyOrder> orders) {
-    return _bucketRevenue(orders, (d) => d.year.toString());
-  }
-
-  static Map<String, double> _bucketRevenue(
-    List<PharmacyOrder> orders,
-    String Function(DateTime) keyFn,
-  ) {
-    final buckets = <String, double>{};
-    for (final o in orders) {
-      if (o.paymentStatus != 'PAID') continue;
-      final date = o.paidAt ?? o.createdAt;
-      final key = keyFn(date);
-      buckets.update(
-        key,
-        (v) => v + (o.pharmacyEarning ?? o.totalAmount),
-        ifAbsent: () => o.pharmacyEarning ?? o.totalAmount,
-      );
-    }
-    return buckets;
-  }
-
   static List<PharmacyWorkItem> workflowQueue(
       List<PharmacyWorkItem> workItems) {
     final sorted = List<PharmacyWorkItem>.from(workItems);

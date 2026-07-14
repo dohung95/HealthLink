@@ -31,7 +31,7 @@ class VideoCallProvider extends ChangeNotifier {
   
   // Call metadata
   String? currentPartnerName;
-  String currentPartnerRole = 'Doctor';
+  String? currentPartnerRole;
   String? currentPartnerId;
   String? currentRoomId;
   bool currentIsCaller = false;
@@ -80,15 +80,29 @@ class VideoCallProvider extends ChangeNotifier {
     final type = signal['type'];
     final senderId = signal['senderId'];
     final senderName = signal['senderName'];
+    final senderRole = signal['senderRole']?.toString().toUpperCase();
     final roomId = signal['data'];
-
     if (type == 'CALL_REQUEST') {
       final context = navigatorKey.currentContext;
       // Người dùng hiện tại có thể là Doctor hoặc Patient — không được giả định cố định,
       // vì provider này dùng chung cho cả 2 app. Suy ra vai trò đối phương từ vai trò của chính mình.
-      final isMeDoctor = context != null && Provider.of<AuthProvider>(context, listen: false).isDoctor;
-      final myRoleLabel = isMeDoctor ? 'Doctor' : 'Patient';
-      final partnerRoleLabel = isMeDoctor ? 'Patient' : 'Doctor';
+      final auth = context != null && senderRole == null
+          ? Provider.of<AuthProvider>(context, listen: false)
+          : null;
+      final myRoleLabel = auth?.isDoctor == true
+          ? 'Doctor'
+          : auth?.isPharmacy == true
+              ? 'Pharmacy'
+              : 'Patient';
+      final inferredCallerRole = auth?.isDoctor == true || auth?.isPharmacy == true
+          ? 'Patient'
+          : 'Doctor';
+      final callerRole = switch (senderRole) {
+        'PHARMACY' => 'Pharmacy',
+        'DOCTOR' => 'Doctor',
+        'PATIENT' => 'Patient',
+        _ => inferredCallerRole,
+      };
 
       if (_isInCall) {
         debugPrint('[VideoCallProvider] Automatically declining because already in a call.');
@@ -150,7 +164,9 @@ class VideoCallProvider extends ChangeNotifier {
                   const Text('Incoming Video Call'),
                 ],
               ),
-              content: Text('${senderName ?? 'A $partnerRoleLabel'} is calling you for a consultation.'),
+              content: Text(
+                '${senderName ?? 'A $callerRole'} ($callerRole) is calling you for a consultation.',
+              ),
               actions: [
                 TextButton(
                   onPressed: () {
@@ -202,7 +218,7 @@ class VideoCallProvider extends ChangeNotifier {
                     notifyListeners();
 
                     currentPartnerName = senderName ?? 'Unknown';
-                    currentPartnerRole = partnerRoleLabel;
+                    currentPartnerRole = callerRole;
                     currentPartnerId = senderId;
                     currentRoomId = roomId;
                     currentIsCaller = false;
@@ -213,7 +229,7 @@ class VideoCallProvider extends ChangeNotifier {
                         settings: const RouteSettings(name: '/video_call'),
                         builder: (_) => VideoCallScreen(
                           partnerName: currentPartnerName!,
-                          partnerRole: currentPartnerRole,
+                          partnerRole: currentPartnerRole ?? callerRole,
                           partnerId: currentPartnerId,
                           roomId: currentRoomId,
                           isCaller: currentIsCaller,
@@ -252,9 +268,10 @@ class VideoCallProvider extends ChangeNotifier {
       hidePiP();
       
       // Clear IDs so duplicate HANGUPs don't trigger MISSED call history again
-      currentRoomId = null;
-      currentPartnerId = null;
-      currentIsCaller = false;
+    currentRoomId = null;
+    currentPartnerId = null;
+    currentPartnerRole = null;
+    currentIsCaller = false;
       
       notifyListeners();
       try {
@@ -385,6 +402,11 @@ class VideoCallProvider extends ChangeNotifier {
       debugPrint('[VideoCallProvider] Blocked: Already in a call');
       return false;
     }
+    if (WebrtcStompService.instance.connectionState !=
+        WebrtcConnectionState.connected) {
+      debugPrint('[VideoCallProvider] Blocked: WebRTC transport is disconnected');
+      return false;
+    }
 
     _isInCall = true;
     WakelockPlus.enable();
@@ -441,6 +463,59 @@ class VideoCallProvider extends ChangeNotifier {
     return true;
   }
 
+  Future<bool> sendPharmacyCallRequest({
+    required String receiverId,
+    required String roomId,
+    required String myId,
+    required String myName,
+  }) async {
+    if (_isInCall) {
+      debugPrint('[VideoCallProvider] Blocked: Already in a call');
+      return false;
+    }
+
+    final sent = await WebrtcStompService.instance.sendWebRTCSignal({
+      'type': 'CALL_REQUEST',
+      'senderId': myId,
+      'senderName': myName,
+      'senderRole': 'PHARMACY',
+      'receiverId': receiverId,
+      'data': roomId,
+    });
+    if (!sent) {
+      debugPrint('[VideoCallProvider] Pharmacy call was not published');
+      return false;
+    }
+
+    _isInCall = true;
+    WakelockPlus.enable();
+    currentPartnerId = receiverId;
+    currentRoomId = roomId;
+    currentPartnerName = 'Patient';
+    currentPartnerRole = 'Patient';
+    currentIsCaller = true;
+    notifyListeners();
+    _outgoingCallTimer = Timer(const Duration(seconds: 30), () {
+      if (!_isInCall || callStartTime != null || currentRoomId != roomId) return;
+      _sendCallHistory('MISSED');
+      WebrtcStompService.instance.sendWebRTCSignal({
+        'type': 'HANGUP',
+        'senderId': myId,
+        'receiverId': receiverId,
+        'data': roomId,
+      });
+      _clearTimers();
+      _isInCall = false;
+      WakelockPlus.disable();
+      currentRoomId = null;
+      currentPartnerId = null;
+      currentPartnerRole = null;
+      currentIsCaller = false;
+      notifyListeners();
+    });
+    return true;
+  }
+
   void endCall({String? overrideStatus}) {
     String status = overrideStatus ?? (callStartTime != null ? 'COMPLETED' : 'MISSED');
     _sendCallHistory(status);
@@ -454,6 +529,7 @@ class VideoCallProvider extends ChangeNotifier {
     // Clear IDs so duplicate HANGUPs don't trigger MISSED call history again
     currentRoomId = null;
     currentPartnerId = null;
+    currentPartnerRole = null;
     currentIsCaller = false;
     
     notifyListeners();
@@ -555,7 +631,7 @@ class VideoCallProvider extends ChangeNotifier {
           settings: const RouteSettings(name: '/video_call'),
           builder: (_) => VideoCallScreen(
             partnerName: currentPartnerName!,
-            partnerRole: currentPartnerRole,
+            partnerRole: currentPartnerRole ?? 'Doctor',
             partnerId: currentPartnerId,
             roomId: currentRoomId,
             isCaller: currentIsCaller,

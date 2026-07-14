@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
   buildDeliveryContactReviewPayload,
+  canUseRequestChat,
   getNextOrderStatus,
   getPharmacyNotificationTarget,
   getWorkItemKind,
@@ -68,4 +69,28 @@ test('non-revision order status notifications keep the Orders target', () => {
 
 test('revision-requested orders remain visible in the order-list history', () => {
   assert.equal(isOrderListWorkItem({ workflowStage: 'REVISION_REQUESTED' }), true);
+});
+
+test('canUseRequestChat requires consultation type, chatRoomId, and CHAT action', () => {
+  assert.equal(canUseRequestChat(null), false);
+  assert.equal(canUseRequestChat({
+    requestType: 'CONSULTATION',
+    chatRoomId: 'room-41',
+    availableActions: ['CHAT'],
+  }), true);
+  assert.equal(canUseRequestChat({
+    requestType: 'CONSULTATION',
+    chatRoomId: null,
+    availableActions: ['CHAT'],
+  }), false);
+  assert.equal(canUseRequestChat({
+    requestType: 'CONSULTATION',
+    chatRoomId: 'room-41',
+    availableActions: ['ACCEPT_REQUEST'],
+  }), false);
+  assert.equal(canUseRequestChat({
+    requestType: 'ORDER_REQUEST',
+    chatRoomId: 'room-41',
+    availableActions: ['CHAT'],
+  }), false);
 });

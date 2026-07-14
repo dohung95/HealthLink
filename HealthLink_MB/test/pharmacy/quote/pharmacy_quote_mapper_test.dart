@@ -6,6 +6,68 @@ import 'package:HealthLink/utils/pharmacy/pharmacy_quote_mapper.dart';
 
 void main() {
   group('PharmacyQuoteMapper - toSubmissionItem', () {
+    test('derives frequency for new non-prescription timings', () {
+      for (final entry in {
+        1: (['MORNING'], 'QD'),
+        2: (['MORNING', 'EVENING'], 'BID'),
+        3: (['MORNING', 'AFTERNOON', 'EVENING'], 'TID'),
+      }.entries) {
+        final payload = PharmacyQuoteMapper.toSubmissionItem(QuoteLineItem(
+          medicineId: entry.key,
+          medicationName: 'Medicine ${entry.key}',
+          timing: entry.value.$1,
+        ));
+        expect(payload['frequency'], entry.value.$2);
+      }
+    });
+
+    test('preserves prescription frequency and legacy timings', () {
+      final payload = PharmacyQuoteMapper.toSubmissionItem(QuoteLineItem(
+        medicineId: 1,
+        medicationName: 'Prescription medicine',
+        frequency: 'QHS',
+        timing: ['NIGHT'],
+        locked: true,
+      ));
+
+      expect(payload['frequency'], 'QHS');
+      expect(payload['timing'], 'NIGHT');
+    });
+
+    test('preserves an unchanged legacy non-prescription item', () {
+      final payload = PharmacyQuoteMapper.toSubmissionItem(QuoteLineItem(
+        medicineId: 2,
+        medicationName: 'Legacy medicine',
+        frequency: 'QHS',
+        timing: ['NIGHT'],
+      ));
+
+      expect(payload['frequency'], 'QHS');
+      expect(payload['timing'], 'NIGHT');
+    });
+
+    test('derives frequency after a legacy timing is edited', () {
+      final payload = PharmacyQuoteMapper.toSubmissionItem(QuoteLineItem(
+        medicineId: 3,
+        medicationName: 'Edited legacy medicine',
+        frequency: 'QHS',
+        timing: ['MORNING'],
+      ));
+
+      expect(payload['frequency'], 'QD');
+      expect(payload['timing'], 'MORNING');
+    });
+
+    test('rejects a new item without editable timing before submission', () {
+      expect(
+        () => PharmacyQuoteMapper.toSubmissionItem(QuoteLineItem(
+          medicineId: 4,
+          medicationName: 'Unscheduled medicine',
+        )),
+        throwsArgumentError,
+      );
+    });
+
     test('maps prescription source IDs correctly', () {
       final item = QuoteLineItem(
         medicineId: 1,
@@ -35,6 +97,7 @@ void main() {
       expect(payload['frequency'], 'BID');
       expect(payload['timing'], 'MORNING,EVENING');
       expect(payload['notes'], 'After meals');
+      expect(payload.containsKey('medicationName'), isFalse);
       expect(payload.containsKey('unitPrice'), false);
       expect(payload.containsKey('unit'), false);
       expect(payload.containsKey('inventoryId'), false);
@@ -49,6 +112,7 @@ void main() {
         unitPrice: 8000,
         quantity: 14,
         totalSupplyDays: 7,
+        timing: ['MORNING'],
       );
 
       final payload = PharmacyQuoteMapper.toSubmissionItem(item);
@@ -82,8 +146,10 @@ void main() {
         timing: [],
       );
 
-      final payload = PharmacyQuoteMapper.toSubmissionItem(item);
-      expect(payload['timing'], null);
+      expect(
+        () => PharmacyQuoteMapper.toSubmissionItem(item),
+        throwsArgumentError,
+      );
     });
 
     test('handles null timing list', () {
@@ -94,8 +160,10 @@ void main() {
         totalSupplyDays: 5,
       );
 
-      final payload = PharmacyQuoteMapper.toSubmissionItem(item);
-      expect(payload['timing'], null);
+      expect(
+        () => PharmacyQuoteMapper.toSubmissionItem(item),
+        throwsArgumentError,
+      );
     });
   });
 
@@ -142,7 +210,7 @@ void main() {
   });
 
   group('PharmacyQuoteMapper - fromOrderItem', () {
-    test('maps order item to line item', () {
+    test('keeps a medicineId-only order item editable', () {
       final orderItem = PharmacyOrderItem(
         orderItemId: 1,
         medicineId: 1,
@@ -168,7 +236,27 @@ void main() {
       expect(lineItem.frequency, 'BID');
       expect(lineItem.timing, ['MORNING', 'EVENING']);
       expect(lineItem.notes, 'After meals');
+      expect(lineItem.locked, false);
+    });
+
+    test('locks an order item with prescription source markers', () {
+      final orderItem = PharmacyOrderItem(
+        orderItemId: 1,
+        medicineId: 1,
+        sourcePrescriptionHeaderId: 100,
+        sourcePrescriptionItemId: 200,
+        medicationName: 'Paracetamol',
+        totalSupplyDays: 10,
+        quantity: 20,
+        frequency: 'BID',
+        timing: 'MORNING,EVENING',
+      );
+
+      final lineItem = PharmacyQuoteMapper.fromOrderItem(orderItem);
+
       expect(lineItem.locked, true);
+      expect(lineItem.sourcePrescriptionHeaderId, 100);
+      expect(lineItem.sourcePrescriptionItemId, 200);
     });
 
     test('marks item without medicineId as unlocked', () {
@@ -218,6 +306,7 @@ void main() {
           medicationName: 'Paracetamol',
           quantity: 20,
           totalSupplyDays: 10,
+          timing: ['MORNING'],
         ),
       ];
 
@@ -225,14 +314,14 @@ void main() {
         items,
         deliveryType: 'DELIVERY',
         deliveryFee: 15000,
-        estimatedDeliveryTime: DateTime(2026, 7, 15, 14, 0),
+        estimatedDeliveryMinutes: 120,
         notes: 'Please deliver in the morning',
       );
 
       expect(payload['items'], isA<List>());
       expect(payload['deliveryType'], 'DELIVERY');
       expect(payload['deliveryFee'], 15000);
-      expect(payload['estimatedDeliveryTime'], isNotNull);
+      expect(payload['estimatedDeliveryMinutes'], 120);
       expect(payload['notes'], 'Please deliver in the morning');
     });
 
@@ -243,18 +332,19 @@ void main() {
           medicationName: 'Paracetamol',
           quantity: 30,
           totalSupplyDays: 15,
+          timing: ['MORNING'],
         ),
       ];
 
       final payload = PharmacyQuoteMapper.toUpdateQuotePayload(
         items,
         deliveryFee: 20000,
-        estimatedDeliveryTime: DateTime(2026, 7, 16, 10, 0),
+        estimatedDeliveryMinutes: 120,
       );
 
       expect(payload['items'], isA<List>());
       expect(payload['deliveryFee'], 20000);
-      expect(payload['estimatedDeliveryTime'], isNotNull);
+      expect(payload['estimatedDeliveryMinutes'], 120);
     });
 
     test('handles pickup (no delivery fee/ETA)', () {
@@ -264,6 +354,7 @@ void main() {
           medicationName: 'Paracetamol',
           quantity: 10,
           totalSupplyDays: 5,
+          timing: ['MORNING'],
         ),
       ];
 
@@ -274,7 +365,26 @@ void main() {
 
       expect(payload['deliveryType'], 'PICKUP');
       expect(payload.containsKey('deliveryFee'), false);
-      expect(payload.containsKey('estimatedDeliveryTime'), false);
+      expect(payload.containsKey('estimatedDeliveryMinutes'), false);
+    });
+
+    test('pickup payload omits estimatedDeliveryMinutes', () {
+      final items = [
+        QuoteLineItem(
+          medicineId: 1,
+          medicationName: 'Paracetamol',
+          quantity: 10,
+          totalSupplyDays: 5,
+          timing: ['MORNING'],
+        ),
+      ];
+
+      final payload = PharmacyQuoteMapper.toCreateOrderPayload(
+        items,
+        deliveryType: 'PICKUP',
+      );
+
+      expect(payload.containsKey('estimatedDeliveryMinutes'), false);
     });
 
     test('submission item excludes unit and unitPrice', () {
@@ -285,13 +395,15 @@ void main() {
         unitPrice: 5000,
         quantity: 10,
         totalSupplyDays: 5,
+        timing: ['MORNING'],
       );
 
       final payload = PharmacyQuoteMapper.toSubmissionItem(item);
 
-      expect(payload.containsKey('unit'), false);
-      expect(payload.containsKey('unitPrice'), false);
-      expect(payload.containsKey('inventoryId'), false);
+      expect(payload.containsKey('medicationName'), isFalse);
+      expect(payload.containsKey('unit'), isFalse);
+      expect(payload.containsKey('unitPrice'), isFalse);
+      expect(payload.containsKey('inventoryId'), isFalse);
       expect(payload['medicineId'], 1);
       expect(payload['quantity'], 10);
     });

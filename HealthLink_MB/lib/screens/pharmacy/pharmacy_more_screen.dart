@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
-import '../chat/chat_list_screen.dart';
 import 'pharmacy_profile_screen.dart';
 import 'pharmacy_wallet_screen.dart';
 import 'pharmacy_security_screen.dart';
@@ -47,19 +46,6 @@ class PharmacyMoreScreen extends StatelessWidget {
             context,
             MaterialPageRoute(
               builder: (_) => const PharmacySecurityScreen(),
-            ),
-          ),
-        ),
-        const Divider(),
-        _sectionHeader(theme, 'Support'),
-        ListTile(
-          leading: const Icon(Icons.chat_bubble_outline),
-          title: const Text('Chat'),
-          trailing: const Icon(Icons.chevron_right),
-          onTap: () => Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (_) => const MessagesScreen(),
             ),
           ),
         ),

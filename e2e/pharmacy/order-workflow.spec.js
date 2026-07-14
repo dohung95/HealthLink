@@ -256,6 +256,159 @@ test.describe('Pharmacy Request Actions', () => {
   });
 });
 
+test.describe('Pharmacy Consultation Chat & Revision Lifecycle', () => {
+  test.beforeEach(async ({ page }) => {
+    await page.addInitScript((token) => {
+      localStorage.setItem('token', token);
+      localStorage.setItem('userId', 'pharmacy-1');
+      localStorage.setItem('refreshToken', 'fake-refresh');
+    }, PHARMACY_TOKEN);
+  });
+
+  test('IN_REVIEW consultation opens editable chat without medical-info wait message', async ({ page }) => {
+    let chatRoomCalls = 0;
+    let chatMessagesCalls = 0;
+    await routePharmacyProfile(page, {
+      pharmacyId: 'pharmacy-1', name: 'Test Pharmacy', email: 'pharmacy@test.com',
+      phoneNumber: '9876543210', isOnline: true,
+    });
+    await page.route('**/api/pharmacy-work-items/pharmacy/*', (r) => jsonRoute(r, [{
+      workItemId: 'wi-chat-review', requestId: 100, sourceType: 'CONSULTATION_REQUEST',
+      requestType: 'CONSULTATION', workflowStage: 'CONSULTING',
+      patientName: 'ChatReview Patient', patientId: 'patient-chat-review',
+      chatRoomId: 'chat-review-room', symptoms: 'Cough and fever',
+      createdAt: NOW, availableActions: ['CHAT', 'UPDATE_QUOTE'],
+    }]));
+    await page.route('**/api/pharmacy-orders/pharmacy/*', (r) => jsonRoute(r, []));
+    await page.route('**/api/pharmacy-requests/pharmacy/**', (r) => jsonRoute(r, []));
+    await page.route('**/api/payment/partner/**/balance', (r) => jsonRoute(r, { balance: 0, currency: 'USD' }));
+    await page.route('**/api/payment/partner/**/transactions', (r) => jsonRoute(r, []));
+    await page.route('**/api/payment/partner/**/settlements', (r) => jsonRoute(r, []));
+    await page.route('**/api/chat/rooms/chat-review-room', (r) => {
+      chatRoomCalls++;
+      return jsonRoute(r, { chatRoomId: 'chat-review-room', user1Id: 'pharmacy-1', user2Id: 'patient-chat-review' });
+    });
+    await page.route('**/api/chat/rooms/chat-review-room/messages*', (r) => {
+      chatMessagesCalls++;
+      return jsonRoute(r, []);
+    });
+
+    await page.goto('/pharmacy-page/requests');
+    await expect(page.getByText('ChatReview Patient')).toBeVisible();
+    await expect(page.locator('.pharmacy-request-chat-button[aria-label="Chat with ChatReview Patient"]')).toBeVisible();
+    await expect(page.getByText(/waiting for pharmacy|medical information/i)).toHaveCount(0);
+
+    await page.locator('.pharmacy-request-chat-button[aria-label="Chat with ChatReview Patient"]').click();
+    await expect(page.getByText('ChatReview Patient')).toBeVisible();
+    await expect(page.locator('input[placeholder="Type a message..."]')).toBeVisible();
+    expect(chatRoomCalls).toBeGreaterThanOrEqual(1);
+  });
+
+  test('REVISION_REQUESTED card renders Chat and Update Quote with no Video Call', async ({ page }) => {
+    await routePharmacyProfile(page, {
+      pharmacyId: 'pharmacy-1', name: 'Test Pharmacy', email: 'pharmacy@test.com',
+      phoneNumber: '9876543210', isOnline: true,
+    });
+    await page.route('**/api/pharmacy-work-items/pharmacy/*', (r) => jsonRoute(r, [{
+      workItemId: 'wi-revision-novideo', requestId: 101, sourceType: 'CONSULTATION_REQUEST',
+      requestType: 'CONSULTATION', workflowStage: 'REVISION_REQUESTED',
+      patientName: 'NoVideo Patient', patientId: 'patient-novideo',
+      chatRoomId: 'chat-novideo', symptoms: 'Needs revision', totalAmount: 95,
+      createdAt: NOW, availableActions: ['CHAT', 'UPDATE_QUOTE'],
+    }]));
+    await page.route('**/api/pharmacy-orders/pharmacy/*', (r) => jsonRoute(r, []));
+    await page.route('**/api/pharmacy-requests/pharmacy/**', (r) => jsonRoute(r, []));
+    await page.route('**/api/payment/partner/**/balance', (r) => jsonRoute(r, { balance: 0, currency: 'USD' }));
+    await page.route('**/api/payment/partner/**/transactions', (r) => jsonRoute(r, []));
+    await page.route('**/api/payment/partner/**/settlements', (r) => jsonRoute(r, []));
+
+    await page.goto('/pharmacy-page/requests');
+    await expect(page.getByText('NoVideo Patient')).toBeVisible();
+    await expect(page.locator('.pharmacy-request-chat-button[aria-label="Chat with NoVideo Patient"]')).toBeVisible();
+    await expect(page.getByText('Update Quote')).toBeVisible();
+    await expect(page.getByRole('button', { name: /video.call/i })).toHaveCount(0);
+  });
+
+  test('successful Update Quote refresh removes the revision card and editable Chat', async ({ page }) => {
+    let workItemFetchCount = 0;
+    const revisionItem = {
+      workItemId: 'wi-revision-quote', requestId: 102, orderId: 50,
+      sourceType: 'CONSULTATION_REQUEST', requestType: 'CONSULTATION',
+      workflowStage: 'REVISION_REQUESTED', patientName: 'QuoteRefresh Patient',
+      patientId: 'patient-quote-refresh', chatRoomId: 'chat-quote-refresh',
+      symptoms: 'Update pricing', totalAmount: 100, createdAt: NOW,
+      availableActions: ['UPDATE_QUOTE'],
+    };
+    await routePharmacyProfile(page, {
+      pharmacyId: 'pharmacy-1', name: 'Test Pharmacy', email: 'pharmacy@test.com',
+      phoneNumber: '9876543210', isOnline: true,
+    });
+    await page.route('**/api/pharmacy-work-items/pharmacy/*', (r) => {
+      workItemFetchCount++;
+      return jsonRoute(r, workItemFetchCount <= 1 ? [revisionItem] : []);
+    });
+    await page.route('**/api/pharmacy-orders/pharmacy/*', (r) => jsonRoute(r, [{
+      orderId: 50, status: 'REVISION_REQUESTED', patientName: 'QuoteRefresh Patient',
+      totalAmount: 100, createdAt: NOW,
+    }]));
+    await page.route('**/api/pharmacy-requests/pharmacy/**', (r) => jsonRoute(r, []));
+    await page.route('**/api/payment/partner/**/balance', (r) => jsonRoute(r, { balance: 0, currency: 'USD' }));
+    await page.route('**/api/payment/partner/**/transactions', (r) => jsonRoute(r, []));
+    await page.route('**/api/payment/partner/**/settlements', (r) => jsonRoute(r, []));
+    await page.route('**/api/pharmacy/inventory**', (r) => jsonRoute(r, { content: [] }));
+    await page.route('**/api/pharmacy-orders/50', (r) => jsonRoute(r, {
+      orderId: 50, status: 'REVISION_REQUESTED', items: [
+        { medicineId: 1, medicationName: 'Test Medicine', quantity: 1, totalPrice: 100 },
+      ],
+    }));
+    await page.route('**/api/pharmacy-orders/50/quote', (r) => jsonRoute(r, { orderId: 50, status: 'PENDING' }));
+
+    await page.goto('/pharmacy-page/requests');
+    await expect(page.getByText('QuoteRefresh Patient')).toBeVisible();
+    await expect(page.getByText('Update Quote')).toBeVisible();
+
+    await page.getByRole('button', { name: 'Update Quote' }).click();
+    await expect(page.getByRole('button', { name: 'Summary' })).toBeVisible();
+    await page.locator('.pharmacy-create-order-right button').filter({ hasText: 'Update Quote' }).click();
+
+    await expect(page.getByText('QuoteRefresh Patient')).not.toBeVisible();
+    await expect(page.getByText('Update Quote')).not.toBeVisible();
+  });
+
+  test('Order Detail exposes no inline chat composer', async ({ page }) => {
+    await routePharmacyProfile(page, {
+      pharmacyId: 'pharmacy-1', name: 'Test Pharmacy', email: 'pharmacy@test.com',
+      phoneNumber: '9876543210', isOnline: true,
+    });
+    await page.route('**/api/pharmacy-work-items/pharmacy/*', (r) => jsonRoute(r, []));
+    await page.route('**/api/pharmacy-orders/pharmacy/*', (r) => jsonRoute(r, [{
+      orderId: 60, orderNumber: 'ORD-60', status: 'PREPARING', patientName: 'Detail Patient',
+      totalAmount: 75, paymentStatus: 'PAID', deliveryType: 'Pickup',
+      items: [{ medicineId: 1, medicationName: 'Detail Med', quantity: 1, totalPrice: 75 }],
+      createdAt: NOW, confirmedAt: NOW,
+    }]));
+    await page.route('**/api/pharmacy-orders/60', (r) => jsonRoute(r, {
+      orderId: 60, orderNumber: 'ORD-60', status: 'PREPARING', patientName: 'Detail Patient',
+      totalAmount: 75, paymentStatus: 'PAID', deliveryType: 'Pickup',
+      items: [{ medicineId: 1, medicationName: 'Detail Med', quantity: 1, totalPrice: 75 }],
+      createdAt: NOW, confirmedAt: NOW, preparingAt: NOW,
+    }));
+    await page.route('**/api/pharmacy-requests/pharmacy/**', (r) => jsonRoute(r, []));
+    await page.route('**/api/payment/partner/**/balance', (r) => jsonRoute(r, { balance: 0, currency: 'USD' }));
+    await page.route('**/api/payment/partner/**/transactions', (r) => jsonRoute(r, []));
+    await page.route('**/api/payment/partner/**/settlements', (r) => jsonRoute(r, []));
+
+    await page.goto('/pharmacy-page/orders');
+    await page.locator('.pharmacy-kanban-card').filter({ hasText: 'ORD-60' }).click();
+
+    const detailPanel = page.locator('.pharmacy-order-detail-sheet');
+    await expect(detailPanel).toBeVisible();
+    await expect(detailPanel.getByText('ORD-60')).toBeVisible();
+    await expect(detailPanel.locator('input[placeholder="Type a message..."]')).toHaveCount(0);
+    await expect(detailPanel.locator('textarea')).toHaveCount(0);
+  });
+});
+
 test.describe('Kanban and Order List', () => {
   test.beforeEach(async ({ page }) => {
     await page.addInitScript((token) => {

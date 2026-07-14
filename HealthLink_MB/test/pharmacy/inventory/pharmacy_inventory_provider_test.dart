@@ -75,7 +75,7 @@ void main() {
         inventoryService: _serviceWithClient(mockClient),
       );
       provider.setFilter(const InventoryFilter(search: 'Aspirin'));
-      await provider.refresh(_token, _pharmacyId);
+      await provider.refresh(_token);
 
       expect(capturedQuery, 'Aspirin');
     });
@@ -92,7 +92,7 @@ void main() {
         inventoryService: _serviceWithClient(mockClient),
       );
       provider.setFilter(const InventoryFilter(lowStock: true));
-      await provider.refresh(_token, _pharmacyId);
+      await provider.refresh(_token);
 
       expect(capturedLowStock, isTrue);
     });
@@ -109,7 +109,7 @@ void main() {
         inventoryService: _serviceWithClient(mockClient),
       );
       provider.setFilter(const InventoryFilter(activeOnly: true));
-      await provider.refresh(_token, _pharmacyId);
+      await provider.refresh(_token);
 
       expect(capturedActive, isTrue);
     });
@@ -126,7 +126,7 @@ void main() {
         inventoryService: _serviceWithClient(mockClient),
       );
       provider.setFilter(const InventoryFilter(expiringSoon: true));
-      await provider.refresh(_token, _pharmacyId);
+      await provider.refresh(_token);
 
       expect(capturedExpiring, isTrue);
     });
@@ -151,10 +151,10 @@ void main() {
         inventoryService: _serviceWithClient(mockClient),
       );
 
-      await provider.refresh(_token, _pharmacyId);
+      await provider.refresh(_token);
       expect(provider.items.length, 2);
 
-      await provider.refresh(_token, _pharmacyId);
+      await provider.refresh(_token);
       expect(provider.items.length, 2,
           reason: 'refresh should replace, not append');
     });
@@ -178,15 +178,15 @@ void main() {
         inventoryService: _serviceWithClient(mockClient),
       );
 
-      await provider.refresh(_token, _pharmacyId);
+      await provider.refresh(_token);
       expect(provider.items.length, 2);
 
-      await provider.loadMore(_token, _pharmacyId);
+      await provider.loadMore(_token);
       expect(provider.items.length, 4,
           reason: 'loadMore should append items');
       expect(provider.hasMore, isTrue);
 
-      await provider.loadMore(_token, _pharmacyId);
+      await provider.loadMore(_token);
       expect(provider.items.length, 6);
     });
 
@@ -208,11 +208,11 @@ void main() {
       final provider = PharmacyInventoryProvider(
         inventoryService: _serviceWithClient(mockClient),
       );
-      await provider.refresh(_token, _pharmacyId);
+      await provider.refresh(_token);
 
       Future.wait([
-        provider.loadMore(_token, _pharmacyId),
-        provider.loadMore(_token, _pharmacyId),
+        provider.loadMore(_token),
+        provider.loadMore(_token),
       ]);
       await Future.delayed(const Duration(milliseconds: 100));
 
@@ -236,10 +236,10 @@ void main() {
       final provider = PharmacyInventoryProvider(
         inventoryService: _serviceWithClient(mockClient),
       );
-      await provider.refresh(_token, _pharmacyId);
+      await provider.refresh(_token);
       expect(provider.hasMore, isFalse);
 
-      await provider.loadMore(_token, _pharmacyId);
+      await provider.loadMore(_token);
       expect(callCount, 1, reason: 'loadMore should not call service');
     });
   });
@@ -263,10 +263,10 @@ void main() {
       final provider = PharmacyInventoryProvider(
         inventoryService: _serviceWithClient(mockClient),
       );
-      await provider.refresh(_token, _pharmacyId);
+      await provider.refresh(_token);
       expect(provider.items.length, 2);
 
-      await provider.loadMore(_token, _pharmacyId);
+      await provider.loadMore(_token);
       expect(provider.items.length, 2,
           reason: 'should deduplicate by inventoryId');
     });
@@ -303,7 +303,7 @@ void main() {
         reservedQuantity: 2,
         active: true,
       );
-      final result = await provider.updateItem(_token, updated, _pharmacyId);
+      final result = await provider.updateItem(_token, updated);
       expect(result, isTrue);
       expect(provider.items.length, 1);
       // Service returns the mock item (quantity 50), not the passed value
@@ -350,7 +350,6 @@ void main() {
           reservedQuantity: 0,
           active: true,
         ),
-        _pharmacyId,
       );
 
       expect(patchedInventoryId, 1);
@@ -438,7 +437,7 @@ void main() {
       final provider = PharmacyInventoryProvider(
         inventoryService: _serviceWithClient(mockClient),
       );
-      await provider.refresh(_token, _pharmacyId);
+      await provider.refresh(_token);
 
       expect(provider.error, isNotNull);
       expect(provider.loading, isFalse);
@@ -467,7 +466,7 @@ void main() {
         inventoryService: _serviceWithClient(mockClient),
       );
 
-      final future = provider.refresh(_token, _pharmacyId);
+      final future = provider.refresh(_token);
       expect(provider.loading, isTrue);
       await future;
       expect(provider.loading, isFalse);

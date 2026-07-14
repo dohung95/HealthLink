@@ -1,309 +1,307 @@
+import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
-import '../../providers/pharmacy/pharmacy_request_provider.dart';
-import '../../models/pharmacy/pharmacy_consultation_request.dart';
+import '../../providers/pharmacy/pharmacy_workflow_provider.dart';
 import '../../models/pharmacy/pharmacy_work_item.dart';
-import '../../widgets/pharmacy/request_status_chip.dart';
 import '../../utils/pharmacy/pharmacy_workflow.dart';
+import '../../utils/pharmacy/pharmacy_notification_target.dart';
+import '../../widgets/pharmacy/notification_attention_card.dart';
 import 'pharmacy_request_detail_screen.dart';
+import 'pharmacy_order_detail_screen.dart';
 
 class PharmacyRequestsScreen extends StatefulWidget {
-  const PharmacyRequestsScreen({super.key});
+  const PharmacyRequestsScreen({super.key, this.notificationAttention});
+
+  final ValueListenable<NotificationAttention?>? notificationAttention;
 
   @override
-  State<PharmacyRequestsScreen> createState() =>
-      _PharmacyRequestsScreenState();
+  State<PharmacyRequestsScreen> createState() => _PharmacyRequestsScreenState();
 }
 
 class _PharmacyRequestsScreenState extends State<PharmacyRequestsScreen> {
-  final List<String> _statusFilters = [
-    'ALL',
-    'PENDING',
-    'IN_REVIEW',
-    'ORDER_CREATED',
-    'CANCELLED',
-  ];
+  static const _estimatedRowExtent = 128.0;
 
-  final List<_WorkTypeChip> _workTypeChips = [
-    _WorkTypeChip('All', null),
-    _WorkTypeChip('Consultation', 'CONSULTATION'),
-    _WorkTypeChip('Revision', 'REVISION'),
-    _WorkTypeChip('Delivery Quote', 'DELIVERY_QUOTE'),
-    _WorkTypeChip('Contact Review', 'DELIVERY_CONTACT_REVIEW'),
-    _WorkTypeChip('Pickup', 'PICKUP_ORDER'),
-    _WorkTypeChip('Delivery', 'DELIVERY_ORDER'),
-  ];
-
+  final ScrollController _scrollController = ScrollController();
+  final Map<String, BuildContext> _itemContexts = {};
+  Timer? _attentionTimer;
+  String? _highlightedId;
+  String? _attentionMessage;
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _loadRequests());
+    _subscribeAttention();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _ensureAuth());
   }
 
-  Future<void> _loadRequests() async {
+  @override
+  void didUpdateWidget(covariant PharmacyRequestsScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.notificationAttention != widget.notificationAttention) {
+      _unsubscribeAttention(oldWidget.notificationAttention);
+      _subscribeAttention();
+    }
+  }
+
+  @override
+  void dispose() {
+    _unsubscribeAttention(widget.notificationAttention);
+    _attentionTimer?.cancel();
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _subscribeAttention() {
+    widget.notificationAttention?.addListener(_onAttention);
+    final attention = widget.notificationAttention?.value;
+    if (attention != null) {
+      WidgetsBinding.instance.addPostFrameCallback(
+        (_) => _handleAttention(attention),
+      );
+    }
+  }
+
+  void _unsubscribeAttention(
+    ValueListenable<NotificationAttention?>? notifier,
+  ) {
+    notifier?.removeListener(_onAttention);
+  }
+
+  void _onAttention() {
+    final attention = widget.notificationAttention?.value;
+    if (attention != null) _handleAttention(attention);
+  }
+
+  Future<void> _ensureAuth() async {
     final auth = context.read<AuthProvider>();
     if (auth.accessToken == null) return;
     if (auth.pharmacyProfile == null) {
       await auth.fetchProfile();
     }
-    final pharmacyId =
-        auth.pharmacyProfile?['pharmacyId']?.toString() ?? auth.userId!;
-    final provider = context.read<PharmacyRequestProvider>();
-    await Future.wait([
-      provider.fetchRequests(auth.accessToken!, pharmacyId),
-      provider.fetchWorkItems(auth.accessToken!, pharmacyId),
-    ]);
   }
 
-  Future<void> _updateStatus(String requestId, String status) async {
+  Future<void> _refresh() async {
     final auth = context.read<AuthProvider>();
     if (auth.accessToken == null) return;
-    final success =
-        await context.read<PharmacyRequestProvider>().updateRequestStatus(
-              auth.accessToken!,
-              requestId,
-              status,
-            );
-    if (success && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-            content: Text(
-                status == 'IN_REVIEW' ? 'Request accepted' : 'Request rejected')),
+    final pharmacyId =
+        auth.pharmacyProfile?['pharmacyId']?.toString() ?? auth.userId!;
+    await context.read<PharmacyWorkflowProvider>().refresh(
+      auth.accessToken!,
+      pharmacyId,
+    );
+  }
+
+  Future<void> _handleAttention(NotificationAttention attention) async {
+    final target = attention.target;
+    if (target.tabIndex != PharmacyNotificationTarget.tabRequests ||
+        (target.detailType != 'request' &&
+            target.detailType != 'request-order')) {
+      return;
+    }
+
+    final item = await _findAttentionItem(attention, refreshIfMissing: true);
+    if (!mounted ||
+        widget.notificationAttention?.value?.sequence != attention.sequence) {
+      return;
+    }
+    if (item == null) {
+      _attentionTimer?.cancel();
+      setState(() {
+        _highlightedId = null;
+        _attentionMessage = 'Related item is no longer active';
+      });
+      return;
+    }
+
+    final key = _attentionKey(item, target.detailType!);
+    final items = PharmacyWorkflow.actionableRequests(
+      context.read<PharmacyWorkflowProvider>().workItems,
+    );
+    setState(() {
+      _attentionMessage = null;
+      _highlightedId = key;
+    });
+    _scrollToItem(key, items.indexOf(item));
+    _attentionTimer?.cancel();
+    _attentionTimer = Timer(const Duration(seconds: 4), () {
+      if (mounted &&
+          widget.notificationAttention?.value?.sequence == attention.sequence) {
+        setState(() => _highlightedId = null);
+      }
+    });
+  }
+
+  Future<PharmacyWorkItem?> _findAttentionItem(
+    NotificationAttention attention, {
+    required bool refreshIfMissing,
+  }) async {
+    PharmacyWorkItem? find() {
+      final id = attention.target.detailId;
+      if (id == null) return null;
+      final items = PharmacyWorkflow.actionableRequests(
+        context.read<PharmacyWorkflowProvider>().workItems,
+      );
+      return items.cast<PharmacyWorkItem?>().firstWhere(
+        (item) => attention.target.detailType == 'request'
+            ? item!.requestId.toString() == id
+            : item!.orderId.toString() == id,
+        orElse: () => null,
       );
     }
+
+    final initial = find();
+    if (initial != null || !refreshIfMissing) return initial;
+    await _refresh();
+    return find();
+  }
+
+  String _attentionKey(PharmacyWorkItem item, String detailType) {
+    return detailType == 'request'
+        ? 'request-${item.requestId}'
+        : 'request-order-${item.orderId}';
+  }
+
+  void _scrollToItem(String key, int index) {
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted || !_scrollController.hasClients) return;
+      final position = _scrollController.position;
+      final offset = (index * _estimatedRowExtent).clamp(
+        0.0,
+        position.maxScrollExtent,
+      );
+      await _scrollController.animateTo(
+        offset,
+        duration: const Duration(milliseconds: 250),
+        curve: Curves.easeOut,
+      );
+      if (!mounted) return;
+      final itemContext = _itemContexts[key];
+      if (itemContext != null && itemContext.mounted) {
+        Scrollable.ensureVisible(itemContext);
+      }
+    });
+  }
+
+  /// Navigate to the appropriate detail screen for a work item.
+  void _openDetail(PharmacyWorkItem item) {
+    if (item.requestId != null) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => PharmacyRequestDetailScreen(
+            requestId: item.requestId!.toString(),
+            workItem: item,
+          ),
+        ),
+      );
+    } else if (item.orderId != null) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) =>
+              PharmacyOrderDetailScreen(orderId: item.orderId!.toString()),
+        ),
+      );
+    }
+    // Both absent: card is disabled, no navigation
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final workflow = context.watch<PharmacyWorkflowProvider>();
+    final items = PharmacyWorkflow.actionableRequests(workflow.workItems);
+    final loading = workflow.isLoading && items.isEmpty;
+    final error = workflow.error;
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Requests & Work Items'),
         centerTitle: true,
       ),
-      body: Column(
-        children: [
-          _buildStatusFilterTabs(),
-          _buildWorkTypeFilterTabs(),
-          Expanded(child: _buildRequestsList(theme)),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildStatusFilterTabs() {
-    final provider = context.watch<PharmacyRequestProvider>();
-    return SizedBox(
-      height: 36,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.fromLTRB(12, 4, 12, 0),
-        itemCount: _statusFilters.length,
-        separatorBuilder: (_, __) => const SizedBox(width: 4),
-        itemBuilder: (_, i) {
-          final filter = _statusFilters[i];
-          final isSelected =
-              provider.activeFilter == filter && provider.sourceTypeFilter == null;
-          return ChoiceChip(
-            label: Text(filter),
-            selected: isSelected,
-            visualDensity: VisualDensity.compact,
-            onSelected: (_) async {
-              provider.setFilter(filter);
-              final auth = context.read<AuthProvider>();
-              if (auth.accessToken != null) {
-                if (auth.pharmacyProfile == null) {
-                  await auth.fetchProfile();
-                }
-                provider.fetchRequests(
-                  auth.accessToken!,
-                  auth.pharmacyProfile?['pharmacyId']?.toString() ??
-                      auth.userId!,
-                );
-              }
-            },
-          );
-        },
-      ),
-    );
-  }
-
-  Widget _buildWorkTypeFilterTabs() {
-    final provider = context.watch<PharmacyRequestProvider>();
-    return SizedBox(
-      height: 36,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.fromLTRB(12, 4, 12, 4),
-        itemCount: _workTypeChips.length,
-        separatorBuilder: (_, __) => const SizedBox(width: 4),
-        itemBuilder: (_, i) {
-          final chip = _workTypeChips[i];
-          final isSelected = provider.sourceTypeFilter == chip.sourceType;
-          return ChoiceChip(
-            label: Text(chip.label),
-            selected: isSelected,
-            visualDensity: VisualDensity.compact,
-            onSelected: (_) {
-              provider.setSourceTypeFilter(chip.sourceType);
-            },
-          );
-        },
-      ),
-    );
-  }
-
-  Widget _buildRequestsList(ThemeData theme) {
-    final provider = context.watch<PharmacyRequestProvider>();
-    final showWorkItems = provider.sourceTypeFilter != null;
-    final items = showWorkItems ? provider.filteredWorkItems : provider.requests;
-    final loading = showWorkItems
-        ? provider.workItemsLoading && items.isEmpty
-        : provider.isLoading && items.isEmpty;
-
-    if (loading) {
-      return const Center(child: CircularProgressIndicator());
-    }
-
-    if (provider.error != null && items.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.error_outline,
-                size: 48, color: theme.colorScheme.error),
-            const SizedBox(height: 12),
-            Text(provider.error!,
-                style: TextStyle(color: theme.colorScheme.error)),
-            FilledButton.tonal(
-                onPressed: _loadRequests, child: const Text('Retry')),
-          ],
-        ),
-      );
-    }
-
-    if (items.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.assignment,
-                size: 64, color: theme.colorScheme.outlineVariant),
-            const SizedBox(height: 12),
-            Text('No items found', style: theme.textTheme.titleMedium),
-          ],
-        ),
-      );
-    }
-
-    return RefreshIndicator(
-      onRefresh: _loadRequests,
-      child: ListView.builder(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-        itemCount: items.length,
-        itemBuilder: (_, i) {
-          if (showWorkItems) {
-            return _buildWorkItemCard(items[i] as PharmacyWorkItem, theme);
-          }
-          return _buildRequestCard(
-              items[i] as PharmacyConsultationRequest, theme);
-        },
-      ),
-    );
-  }
-
-  Widget _buildRequestCard(
-      PharmacyConsultationRequest request, ThemeData theme) {
-    final timeStr = _formatTimeAgo(request.createdAt);
-
-    return Card(
-      margin: const EdgeInsets.symmetric(vertical: 4),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(12),
-        onTap: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (_) => PharmacyRequestDetailScreen(
-                  requestId: request.requestId.toString()),
-            ),
-          );
-        },
-        child: Padding(
-          padding: const EdgeInsets.all(12),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      body: loading
+          ? const Center(child: CircularProgressIndicator())
+          : error != null && items.isEmpty
+          ? Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  Expanded(
-                    child: Row(
-                      children: [
-                        const CircleAvatar(child: Icon(Icons.person),
-                            radius: 16),
-                        const SizedBox(width: 8),
-                        Text(request.patientName,
-                            style: theme.textTheme.titleSmall
-                                ?.copyWith(fontWeight: FontWeight.bold)),
-                      ],
-                    ),
+                  Icon(
+                    Icons.error_outline,
+                    size: 48,
+                    color: theme.colorScheme.error,
                   ),
-                  RequestStatusChip(status: request.status),
+                  const SizedBox(height: 12),
+                  Text(error, style: TextStyle(color: theme.colorScheme.error)),
+                  FilledButton.tonal(
+                    onPressed: _refresh,
+                    child: const Text('Retry'),
+                  ),
                 ],
               ),
-              const SizedBox(height: 8),
-              if (request.symptoms != null)
-                Text(request.symptoms!,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: theme.textTheme.bodyMedium),
-              const SizedBox(height: 6),
-              Row(
-                children: [
-                  Icon(Icons.access_time,
-                      size: 14, color: theme.colorScheme.onSurfaceVariant),
-                  const SizedBox(width: 4),
-                  Text(timeStr, style: theme.textTheme.bodySmall),
-                  if (request.prescriptionHeaderIds != null &&
-                      request.prescriptionHeaderIds!.isNotEmpty) ...[
-                    const SizedBox(width: 12),
-                    Icon(Icons.description,
-                        size: 14, color: theme.colorScheme.onSurfaceVariant),
-                    const SizedBox(width: 2),
-                    Text('${request.prescriptionHeaderIds!.length} prescription(s)',
-                        style: theme.textTheme.bodySmall),
-                  ],
-                ],
-              ),
-              if (request.status == 'PENDING') ...[
-                const SizedBox(height: 8),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    OutlinedButton.icon(
-                      onPressed: () => _updateStatus(
-                          request.requestId.toString(), 'CANCELLED'),
-                      icon: const Icon(Icons.close, size: 16),
-                      label: const Text('Reject'),
-                      style: OutlinedButton.styleFrom(
-                          foregroundColor: Colors.red),
-                    ),
-                    const SizedBox(width: 8),
-                    FilledButton.icon(
-                      onPressed: () => _updateStatus(
-                          request.requestId.toString(), 'IN_REVIEW'),
-                      icon: const Icon(Icons.check, size: 16),
-                      label: const Text('Accept'),
-                    ),
-                  ],
+            )
+          : Column(
+              children: [
+                if (_attentionMessage != null)
+                  MaterialBanner(
+                    content: Text(_attentionMessage!),
+                    actions: const [SizedBox.shrink()],
+                  ),
+                Expanded(
+                  child: RefreshIndicator(
+                    onRefresh: _refresh,
+                    child: items.isEmpty
+                        ? ListView(
+                            // Keep list for RefreshIndicator to work
+                            children: [
+                              SizedBox(
+                                height:
+                                    MediaQuery.of(context).size.height * 0.6,
+                                child: Center(
+                                  child: Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(
+                                        Icons.assignment,
+                                        size: 64,
+                                        color: theme.colorScheme.outlineVariant,
+                                      ),
+                                      const SizedBox(height: 12),
+                                      Text(
+                                        'No requests requiring action',
+                                        style: theme.textTheme.titleMedium,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ],
+                          )
+                        : ListView.builder(
+                            controller: _scrollController,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 4,
+                            ),
+                            itemCount: items.length,
+                            itemBuilder: (_, i) => Builder(
+                              builder: (itemContext) {
+                                _itemContexts[_attentionKey(
+                                      items[i],
+                                      items[i].requestId != null
+                                          ? 'request'
+                                          : 'request-order',
+                                    )] =
+                                    itemContext;
+                                return _buildWorkItemCard(items[i], theme);
+                              },
+                            ),
+                          ),
+                  ),
                 ),
               ],
-            ],
-          ),
-        ),
-      ),
+            ),
     );
   }
 
@@ -321,26 +319,21 @@ class _PharmacyRequestsScreenState extends State<PharmacyRequestsScreen> {
     if (item.sourceType == WorkItemSourceType.revision) {
       subtitle = item.revisionReason;
     } else if (item.sourceType == WorkItemSourceType.deliveryQuote) {
-      subtitle =
-          'Total: \$${item.totalAmount?.toStringAsFixed(2) ?? '—'}';
+      subtitle = 'Total: \$${item.totalAmount?.toStringAsFixed(2) ?? '—'}';
     }
 
-    return Card(
-      margin: const EdgeInsets.symmetric(vertical: 4),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(12),
-        onTap: () {
-          if (item.requestId != null) {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => PharmacyRequestDetailScreen(
-                    requestId: item.requestId!.toString()),
-              ),
-            );
-          }
-          // ponytail: order detail navigation from work item when no requestId
-        },
+    final hasNavigation = item.requestId != null || item.orderId != null;
+
+    final key = _attentionKey(
+      item,
+      item.requestId != null ? 'request' : 'request-order',
+    );
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: NotificationAttentionCard(
+        key: ValueKey(key),
+        highlighted: _highlightedId == key,
+        onTap: hasNavigation ? () => _openDetail(item) : null,
         child: Padding(
           padding: const EdgeInsets.all(12),
           child: Column(
@@ -352,12 +345,17 @@ class _PharmacyRequestsScreenState extends State<PharmacyRequestsScreen> {
                   Expanded(
                     child: Row(
                       children: [
-                        const CircleAvatar(child: Icon(Icons.person),
-                            radius: 16),
+                        const CircleAvatar(
+                          radius: 16,
+                          child: Icon(Icons.person),
+                        ),
                         const SizedBox(width: 8),
-                        Text(item.patientName,
-                            style: theme.textTheme.titleSmall
-                                ?.copyWith(fontWeight: FontWeight.bold)),
+                        Text(
+                          item.patientName,
+                          style: theme.textTheme.titleSmall?.copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
                       ],
                     ),
                   ),
@@ -381,23 +379,31 @@ class _PharmacyRequestsScreenState extends State<PharmacyRequestsScreen> {
               ),
               if (subtitle != null) ...[
                 const SizedBox(height: 6),
-                Text(subtitle,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: theme.textTheme.bodySmall),
+                Text(
+                  subtitle,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.bodySmall,
+                ),
               ],
               const SizedBox(height: 6),
               Row(
                 children: [
-                  Icon(Icons.access_time,
-                      size: 14, color: theme.colorScheme.onSurfaceVariant),
+                  Icon(
+                    Icons.access_time,
+                    size: 14,
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
                   const SizedBox(width: 4),
                   Text(timeStr, style: theme.textTheme.bodySmall),
                   if (item.availableActions.isNotEmpty) ...[
                     const SizedBox(width: 12),
-                    Text(item.availableActions.join(', '),
-                        style: theme.textTheme.bodySmall?.copyWith(
-                            color: theme.colorScheme.onSurfaceVariant)),
+                    Text(
+                      item.availableActions.join(', '),
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ),
                   ],
                 ],
               ),
@@ -413,21 +419,28 @@ class _PharmacyRequestsScreenState extends State<PharmacyRequestsScreen> {
       WorkItemSourceType.consultation => ('Consultation', Colors.blue),
       WorkItemSourceType.revision => ('Revision', Colors.orange),
       WorkItemSourceType.deliveryQuote => ('Quote', Colors.teal),
-      WorkItemSourceType.deliveryContactReview =>
-        ('Contact Review', Colors.purple),
+      WorkItemSourceType.deliveryContactReview => (
+        'Contact Review',
+        Colors.purple,
+      ),
       WorkItemSourceType.pickupOrder => ('Pickup', Colors.brown),
       WorkItemSourceType.deliveryOrder => ('Delivery', Colors.indigo),
     };
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.12),
+        color: color.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: color.withOpacity(0.3)),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
       ),
-      child: Text(label,
-          style: TextStyle(
-              fontSize: 10, fontWeight: FontWeight.w600, color: color)),
+      child: Text(
+        label,
+        style: TextStyle(
+          fontSize: 10,
+          fontWeight: FontWeight.w600,
+          color: color,
+        ),
+      ),
     );
   }
 
@@ -435,11 +448,10 @@ class _PharmacyRequestsScreenState extends State<PharmacyRequestsScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(6),
       ),
-      child: Text(label,
-          style: TextStyle(fontSize: 9, color: color)),
+      child: Text(label, style: TextStyle(fontSize: 9, color: color)),
     );
   }
 
@@ -450,10 +462,4 @@ class _PharmacyRequestsScreenState extends State<PharmacyRequestsScreen> {
     if (diff.inHours < 24) return '${diff.inHours}h ago';
     return '${diff.inDays}d ago';
   }
-}
-
-class _WorkTypeChip {
-  final String label;
-  final String? sourceType;
-  const _WorkTypeChip(this.label, this.sourceType);
 }

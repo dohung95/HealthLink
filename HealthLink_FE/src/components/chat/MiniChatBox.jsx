@@ -50,6 +50,8 @@ export default function MiniChatBox({
   partnerName = 'User',
   appointmentId = null,
   isFullTab = false,
+  readOnly = false,
+  readOnlyMessage = 'This pharmacy conversation is read-only.',
   onClose,
 }) {
   const { user: authUser, currentUserId, initiateCall, isInCall } = useAuth();
@@ -191,6 +193,7 @@ export default function MiniChatBox({
 
   const sendMsg = async (e) => {
     e.preventDefault();
+    if (readOnly) return;
     if (selectedFile) { await sendMedia(); return; }
     if (audioBlob) { await sendAudio(); return; }
     if (!formValue.trim() || !currentRoom || !resolvedPartnerUserId) return;
@@ -210,7 +213,7 @@ export default function MiniChatBox({
   };
 
   const sendMedia = async () => {
-    if (!selectedFile || !currentRoom || !resolvedPartnerUserId) return;
+    if (readOnly || !selectedFile || !currentRoom || !resolvedPartnerUserId) return;
     setUploading(true);
     try {
       const mime = selectedFile.type;
@@ -271,7 +274,7 @@ export default function MiniChatBox({
   };
 
   const sendAudio = async () => {
-    if (!audioBlob || !currentRoom || !resolvedPartnerUserId) return;
+    if (readOnly || !audioBlob || !currentRoom || !resolvedPartnerUserId) return;
     setUploading(true);
     try {
       const mime = audioBlob.type || 'audio/webm';
@@ -288,6 +291,7 @@ export default function MiniChatBox({
   };
 
   const handleVideoCall = () => {
+    if (readOnly) return;
     if (!resolvedPartnerUserId) {
       toast.error('Chat room is still loading. Please try again in a moment.');
       return;
@@ -396,9 +400,14 @@ export default function MiniChatBox({
           );
         })}
         <div ref={scrollTo} />
+        {readOnly && (isExpanded || isFullTab) && (
+          <div className="text-center text-muted small py-2 border-top bg-white">
+            <i className="bi bi-lock me-1"></i>{readOnlyMessage}
+          </div>
+        )}
       </div>
 
-      {(isExpanded || isFullTab) && (
+      {!readOnly && (isExpanded || isFullTab) && (
         <div className="border-top bg-white p-2">
           {selectedFile && (
             <div className="mb-2 p-2 bg-light border rounded d-flex align-items-center justify-content-between">
@@ -471,7 +480,7 @@ export default function MiniChatBox({
 
   if (isFullTab) return <div className="shadow-sm rounded-4 overflow-hidden border">{renderContent()}</div>;
 
-  const canVideoCall = Boolean(resolvedPartnerUserId && currentRoom?.chatRoomId);
+  const canVideoCall = !readOnly && Boolean(resolvedPartnerUserId && currentRoom?.chatRoomId);
 
   return (
     <div

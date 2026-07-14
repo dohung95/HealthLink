@@ -42,7 +42,7 @@ function formatRelative(isoString) {
     const dTime = safeParseDate(isoString);
     if (dTime === 0) return '';
     const d = new Date(dTime);
-    
+
     const now = new Date();
     let diffMs = now.getTime() - dTime;
     if (diffMs < 0) diffMs = 0; // fallback cho trường hợp lệch timezone hoặc giờ server bị tương lai
@@ -50,7 +50,7 @@ function formatRelative(isoString) {
     const m = Math.floor(diffMs / 60000);
     const h = Math.floor(diffMs / 3600000);
     const day = Math.floor(diffMs / 86400000);
-    
+
     if (m < 1) return 'just now';
     if (m < 60) return `${m} minutes ago`;
     if (h < 24) return `${h} hours ago`;
@@ -305,7 +305,7 @@ function ChatMessage({ message, currentUserId, isNew = false, onImageClick, onNa
     }, [isNew, fullText]);
 
     const timeStr = message.timestamp
-        ? (safeParseDate(message.timestamp) !== 0 
+        ? (safeParseDate(message.timestamp) !== 0
             ? new Date(safeParseDate(message.timestamp)).toLocaleString([], { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric' })
             : '...')
         : (message.createdAt ? formatTime(message.createdAt) : '...');

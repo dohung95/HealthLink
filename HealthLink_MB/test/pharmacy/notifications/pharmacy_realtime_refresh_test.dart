@@ -76,10 +76,11 @@ void main() {
       expect(provider.isLoading, false);
     });
 
-    test('pendingRequestsCount counts consultation with PENDING status', () async {
+    test('pendingRequestsCount counts all actionable requests', () async {
       await provider.refresh('token', 'pharm-1');
-      // wi-1 has requestStatus=PENDING
-      expect(provider.pendingRequestsCount, 1);
+      // All 3 items are actionable (none have terminal statuses)
+      // wi-1: requestStatus=PENDING, wi-2: orderStatus=PENDING, wi-3: orderStatus=CONFIRMED
+      expect(provider.pendingRequestsCount, 3);
     });
 
     test('pendingOrdersCount counts pickup/delivery orders with PENDING or CONFIRMED', () async {
@@ -90,7 +91,9 @@ void main() {
 
     test('totalBadgeCount sums pending counts', () async {
       await provider.refresh('token', 'pharm-1');
-      expect(provider.totalBadgeCount, 3);
+      // actionableRequests(3) + pendingOrdersCount(2) => total badge = 5
+      // The badge total uses pendingRequestsCount + pendingOrdersCount
+      expect(provider.totalBadgeCount, 5);
     });
 
     test('refresh sets error on failure', () async {

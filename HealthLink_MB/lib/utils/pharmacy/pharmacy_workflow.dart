@@ -1,4 +1,19 @@
 import '../../models/pharmacy/pharmacy_order.dart';
+import '../../models/pharmacy/pharmacy_work_item.dart';
+
+class PharmacyOrderTransition {
+  const PharmacyOrderTransition({
+    required this.targetStatus,
+    required this.label,
+    required this.confirmationTitle,
+    required this.confirmationMessage,
+  });
+
+  final String targetStatus;
+  final String label;
+  final String confirmationTitle;
+  final String confirmationMessage;
+}
 
 class PharmacyWorkflow {
   PharmacyWorkflow._();
@@ -45,6 +60,7 @@ class PharmacyWorkflow {
 
     final isDelivery = deliveryType.toUpperCase() == 'DELIVERY';
 
+    if (status == 'PREPARING') return 'READY';
     if (status == 'READY') {
       return isDelivery ? 'SHIPPING' : 'COMPLETED';
     }
@@ -55,12 +71,82 @@ class PharmacyWorkflow {
   }
 
   /// Returns false for terminal orders, patient-confirmation waits,
-  /// and unpaid states the backend cannot progress.
+  /// and unpaid/non-paid states the backend cannot progress.
   static bool canProgressOrder(PharmacyOrder order) {
     if (_terminalStatuses.contains(order.status)) return false;
     if (order.requiresPatientConfirmation == true) return false;
-    if (order.paymentStatus == 'UNPAID') return false;
+
+    const fulfillmentStatuses = {
+      'PREPARING',
+      'READY',
+      'SHIPPING',
+      'DELIVERED',
+    };
+    if (fulfillmentStatuses.contains(order.status) &&
+        order.paymentStatus != 'PAID') {
+      return false;
+    }
     return true;
+  }
+
+  /// Returns the next canonical [PharmacyOrderTransition] for a given order,
+  /// or null if the order cannot progress.
+  static PharmacyOrderTransition? nextTransition(PharmacyOrder order) {
+    if (!canProgressOrder(order)) return null;
+
+    final next = getNextOrderStatus(
+      status: order.status,
+      deliveryType: order.deliveryType ?? 'PICKUP',
+    );
+    if (next == null) return null;
+
+    final isDelivery = (order.deliveryType ?? 'PICKUP').toUpperCase() == 'DELIVERY';
+
+    switch (next) {
+      case 'READY':
+        return const PharmacyOrderTransition(
+          targetStatus: 'READY',
+          label: 'Mark ready',
+          confirmationTitle: 'Mark order ready?',
+          confirmationMessage:
+            'Medicines will be marked as packed and inventory quantities will be deducted.',
+        );
+      case 'SHIPPING':
+        return const PharmacyOrderTransition(
+          targetStatus: 'SHIPPING',
+          label: 'Start delivery',
+          confirmationTitle: 'Start delivery?',
+          confirmationMessage:
+            'Confirm that this order has left the pharmacy for delivery.',
+        );
+      case 'DELIVERED':
+        return const PharmacyOrderTransition(
+          targetStatus: 'DELIVERED',
+          label: 'Mark delivered',
+          confirmationTitle: 'Mark order delivered?',
+          confirmationMessage:
+            'Confirm that the order has been delivered to the patient.',
+        );
+      case 'COMPLETED':
+        if (isDelivery) {
+          return const PharmacyOrderTransition(
+            targetStatus: 'COMPLETED',
+            label: 'Complete order',
+            confirmationTitle: 'Complete order?',
+            confirmationMessage:
+              'Confirm that delivery is complete and this order can be closed.',
+          );
+        }
+        return const PharmacyOrderTransition(
+          targetStatus: 'COMPLETED',
+          label: 'Complete pickup',
+          confirmationTitle: 'Complete pickup?',
+          confirmationMessage:
+            'Confirm that the patient has collected this order.',
+        );
+      default:
+        return null;
+    }
   }
 
   static String workflowLabel(String status) {
@@ -91,5 +177,30 @@ class PharmacyWorkflow {
       default:
         return [];
     }
+  }
+
+  /// Filters and sorts work items to only those requiring pharmacy action.
+  /// Excludes terminal requests (CANCELLED, REJECTED) and terminal orders
+  /// (DELIVERED, COMPLETED, CANCELLED, REFUNDED). Results are sorted oldest-first.
+  static List<PharmacyWorkItem> actionableRequests(
+    Iterable<PharmacyWorkItem> items,
+  ) {
+    const terminalRequests = {'CANCELLED', 'REJECTED'};
+    const terminalOrders = {
+      'DELIVERED',
+      'COMPLETED',
+      'CANCELLED',
+      'REFUNDED',
+    };
+
+    final result = items.where((item) {
+      final requestStatus = item.requestStatus?.toUpperCase();
+      final orderStatus = item.orderStatus?.toUpperCase();
+      return !terminalRequests.contains(requestStatus) &&
+          !terminalOrders.contains(orderStatus);
+    }).toList();
+
+    result.sort((a, b) => a.createdAt.compareTo(b.createdAt));
+    return result;
   }
 }

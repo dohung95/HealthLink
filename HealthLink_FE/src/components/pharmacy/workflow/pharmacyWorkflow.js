@@ -193,10 +193,10 @@ export const ACTION_LABELS = {
 
 export function canUseRequestChat(item) {
   if (!item) return false;
-  if (getWorkItemKind(item) !== 'consultation') return false;
-  const stage = (item.workflowStage || '').toUpperCase();
-  if (stage !== 'CONSULTING' && stage !== 'IN_REVIEW') return false;
-  return !!item.chatRoomId;
+  if (item.requestType !== 'CONSULTATION') return false;
+  if (!item.chatRoomId) return false;
+  if (!item.availableActions?.includes('CHAT')) return false;
+  return true;
 }
 
 export function matchesPharmacyWorkflowSearch(item, query) {

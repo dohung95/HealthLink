@@ -8,9 +8,11 @@ import '../../models/notification/notification_item.dart';
 class NotificationService {
   NotificationService({
     required this.accessToken,
-  });
+    http.Client? client,
+  }) : _client = client ?? http.Client();
 
   final String accessToken;
+  final http.Client _client;
 
   Map<String, String> get _headers => {
     'Authorization': 'Bearer $accessToken',
@@ -29,7 +31,7 @@ class NotificationService {
       },
     );
 
-    final response = await http
+    final response = await _client
         .get(uri, headers: _headers)
         .timeout(ApiConfig.receiveTimeout);
 
@@ -58,7 +60,7 @@ class NotificationService {
   }
 
   Future<int> getUnreadCount() async {
-    final response = await http
+    final response = await _client
         .get(
       Uri.parse(ApiConfig.notificationUnreadCount),
       headers: _headers,
@@ -79,7 +81,7 @@ class NotificationService {
   }
 
   Future<void> markAsRead(int notificationId) async {
-    final response = await http
+    final response = await _client
         .patch(
       Uri.parse(ApiConfig.markNotificationAsRead(notificationId)),
       headers: _headers,
@@ -94,7 +96,7 @@ class NotificationService {
   }
 
   Future<void> markAllAsRead() async {
-    final response = await http
+    final response = await _client
         .patch(
       Uri.parse(ApiConfig.markAllNotificationsAsRead),
       headers: _headers,
@@ -110,13 +112,10 @@ class NotificationService {
 
   String _parseError(http.Response response, String fallback) {
     try {
-      final data = jsonDecode(response.body);
+      final data = jsonDecode(utf8.decode(response.bodyBytes));
 
       if (data is Map<String, dynamic>) {
-        return (data['message'] ??
-            data['error'] ??
-            data['title'] ??
-            fallback)
+        return (data['message'] ?? data['error'] ?? data['title'] ?? fallback)
             .toString();
       }
     } catch (_) {

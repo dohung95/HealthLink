@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { login as loginAPI, register as registerAPI, logout as logoutAPI, forgotPassword as forgotPasswordAPI, resetPassword as resetPasswordAPI, setupAxiosInterceptors } from '../api/auth';
 import { decodeToken, getTokenExpiresIn } from '../utils/tokenUtils';
+import { toIncomingCall } from '../utils/videoCallSignal';
 import stompChatService from '../services/stompChatService';
 import videoCallService from '../services/videoCallService';
 import { toast } from 'sonner';
@@ -242,7 +243,7 @@ export function AuthProvider({ children }) {
                         }
 
                         // Nhận được cuộc gọi mới
-                        setIncomingCall({ callerId: senderId, callerName: senderName, roomId: data });
+                        setIncomingCall(toIncomingCall(signal));
                     }
                     // else if (type === "CALL_ACCEPTED") {
                     //     // Bác sĩ (người gọi) nhận được tín hiệu bắt máy từ bệnh nhân

@@ -3,9 +3,10 @@ import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/pharmacy/pharmacy_request_provider.dart';
+import '../../providers/pharmacy/pharmacy_workflow_provider.dart';
 import '../../models/pharmacy/pharmacy_consultation_request.dart';
 import '../../models/pharmacy/pharmacy_work_item.dart';
-import '../../models/chat/conversation.dart';
+import '../../utils/pharmacy/pharmacy_chat_policy.dart';
 import '../../widgets/pharmacy/request_status_chip.dart';
 import '../../widgets/pharmacy/delivery_contact_review_sheet.dart';
 import '../chat/chat_room_screen.dart';
@@ -14,7 +15,12 @@ import 'pharmacy_order_detail_screen.dart';
 
 class PharmacyRequestDetailScreen extends StatefulWidget {
   final String requestId;
-  const PharmacyRequestDetailScreen({super.key, required this.requestId});
+  final PharmacyWorkItem? workItem;
+  const PharmacyRequestDetailScreen({
+    super.key,
+    required this.requestId,
+    this.workItem,
+  });
 
   @override
   State<PharmacyRequestDetailScreen> createState() =>
@@ -32,12 +38,10 @@ class _PharmacyRequestDetailScreenState
   Future<void> _loadDetail() async {
     final auth = context.read<AuthProvider>();
     if (auth.accessToken != null) {
-      await context
-          .read<PharmacyRequestProvider>()
-          .fetchRequestDetail(auth.accessToken!, widget.requestId);
-      await context
-          .read<PharmacyRequestProvider>()
-          .fetchPrescriptions(auth.accessToken!, widget.requestId);
+      final provider = context.read<PharmacyRequestProvider>();
+      await provider.fetchRequestDetail(auth.accessToken!, widget.requestId);
+      if (!mounted) return;
+      await provider.fetchPrescriptions(auth.accessToken!, widget.requestId);
     }
   }
 
@@ -68,16 +72,18 @@ class _PharmacyRequestDetailScreenState
           : 'Reject and cancel this consultation request?',
     );
     if (!confirmed) return;
+    if (!mounted) return;
 
     final auth = context.read<AuthProvider>();
     if (auth.accessToken == null) return;
-    final success =
-        await context.read<PharmacyRequestProvider>().updateRequestStatus(
+    final provider = context.read<PharmacyRequestProvider>();
+    final success = await provider.updateRequestStatus(
               auth.accessToken!,
               widget.requestId,
               status,
             );
-    if (success && mounted) {
+    if (!mounted) return;
+    if (success) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
             content: Text(
@@ -90,41 +96,39 @@ class _PharmacyRequestDetailScreenState
     final auth = context.read<AuthProvider>();
     if (auth.accessToken == null) return;
     final provider = context.read<PharmacyRequestProvider>();
-    await provider.fetchChatRoomId(auth.accessToken!, widget.requestId);
+    await provider.fetchChatRoom(
+        auth.accessToken!, widget.requestId, auth.userId!);
     if (!mounted) return;
-    final roomId = provider.chatRoomId;
-    if (roomId != null) {
+    final room = provider.chatRoom;
+    if (room != null) {
       Navigator.push(
         context,
         MaterialPageRoute(
           builder: (_) => ChatRoomScreen(
-            conversation: Conversation(
-              id: roomId,
-              partnerId: provider.currentRequest?.patientId ?? '',
-              partnerName: provider.currentRequest?.patientName ?? 'Patient',
-              lastMessage: '',
-              lastMessageTime: DateTime.now(),
-              isLastMessageRead: true,
-            ),
+            conversation: room,
           ),
         ),
       );
-    } else {
-      // ponytail: fallback to generic messages when no room exists
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (_) => const Scaffold(
-            appBar: null,
-            body: Center(child: Text('Chat room not available')),
-          ),
+    } else if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(provider.chatError ?? 'Chat room is not available'),
+          action: SnackBarAction(label: 'Retry', onPressed: _openChat),
         ),
       );
     }
   }
 
-  void _showCreateOrderDialog() {
-    Navigator.push(
+  PharmacyWorkItem? _matchingWorkflowItem(BuildContext context) {
+    final request = context.read<PharmacyRequestProvider>().currentRequest;
+    if (request == null) return widget.workItem;
+    final fromProvider =
+        context.read<PharmacyWorkflowProvider>().getItemByRequestId(request.requestId);
+    return fromProvider ?? widget.workItem;
+  }
+
+  Future<void> _showCreateOrderDialog() async {
+    await Navigator.push(
       context,
       MaterialPageRoute(
         builder: (_) => PharmacyQuoteEditorScreen(
@@ -133,6 +137,19 @@ class _PharmacyRequestDetailScreenState
         ),
       ),
     );
+    await _refreshWorkflow();
+  }
+
+  Future<void> _refreshWorkflow() async {
+    final auth = context.read<AuthProvider>();
+    if (auth.accessToken != null) {
+      final pharmacyId =
+          auth.pharmacyProfile?['pharmacyId']?.toString() ?? auth.userId!;
+      await context.read<PharmacyWorkflowProvider>().refresh(
+        auth.accessToken!,
+        pharmacyId,
+      );
+    }
   }
 
   void _showDeliveryReviewSheet() {
@@ -209,7 +226,7 @@ class _PharmacyRequestDetailScreenState
                 )
               : _buildContent(provider.currentRequest!, theme),
       bottomNavigationBar:
-          _buildActions(provider.currentRequest!, theme),
+          _buildActions(provider.currentRequest!, theme, provider),
     );
   }
 
@@ -343,8 +360,21 @@ class _PharmacyRequestDetailScreenState
     );
   }
 
+  bool _hasChatRoom(
+    PharmacyConsultationRequest request,
+    PharmacyRequestProvider provider,
+  ) {
+    final requestRoomId = request.chatRoomId?.trim();
+    if (requestRoomId != null && requestRoomId.isNotEmpty) return true;
+
+    final loadedRoomId = provider.chatRoomId?.trim() ?? provider.chatRoom?.id.trim();
+    return loadedRoomId != null && loadedRoomId.isNotEmpty;
+  }
+
   Widget? _buildActions(
-      PharmacyConsultationRequest? request, ThemeData theme) {
+      PharmacyConsultationRequest? request,
+      ThemeData theme,
+      PharmacyRequestProvider provider) {
     if (request == null) return null;
 
     final actions = <Widget>[];
@@ -369,24 +399,59 @@ class _PharmacyRequestDetailScreenState
           ),
         ),
       ]);
-    } else if (request.status == 'IN_REVIEW') {
-      actions.addAll([
-        Expanded(
-          child: OutlinedButton.icon(
-            onPressed: _openChat,
-            icon: const Icon(Icons.chat),
-            label: const Text('Chat'),
+    } else if (request.status == 'IN_REVIEW' &&
+        request.requestType?.toUpperCase() == 'CONSULTATION') {
+      final workflowItem = _matchingWorkflowItem(context);
+      final canChat = workflowItem != null &&
+          PharmacyChatPolicy.canEditWorkItem(workflowItem);
+      final isRevision = workflowItem?.workflowStage.toUpperCase() ==
+          'REVISION_REQUESTED';
+
+      if (_hasChatRoom(request, provider) && canChat) {
+        actions.add(
+          Expanded(
+            child: OutlinedButton.icon(
+              onPressed: _openChat,
+              icon: const Icon(Icons.chat),
+              label: const Text('Chat'),
+            ),
           ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: FilledButton.icon(
-            onPressed: _showCreateOrderDialog,
-            icon: const Icon(Icons.add_shopping_cart),
-            label: const Text('Create Order'),
+        );
+        actions.add(const SizedBox(width: 12));
+      }
+
+      if (isRevision && request.pharmacyOrderId != null) {
+        actions.add(
+          Expanded(
+            child: FilledButton.icon(
+              onPressed: () async {
+                await Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => PharmacyQuoteEditorScreen(
+                      mode: QuoteEditorMode.updateQuote,
+                      orderId: request.pharmacyOrderId.toString(),
+                    ),
+                  ),
+                );
+                await _refreshWorkflow();
+              },
+              icon: const Icon(Icons.edit),
+              label: const Text('Update Quote'),
+            ),
           ),
-        ),
-      ]);
+        );
+      } else if (!isRevision) {
+        actions.add(
+          Expanded(
+            child: FilledButton.icon(
+              onPressed: _showCreateOrderDialog,
+              icon: const Icon(Icons.add_shopping_cart),
+              label: const Text('Create Order'),
+            ),
+          ),
+        );
+      }
     } else if (request.status == 'NEED_MORE_INFO' ||
         request.requestType == 'DELIVERY_CONTACT_REVIEW') {
       actions.add(

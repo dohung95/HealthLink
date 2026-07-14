@@ -297,13 +297,13 @@ class ChatProvider extends ChangeNotifier {
     try {
       final updatedConv = await ChatService.getRoomById(accessToken, userId, conversation.id);
       conversation = updatedConv;
-      
+
       // Cập nhật lại trong danh sách _conversations
       final idx = _conversations.indexWhere((c) => c.id == updatedConv.id);
       if (idx != -1) {
         _conversations[idx] = updatedConv;
         // Báo cho UI cập nhật (nếu cần thiết ngay lập tức)
-        // notifyListeners(); 
+        // notifyListeners();
       }
     } catch (e) {
       debugPrint('Error refreshing conversation in openConversation: $e');

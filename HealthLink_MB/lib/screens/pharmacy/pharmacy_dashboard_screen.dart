@@ -7,8 +7,10 @@ import '../../providers/auth_provider.dart';
 import '../../providers/pharmacy/pharmacy_workflow_provider.dart';
 import '../../providers/pharmacy/pharmacy_order_provider.dart';
 import '../../providers/pharmacy/pharmacy_inventory_provider.dart';
+import '../../providers/pharmacy/pharmacy_revenue_provider.dart';
 import '../../utils/pharmacy/pharmacy_overview_metrics.dart';
 import '../../utils/pharmacy/pharmacy_workflow.dart';
+import '../../widgets/pharmacy/pharmacy_revenue_card.dart';
 
 class PharmacyDashboardScreen extends StatefulWidget {
   final void Function(int tabIndex)? onNavigate;
@@ -80,7 +82,13 @@ class _PharmacyDashboardScreenState extends State<PharmacyDashboardScreen> {
           if (auth.accessToken != null) {
             final pharmacyId =
                 auth.pharmacyProfile?['pharmacyId']?.toString() ?? auth.userId!;
-            await workflow.refresh(auth.accessToken!, pharmacyId);
+            await Future.wait([
+              workflow.refresh(auth.accessToken!, pharmacyId),
+              context.read<PharmacyRevenueProvider>().refresh(
+                    token: auth.accessToken!,
+                    pharmacyId: pharmacyId,
+                  ),
+            ]);
           }
         },
         child: SingleChildScrollView(
@@ -103,7 +111,7 @@ class _PharmacyDashboardScreenState extends State<PharmacyDashboardScreen> {
               _buildMetricsGrid(theme, activeOrders, pendingReqs, riskTotal,
                   rate, revenue),
               const SizedBox(height: 20),
-              _buildRevenueBarChart(theme, orders),
+              const PharmacyRevenueCard(),
               const SizedBox(height: 20),
               _buildWorkflowQueue(theme, queue),
               const SizedBox(height: 20),
@@ -241,73 +249,6 @@ class _PharmacyDashboardScreenState extends State<PharmacyDashboardScreen> {
                       ?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
             ],
           ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildRevenueBarChart(ThemeData theme, List<PharmacyOrder> orders) {
-    final byMonth = PharmacyOverviewMetrics.revenueByMonth(orders);
-    if (byMonth.isEmpty) return const SizedBox.shrink();
-
-    final entries = byMonth.entries.toList()
-      ..sort((a, b) => a.key.compareTo(b.key));
-    final maxVal =
-        entries.map((e) => e.value).reduce((a, b) => a > b ? a : b);
-    if (maxVal == 0) return const SizedBox.shrink();
-    final maxBarHeight = 120.0;
-
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Monthly Revenue',
-                style: theme.textTheme.titleSmall
-                    ?.copyWith(fontWeight: FontWeight.w600)),
-            const SizedBox(height: 12),
-            SizedBox(
-              height: maxBarHeight + 24,
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: entries.map((e) {
-                  final ratio = e.value / maxVal;
-                  final barHeight = ratio * maxBarHeight;
-                  final monthLabel = e.key.length >= 7
-                      ? e.key.substring(5, 7)
-                      : e.key;
-                  return Expanded(
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 2),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.end,
-                        children: [
-                          Text('\$${e.value.toStringAsFixed(0)}',
-                              style: theme.textTheme.labelSmall
-                                  ?.copyWith(fontSize: 9)),
-                          const SizedBox(height: 2),
-                          Container(
-                            width: 20,
-                            height: barHeight.clamp(4, maxBarHeight),
-                            decoration: BoxDecoration(
-                              color: theme.colorScheme.primary,
-                              borderRadius:
-                                  const BorderRadius.vertical(top: Radius.circular(4)),
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(monthLabel,
-                              style: theme.textTheme.labelSmall
-                                  ?.copyWith(fontSize: 9)),
-                        ],
-                      ),
-                    ),
-                  );
-                }).toList(),
-              ),
-            ),
-          ],
         ),
       ),
     );

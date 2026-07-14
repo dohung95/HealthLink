@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../../../config/api_config.dart';
+import '../../../models/chat/conversation.dart';
 
 class PharmacyService {
   PharmacyService._();
@@ -134,6 +135,22 @@ class PharmacyService {
       return jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>;
     }
     throw Exception('Failed to cancel order: ${res.body}');
+  }
+
+  static Future<Conversation> getChatRoom(String token, String requestId, String currentUserId) async {
+    final res = await http.get(
+      Uri.parse(ApiConfig.pharmacyRequestChatRoom(requestId)),
+      headers: {
+        'Accept': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+    ).timeout(ApiConfig.connectTimeout);
+
+    if (res.statusCode == 200) {
+      final json = jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>;
+      return Conversation.fromJson(json, currentUserId);
+    }
+    throw Exception('Failed to load chat room (${res.statusCode})');
   }
 
   // ── Retail Store Methods ─────────────────────────────────────────────────
