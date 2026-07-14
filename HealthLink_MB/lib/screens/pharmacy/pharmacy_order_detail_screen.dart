@@ -632,7 +632,7 @@ class _PharmacyOrderDetailScreenState extends State<PharmacyOrderDetailScreen> {
             conversation: room,
             readOnly: true,
             title: 'Chat history',
-            readOnlyMessage: 'This request has ended. Messages are view-only.',
+            readOnlyMessage: 'This pharmacy conversation is read-only.',
           ),
         ),
       );

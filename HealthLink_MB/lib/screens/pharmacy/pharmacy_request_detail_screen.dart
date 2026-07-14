@@ -3,8 +3,10 @@ import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/pharmacy/pharmacy_request_provider.dart';
+import '../../providers/pharmacy/pharmacy_workflow_provider.dart';
 import '../../models/pharmacy/pharmacy_consultation_request.dart';
 import '../../models/pharmacy/pharmacy_work_item.dart';
+import '../../utils/pharmacy/pharmacy_chat_policy.dart';
 import '../../widgets/pharmacy/request_status_chip.dart';
 import '../../widgets/pharmacy/delivery_contact_review_sheet.dart';
 import '../chat/chat_room_screen.dart';
@@ -13,7 +15,12 @@ import 'pharmacy_order_detail_screen.dart';
 
 class PharmacyRequestDetailScreen extends StatefulWidget {
   final String requestId;
-  const PharmacyRequestDetailScreen({super.key, required this.requestId});
+  final PharmacyWorkItem? workItem;
+  const PharmacyRequestDetailScreen({
+    super.key,
+    required this.requestId,
+    this.workItem,
+  });
 
   @override
   State<PharmacyRequestDetailScreen> createState() =>
@@ -112,8 +119,16 @@ class _PharmacyRequestDetailScreenState
     }
   }
 
-  void _showCreateOrderDialog() {
-    Navigator.push(
+  PharmacyWorkItem? _matchingWorkflowItem(BuildContext context) {
+    final request = context.read<PharmacyRequestProvider>().currentRequest;
+    if (request == null) return widget.workItem;
+    final fromProvider =
+        context.read<PharmacyWorkflowProvider>().getItemByRequestId(request.requestId);
+    return fromProvider ?? widget.workItem;
+  }
+
+  Future<void> _showCreateOrderDialog() async {
+    await Navigator.push(
       context,
       MaterialPageRoute(
         builder: (_) => PharmacyQuoteEditorScreen(
@@ -122,6 +137,19 @@ class _PharmacyRequestDetailScreenState
         ),
       ),
     );
+    await _refreshWorkflow();
+  }
+
+  Future<void> _refreshWorkflow() async {
+    final auth = context.read<AuthProvider>();
+    if (auth.accessToken != null) {
+      final pharmacyId =
+          auth.pharmacyProfile?['pharmacyId']?.toString() ?? auth.userId!;
+      await context.read<PharmacyWorkflowProvider>().refresh(
+        auth.accessToken!,
+        pharmacyId,
+      );
+    }
   }
 
   void _showDeliveryReviewSheet() {
@@ -372,9 +400,14 @@ class _PharmacyRequestDetailScreenState
         ),
       ]);
     } else if (request.status == 'IN_REVIEW' &&
-        request.requestType?.toUpperCase() == 'CONSULTATION' &&
-        request.pharmacyOrderId == null) {
-      if (_hasChatRoom(request, provider)) {
+        request.requestType?.toUpperCase() == 'CONSULTATION') {
+      final workflowItem = _matchingWorkflowItem(context);
+      final canChat = workflowItem != null &&
+          PharmacyChatPolicy.canEditWorkItem(workflowItem);
+      final isRevision = workflowItem?.workflowStage.toUpperCase() ==
+          'REVISION_REQUESTED';
+
+      if (_hasChatRoom(request, provider) && canChat) {
         actions.add(
           Expanded(
             child: OutlinedButton.icon(
@@ -386,15 +419,39 @@ class _PharmacyRequestDetailScreenState
         );
         actions.add(const SizedBox(width: 12));
       }
-      actions.add(
-        Expanded(
-          child: FilledButton.icon(
-            onPressed: _showCreateOrderDialog,
-            icon: const Icon(Icons.add_shopping_cart),
-            label: const Text('Create Order'),
+
+      if (isRevision && request.pharmacyOrderId != null) {
+        actions.add(
+          Expanded(
+            child: FilledButton.icon(
+              onPressed: () async {
+                await Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => PharmacyQuoteEditorScreen(
+                      mode: QuoteEditorMode.updateQuote,
+                      orderId: request.pharmacyOrderId.toString(),
+                    ),
+                  ),
+                );
+                await _refreshWorkflow();
+              },
+              icon: const Icon(Icons.edit),
+              label: const Text('Update Quote'),
+            ),
           ),
-        ),
-      );
+        );
+      } else if (!isRevision) {
+        actions.add(
+          Expanded(
+            child: FilledButton.icon(
+              onPressed: _showCreateOrderDialog,
+              icon: const Icon(Icons.add_shopping_cart),
+              label: const Text('Create Order'),
+            ),
+          ),
+        );
+      }
     } else if (request.status == 'NEED_MORE_INFO' ||
         request.requestType == 'DELIVERY_CONTACT_REVIEW') {
       actions.add(

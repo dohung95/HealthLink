@@ -194,6 +194,36 @@ void main() {
       expect(find.text('Summary'), findsOneWidget);
       expect(tester.takeException(), isNull);
     });
+
+    testWidgets('order without pharmacyRequestId hides Chat history', (
+      tester,
+    ) async {
+      final order = _detailOrder();
+      final noRequestOrder = PharmacyOrder(
+        orderId: order.orderId,
+        orderNumber: order.orderNumber,
+        pharmacyId: order.pharmacyId,
+        pharmacyName: order.pharmacyName,
+        patientId: order.patientId,
+        patientName: order.patientName,
+        status: order.status,
+        deliveryType: order.deliveryType,
+        deliveryAddress: order.deliveryAddress,
+        deliveryPhoneNumber: order.deliveryPhoneNumber,
+        medicineAmount: order.medicineAmount,
+        deliveryFee: order.deliveryFee,
+        totalAmount: order.totalAmount,
+        paymentStatus: order.paymentStatus,
+        paymentMethod: order.paymentMethod,
+        items: order.items,
+        createdAt: order.createdAt,
+      );
+      await tester.pumpWidget(_detailApp(noRequestOrder));
+      await tester.pump();
+
+      // Scan both tabs for Chat history
+      expect(find.text('Chat history'), findsNothing);
+    });
   });
 
   group('PharmacyOrderProvider — updateOrderStatus', () {

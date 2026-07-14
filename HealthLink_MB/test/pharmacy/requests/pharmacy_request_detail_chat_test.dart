@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:HealthLink/l10n/app_localizations.dart';
 import 'package:HealthLink/models/chat/conversation.dart';
 import 'package:HealthLink/models/chat/message.dart';
+import 'package:HealthLink/models/pharmacy/pharmacy_work_item.dart';
 import 'package:HealthLink/providers/auth_provider.dart';
 import 'package:HealthLink/providers/chat/chat_provider.dart';
 import 'package:HealthLink/providers/pharmacy/pharmacy_workflow_provider.dart';
@@ -33,8 +34,61 @@ class _NoopWorkflow extends PharmacyWorkflowProvider {
   void stopPolling() {}
 }
 
+class _WorkflowWithItems extends PharmacyWorkflowProvider {
+  _WorkflowWithItems(this.items);
+  final List<PharmacyWorkItem> items;
+
+  @override
+  List<PharmacyWorkItem> get workItems => items;
+}
+
+PharmacyWorkItem _consultationWorkItem({
+  int requestId = 1,
+  List<String> availableActions = const ['CHAT'],
+  String? chatRoomId = 'room-1',
+}) {
+  return PharmacyWorkItem(
+    id: 'wi-$requestId',
+    pharmacyId: 'pharm-1',
+    sourceId: requestId,
+    sourceType: WorkItemSourceType.consultation,
+    workflowStage: 'REVIEW',
+    availableActions: availableActions,
+    patientId: 'pat-1',
+    patientName: 'Patient 1',
+    requestId: requestId,
+    requestType: 'CONSULTATION',
+    chatRoomId: chatRoomId,
+    createdAt: DateTime.now(),
+  );
+}
+
+PharmacyWorkItem _revisionWorkItem({
+  int requestId = 1,
+  int orderId = 99,
+  List<String> availableActions = const ['CHAT', 'UPDATE_QUOTE'],
+}) {
+  return PharmacyWorkItem(
+    id: 'wi-r$requestId',
+    pharmacyId: 'pharm-1',
+    sourceId: requestId,
+    sourceType: WorkItemSourceType.revision,
+    workflowStage: 'REVISION_REQUESTED',
+    availableActions: availableActions,
+    patientId: 'pat-1',
+    patientName: 'Patient 1',
+    requestId: requestId,
+    orderId: orderId,
+    requestType: 'CONSULTATION',
+    chatRoomId: 'room-1',
+    createdAt: DateTime.now(),
+  );
+}
+
 Widget _buildTestApp({
   required PharmacyRequestProvider requestProvider,
+  PharmacyWorkflowProvider? workflowProvider,
+  PharmacyWorkItem? workItem,
 }) {
   return MaterialApp(
     localizationsDelegates: AppLocalizations.localizationsDelegates,
@@ -45,13 +99,16 @@ Widget _buildTestApp({
           value: _MockAuth(),
         ),
         ChangeNotifierProvider<PharmacyWorkflowProvider>.value(
-          value: _NoopWorkflow(),
+          value: workflowProvider ?? _NoopWorkflow(),
         ),
         ChangeNotifierProvider<PharmacyRequestProvider>.value(
           value: requestProvider,
         ),
       ],
-      child: const PharmacyRequestDetailScreen(requestId: '1'),
+      child: PharmacyRequestDetailScreen(
+        requestId: '1',
+        workItem: workItem,
+      ),
     ),
   );
 }
@@ -171,7 +228,10 @@ void main() {
       provider.clearCurrentRequest();
       // Manually set via internal path
       await provider.fetchRequestDetail('mock-token', '1');
-      await tester.pumpWidget(_buildTestApp(requestProvider: provider));
+      await tester.pumpWidget(_buildTestApp(
+        requestProvider: provider,
+        workItem: _consultationWorkItem(),
+      ));
       await tester.pump();
 
       expect(find.text('Chat'), findsOneWidget);
@@ -308,7 +368,10 @@ void main() {
       );
 
       await provider.fetchRequestDetail('mock-token', '1');
-      await tester.pumpWidget(_buildTestApp(requestProvider: provider));
+      await tester.pumpWidget(_buildTestApp(
+        requestProvider: provider,
+        workItem: _consultationWorkItem(),
+      ));
       await tester.pump();
 
       // Tap Chat button
@@ -318,6 +381,66 @@ void main() {
 
       expect(find.text('Exception: Failed to load chat room (404)'), findsOneWidget);
       expect(find.text('Retry'), findsOneWidget);
+    });
+
+    testWidgets('revision shows Chat and Update Quote', (tester) async {
+      final provider = PharmacyRequestProvider(
+        requestService: PharmacyRequestService(
+          client: MockClient((request) async {
+            if (request.url.toString().contains('chat-room')) {
+              return http.Response('{"chatRoomId":"room-1"}', 404);
+            }
+            return http.Response(
+              '{"requestId":1,"patientId":"pat-1","patientName":"Patient 1",'
+              '"status":"IN_REVIEW","pharmacyId":"pharm-1",'
+              '"requestType":"CONSULTATION",'
+              '"pharmacyOrderId":99,'
+              '"chatRoomId":"room-1",'
+              '"createdAt":"2026-07-13T10:00:00"}',
+              200,
+            );
+          }),
+        ),
+      );
+
+      await provider.fetchRequestDetail('mock-token', '1');
+      await tester.pumpWidget(_buildTestApp(
+        requestProvider: provider,
+        workItem: _revisionWorkItem(),
+      ));
+      await tester.pump();
+
+      expect(find.text('Chat'), findsOneWidget);
+      expect(find.text('Update Quote'), findsOneWidget);
+      expect(find.text('Create Order'), findsNothing);
+      expect(find.text('Video Call'), findsNothing);
+    });
+
+    testWidgets('work item without CHAT does not show Chat', (tester) async {
+      final provider = PharmacyRequestProvider(
+        requestService: PharmacyRequestService(
+          client: MockClient((request) async => http.Response(
+                '{"requestId":1,"patientId":"pat-1","patientName":"Patient 1",'
+                '"status":"IN_REVIEW","pharmacyId":"pharm-1",'
+                '"requestType":"CONSULTATION",'
+                '"chatRoomId":"room-1",'
+                '"createdAt":"2026-07-13T10:00:00"}',
+                200,
+              )),
+        ),
+      );
+
+      await provider.fetchRequestDetail('mock-token', '1');
+      await tester.pumpWidget(_buildTestApp(
+        requestProvider: provider,
+        workItem: _consultationWorkItem(
+          availableActions: ['CREATE_ORDER'],
+        ),
+      ));
+      await tester.pump();
+
+      expect(find.text('Chat'), findsNothing);
+      expect(find.text('Create Order'), findsOneWidget);
     });
   });
 

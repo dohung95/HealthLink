@@ -30,6 +30,14 @@ class PharmacyWorkflowProvider extends ChangeNotifier {
 
   int get totalBadgeCount => pendingOrdersCount + pendingRequestsCount;
 
+  PharmacyWorkItem? getItemByRequestId(int requestId) {
+    try {
+      return _workItems.firstWhere((item) => item.requestId == requestId);
+    } catch (_) {
+      return null;
+    }
+  }
+
   Future<void> refresh(String token, String pharmacyId) async {
     if (_isLoading) return;
     _isLoading = true;

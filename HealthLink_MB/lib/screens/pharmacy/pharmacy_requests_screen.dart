@@ -191,6 +191,7 @@ class _PharmacyRequestsScreenState extends State<PharmacyRequestsScreen> {
         MaterialPageRoute(
           builder: (_) => PharmacyRequestDetailScreen(
             requestId: item.requestId!.toString(),
+            workItem: item,
           ),
         ),
       );
