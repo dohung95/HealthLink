@@ -111,4 +111,19 @@ public class PharmacyServiceHelper {
             return List.of();
         }
     }
+
+    public static boolean hasPharmacyChatHistory(PharmacyConsultationRequest request) {
+        return request != null
+                && "CONSULTATION".equals(requestTypeOf(request))
+                && trimToNull(request.getChatRoomId()) != null;
+    }
+
+    public static boolean canSendPharmacyChat(PharmacyConsultationRequest request) {
+        if (!hasPharmacyChatHistory(request)) return false;
+        PharmacyOrder order = request.getOrder();
+        if (order == null) {
+            return "IN_REVIEW".equalsIgnoreCase(trimToEmpty(request.getStatus()));
+        }
+        return "REVISION_REQUESTED".equalsIgnoreCase(trimToEmpty(order.getStatus()));
+    }
 }
