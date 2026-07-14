@@ -1622,6 +1622,14 @@ class AppLocalizationsEn extends AppLocalizations {
       'Pre-consultation vitals saved successfully.';
 
   @override
+  String get chatAppointmentCompleted =>
+      'This consultation has ended. The chat is now read-only.';
+
+  @override
+  String get chatAppointmentNotStarted =>
+      'The appointment has not started yet. Chat will open automatically when it\'s time.';
+
+  @override
   String get vitalsInstructionsTitle =>
       'Instructions before starting the consultation';
 

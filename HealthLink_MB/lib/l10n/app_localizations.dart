@@ -3098,6 +3098,18 @@ abstract class AppLocalizations {
   /// **'Pre-consultation vitals saved successfully.'**
   String get vitalsSavedSuccess;
 
+  /// No description provided for @chatAppointmentCompleted.
+  ///
+  /// In en, this message translates to:
+  /// **'This consultation has ended. The chat is now read-only.'**
+  String get chatAppointmentCompleted;
+
+  /// No description provided for @chatAppointmentNotStarted.
+  ///
+  /// In en, this message translates to:
+  /// **'The appointment has not started yet. Chat will open automatically when it\'s time.'**
+  String get chatAppointmentNotStarted;
+
   /// No description provided for @vitalsInstructionsTitle.
   ///
   /// In en, this message translates to:

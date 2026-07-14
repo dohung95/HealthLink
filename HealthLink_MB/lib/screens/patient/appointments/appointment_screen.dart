@@ -283,54 +283,10 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
   }
 
   void _handleJoinRoom(PatientAppointment appointment) async {
-    final auth = context.read<AuthProvider>();
-    if (!auth.isAuthenticated || auth.accessToken == null || _patientId == null)
-      return;
-
-    setState(() => _actionLoading = true);
-    try {
-      final vitals = await VitalSignService.getLatestAppointmentVitalSign(
-        auth.accessToken!,
-        appointment.appointmentId,
-      );
-
-      if (vitals == null || vitals['vitalSignId'] == null) {
-        if (!mounted) return;
-        setState(() => _actionLoading = false);
-
-        showModalBottomSheet(
-          context: context,
-          isScrollControlled: true,
-          backgroundColor: Theme.of(context).colorScheme.surface,
-          shape: const RoundedRectangleBorder(
-            borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-          ),
-          builder: (_) => VitalsBottomSheet(
-            appointmentId: appointment.appointmentId,
-            onSaved: () {
-              if (appointment.isVideo) {
-                _handleVideo(appointment);
-              } else {
-                _handleChat(appointment);
-              }
-            },
-          ),
-        );
-        return;
-      }
-
-      if (appointment.isVideo) {
-        _handleVideo(appointment);
-      } else {
-        _handleChat(appointment);
-      }
-    } catch (e) {
-      if (!mounted) return;
-      _showMessage(_cleanError(e), isError: true);
-    } finally {
-      if (mounted) {
-        setState(() => _actionLoading = false);
-      }
+    if (appointment.isVideo) {
+      _handleVideo(appointment);
+    } else {
+      _handleChat(appointment);
     }
   }
 

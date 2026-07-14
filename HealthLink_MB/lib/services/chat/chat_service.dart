@@ -49,7 +49,7 @@ class ChatService {
           .toList();
     }
 
-    throw Exception(_parseError(res, 'Không thể tải danh sách phòng chat.'));
+    throw Exception(_parseError(res, 'Cannot load list chat room.'));
   }
 
   /// POST /api/chat/rooms
@@ -79,7 +79,29 @@ class ChatService {
       return Conversation.fromJson(data, currentUserId);
     }
 
-    throw Exception(_parseError(res, 'Không thể tạo phòng chat.'));
+    throw Exception(_parseError(res, 'Cannot create the chat room.'));
+  }
+
+  /// GET /api/chat/rooms/{roomId}
+  /// Lấy thông tin chi tiết phòng chat bằng ID.
+  static Future<Conversation> getRoomById(
+    String token,
+    String currentUserId,
+    String roomId,
+  ) async {
+    final res = await http
+        .get(
+          Uri.parse('${ApiConfig.baseUrl}/chat/rooms/$roomId'),
+          headers: _headers(token),
+        )
+        .timeout(ApiConfig.connectTimeout);
+
+    if (res.statusCode == 200) {
+      final data = jsonDecode(res.body) as Map<String, dynamic>;
+      return Conversation.fromJson(data, currentUserId);
+    }
+
+    throw Exception(_parseError(res, 'Cannot load the chat room.'));
   }
 
   /// POST /api/chat/rooms/{roomId}/block
@@ -126,7 +148,7 @@ class ChatService {
           .toList();
     }
 
-    throw Exception(_parseError(res, 'Không thể tải tin nhắn.'));
+    throw Exception(_parseError(res, 'Cannot load the messages.'));
   }
 
   /// GET /api/chat/rooms/{chatRoomId}/messages/search
@@ -215,7 +237,7 @@ class ChatService {
       return Message.fromJson(data, currentUserId);
     }
 
-    throw Exception(_parseError(res, 'Không thể gửi tin nhắn.'));
+    throw Exception(_parseError(res, 'Cannot send the messages.'));
   }
 
   /// POST /api/chat/upload
