@@ -1,4 +1,11 @@
 import 'dart:convert';
+
+import 'package:HealthLink/models/pharmacy/pharmacy_order_item.dart';
+import 'package:HealthLink/providers/auth_provider.dart';
+import 'package:HealthLink/providers/pharmacy/pharmacy_inventory_provider.dart';
+import 'package:HealthLink/providers/pharmacy/pharmacy_workflow_provider.dart';
+import 'package:HealthLink/screens/pharmacy/pharmacy_order_detail_screen.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
@@ -6,6 +13,7 @@ import 'package:HealthLink/models/pharmacy/pharmacy_order.dart';
 import 'package:HealthLink/providers/pharmacy/pharmacy_order_provider.dart';
 import 'package:HealthLink/services/pharmacy/pharmacy_order_service.dart';
 import 'package:HealthLink/utils/pharmacy/pharmacy_workflow.dart';
+import 'package:provider/provider.dart';
 
 const _token = 'test-token';
 
@@ -40,7 +48,154 @@ PharmacyOrder _sampleOrder({
   );
 }
 
+class _TestAuth extends AuthProvider {
+  @override
+  String? get accessToken => 'test-token';
+
+  @override
+  String? get userId => 'pharm-1';
+
+  @override
+  Map<String, dynamic>? get pharmacyProfile => {'pharmacyId': 'pharm-1'};
+}
+
+class _StaticOrderProvider extends PharmacyOrderProvider {
+  _StaticOrderProvider(this._order)
+    : super(
+        orderService: PharmacyOrderService(
+          client: MockClient((_) async => http.Response('{}', 200)),
+        ),
+      );
+
+  final PharmacyOrder _order;
+
+  @override
+  PharmacyOrder? get currentOrder => _order;
+
+  @override
+  bool get isLoading => false;
+
+  @override
+  Future<void> fetchOrderDetail(String token, String orderId) async {}
+}
+
+PharmacyOrder _detailOrder() {
+  final createdAt = DateTime(2026, 7, 14, 9);
+  return PharmacyOrder(
+    orderId: 17,
+    orderNumber: 'ORD-017-VERY-LONG-REFERENCE',
+    pharmacyId: 'pharm-1',
+    pharmacyName: 'Central Pharmacy',
+    patientId: 'pat-1',
+    patientName: 'Nguyen Thi Patient',
+    status: 'SHIPPING',
+    deliveryType: 'DELIVERY',
+    deliveryAddress: '42 Long Delivery Address, Ward 7, Ho Chi Minh City',
+    deliveryPhoneNumber: '+84 912 345 678',
+    medicineAmount: 100,
+    deliveryFee: 15,
+    totalAmount: 115,
+    paymentStatus: 'PAID',
+    paymentMethod: 'Card',
+    platformFee: 5,
+    pharmacyEarning: 95,
+    pharmacyRequestId: 42,
+    items: const [
+      PharmacyOrderItem(
+        medicationName: 'Acetaminophen 500 mg extended release',
+        quantity: 2,
+        unitPrice: 50,
+        totalPrice: 100,
+      ),
+    ],
+    createdAt: createdAt,
+    confirmedAt: createdAt.add(const Duration(minutes: 10)),
+    preparingAt: createdAt.add(const Duration(minutes: 20)),
+    shippedAt: createdAt.add(const Duration(hours: 2)),
+    paidAt: createdAt.add(const Duration(minutes: 2)),
+  );
+}
+
+Widget _detailApp(PharmacyOrder order) {
+  return MaterialApp(
+    home: MultiProvider(
+      providers: [
+        ChangeNotifierProvider<AuthProvider>.value(value: _TestAuth()),
+        ChangeNotifierProvider<PharmacyOrderProvider>.value(
+          value: _StaticOrderProvider(order),
+        ),
+        ChangeNotifierProvider<PharmacyWorkflowProvider>.value(
+          value: PharmacyWorkflowProvider(),
+        ),
+        ChangeNotifierProvider<PharmacyInventoryProvider>.value(
+          value: PharmacyInventoryProvider(),
+        ),
+      ],
+      child: const PharmacyOrderDetailScreen(orderId: '17'),
+    ),
+  );
+}
+
 void main() {
+  group('PharmacyOrderDetailScreen tabs', () {
+    testWidgets(
+      'shows summary labels for fulfillment, payment, fees and contact',
+      (tester) async {
+        await tester.pumpWidget(_detailApp(_detailOrder()));
+        await tester.pump();
+
+        expect(find.text('Summary'), findsOneWidget);
+        expect(find.text('Items'), findsOneWidget);
+        expect(find.text('Timeline'), findsOneWidget);
+        expect(find.text('Fulfillment'), findsOneWidget);
+        expect(find.text('Payment'), findsWidgets);
+        expect(find.text('Patient contact'), findsOneWidget);
+        expect(find.text('Delivery fee'), findsOneWidget);
+      },
+    );
+
+    testWidgets('switches to items with order totals and chat history access', (
+      tester,
+    ) async {
+      await tester.pumpWidget(_detailApp(_detailOrder()));
+      await tester.pump();
+
+      await tester.tap(find.text('Items'));
+      await tester.pumpAndSettle();
+
+      expect(
+        find.text('Acetaminophen 500 mg extended release'),
+        findsOneWidget,
+      );
+      expect(find.text('Medicine total'), findsOneWidget);
+      expect(find.text('Chat history'), findsOneWidget);
+    });
+
+    testWidgets('switches to the order timeline', (tester) async {
+      await tester.pumpWidget(_detailApp(_detailOrder()));
+      await tester.pump();
+
+      await tester.tap(find.text('Timeline'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Order timeline'), findsOneWidget);
+      expect(find.text('Created'), findsOneWidget);
+      expect(find.text('Shipped'), findsOneWidget);
+    });
+
+    testWidgets('keeps tab content within a narrow phone width', (
+      tester,
+    ) async {
+      await tester.binding.setSurfaceSize(const Size(320, 800));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      await tester.pumpWidget(_detailApp(_detailOrder()));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Summary'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+  });
+
   group('PharmacyOrderProvider — updateOrderStatus', () {
     test('returns true on success and updates currentOrder', () async {
       final mockClient = MockClient((request) async {
@@ -167,9 +322,11 @@ void main() {
         _sampleOrder(id: 4, status: 'PREPARING'),
         _sampleOrder(id: 5, status: 'COMPLETED'),
       ];
-      for (final o in orders) {
-        expect(provider.flowGroupedOrders, isA<Map<String, List<PharmacyOrder>>>());
-      }
+      expect(orders, hasLength(5));
+      expect(
+        provider.flowGroupedOrders,
+        isA<Map<String, List<PharmacyOrder>>>(),
+      );
     });
   });
 
