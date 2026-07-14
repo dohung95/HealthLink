@@ -691,13 +691,14 @@ class _PharmacyQuoteEditorScreenState
       return SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(16),
-          child: Align(
-            alignment: Alignment.centerLeft,
-            child: OutlinedButton.icon(
-              onPressed: _isSubmitting ? null : _goBack,
-              icon: const Icon(Icons.arrow_back),
-              label: const Text('Back'),
-            ),
+          child: Row(
+            children: [
+              OutlinedButton.icon(
+                onPressed: _isSubmitting ? null : _goBack,
+                icon: const Icon(Icons.arrow_back),
+                label: const Text('Back'),
+              ),
+            ],
           ),
         ),
       );
