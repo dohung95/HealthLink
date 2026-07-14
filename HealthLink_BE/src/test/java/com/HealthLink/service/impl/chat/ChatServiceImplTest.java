@@ -50,11 +50,10 @@ class ChatServiceImplTest {
     }
 
     @Test
-    void sendMessage_whenPharmacyRequestHasOrder_throwsBusinessException() {
-        // Arrange
-        String roomId = "room-1";
-        String senderId = "user-ph01";
-        String receiverId = "user-pat01";
+    void sendMessage_whenNoPharmacyRequest_savesMessage() {
+        String roomId = "room-3";
+        String senderId = "user-dr01";
+        String receiverId = "user-pat03";
 
         ChatRoom chatRoom = ChatRoom.builder()
             .chatRoomId(roomId)
@@ -62,15 +61,16 @@ class ChatServiceImplTest {
             .user2Id(receiverId)
             .build();
 
-        PharmacyConsultationRequest request = PharmacyConsultationRequest.builder()
-            .chatRoomId(roomId)
-            .order(PharmacyOrder.builder().orderId(42).build())
-            .build();
+        User receiver = User.builder().id(receiverId).username("Patient").build();
 
         when(chatRoomRepository.findById(roomId))
             .thenReturn(Optional.of(chatRoom));
         when(pharmacyConsultationRequestRepository.findByChatRoomId(roomId))
-            .thenReturn(Optional.of(request));
+            .thenReturn(Optional.empty());
+        when(userRepository.findById(receiverId))
+            .thenReturn(Optional.of(receiver));
+        when(messageRepository.save(any()))
+            .thenReturn(Message.builder().build());
 
         SendMessageRequest msgRequest = SendMessageRequest.builder()
             .chatRoomId(roomId)
@@ -78,17 +78,14 @@ class ChatServiceImplTest {
             .content("Hello")
             .build();
 
-        // Act & Assert
-        assertThatThrownBy(() -> service.sendMessage(msgRequest, senderId))
-            .isInstanceOf(BusinessException.class)
-            .hasMessage("This pharmacy request has ended. Chat is read-only.");
+        service.sendMessage(msgRequest, senderId);
 
-        verify(messageRepository, never()).save(any());
+        verify(messageRepository, times(1)).save(any());
+        verify(messagingTemplate, times(2)).convertAndSendToUser(anyString(), anyString(), any());
     }
 
     @Test
-    void sendMessage_whenPharmacyRequestHasNoOrder_savesMessage() {
-        // Arrange
+    void sendMessage_whenInReviewNoOrder_savesMessage() {
         String roomId = "room-2";
         String senderId = "user-ph02";
         String receiverId = "user-pat02";
@@ -101,6 +98,7 @@ class ChatServiceImplTest {
 
         PharmacyConsultationRequest request = PharmacyConsultationRequest.builder()
             .chatRoomId(roomId)
+            .status("IN_REVIEW")
             .order(null)
             .build();
 
@@ -122,18 +120,16 @@ class ChatServiceImplTest {
             .content("Hello")
             .build();
 
-        // Act
         service.sendMessage(msgRequest, senderId);
 
-        // Assert
         verify(messageRepository, times(1)).save(any());
+        verify(messagingTemplate, times(2)).convertAndSendToUser(anyString(), anyString(), any());
     }
 
     @Test
-    void sendMessage_whenNoPharmacyRequest_savesMessage() {
-        // Arrange
-        String roomId = "room-3";
-        String senderId = "user-dr01";
+    void sendMessage_whenRevisionRequestedOrder_savesMessage() {
+        String roomId = "room-revision";
+        String senderId = "user-ph03";
         String receiverId = "user-pat03";
 
         ChatRoom chatRoom = ChatRoom.builder()
@@ -142,12 +138,18 @@ class ChatServiceImplTest {
             .user2Id(receiverId)
             .build();
 
+        PharmacyConsultationRequest request = PharmacyConsultationRequest.builder()
+            .chatRoomId(roomId)
+            .order(PharmacyOrder.builder().orderId(42).status("REVISION_REQUESTED").build())
+            .build();
+
+        User sender = User.builder().id(senderId).build();
         User receiver = User.builder().id(receiverId).username("Patient").build();
 
         when(chatRoomRepository.findById(roomId))
             .thenReturn(Optional.of(chatRoom));
         when(pharmacyConsultationRequestRepository.findByChatRoomId(roomId))
-            .thenReturn(Optional.empty()); // Not a pharmacy request room
+            .thenReturn(Optional.of(request));
         when(userRepository.findById(receiverId))
             .thenReturn(Optional.of(receiver));
         when(messageRepository.save(any()))
@@ -159,10 +161,117 @@ class ChatServiceImplTest {
             .content("Hello")
             .build();
 
-        // Act
         service.sendMessage(msgRequest, senderId);
 
-        // Assert
         verify(messageRepository, times(1)).save(any());
+        verify(messagingTemplate, times(2)).convertAndSendToUser(anyString(), anyString(), any());
+    }
+
+    @Test
+    void sendMessage_whenPendingOrder_throwsBusinessException() {
+        String roomId = "room-pending";
+        String senderId = "user-ph04";
+        String receiverId = "user-pat04";
+
+        ChatRoom chatRoom = ChatRoom.builder()
+            .chatRoomId(roomId)
+            .user1Id(senderId)
+            .user2Id(receiverId)
+            .build();
+
+        PharmacyConsultationRequest request = PharmacyConsultationRequest.builder()
+            .chatRoomId(roomId)
+            .order(PharmacyOrder.builder().orderId(43).status("PENDING").build())
+            .build();
+
+        when(chatRoomRepository.findById(roomId))
+            .thenReturn(Optional.of(chatRoom));
+        when(pharmacyConsultationRequestRepository.findByChatRoomId(roomId))
+            .thenReturn(Optional.of(request));
+
+        SendMessageRequest msgRequest = SendMessageRequest.builder()
+            .chatRoomId(roomId)
+            .receiverId(receiverId)
+            .content("Hello")
+            .build();
+
+        assertThatThrownBy(() -> service.sendMessage(msgRequest, senderId))
+            .isInstanceOf(BusinessException.class)
+            .hasMessage("This pharmacy conversation is now read-only.");
+
+        verify(messageRepository, never()).save(any());
+        verify(messagingTemplate, never()).convertAndSendToUser(anyString(), anyString(), any());
+    }
+
+    @Test
+    void sendMessage_whenCompletedOrder_throwsBusinessException() {
+        String roomId = "room-completed";
+        String senderId = "user-ph05";
+        String receiverId = "user-pat05";
+
+        ChatRoom chatRoom = ChatRoom.builder()
+            .chatRoomId(roomId)
+            .user1Id(senderId)
+            .user2Id(receiverId)
+            .build();
+
+        PharmacyConsultationRequest request = PharmacyConsultationRequest.builder()
+            .chatRoomId(roomId)
+            .order(PharmacyOrder.builder().orderId(44).status("COMPLETED").build())
+            .build();
+
+        when(chatRoomRepository.findById(roomId))
+            .thenReturn(Optional.of(chatRoom));
+        when(pharmacyConsultationRequestRepository.findByChatRoomId(roomId))
+            .thenReturn(Optional.of(request));
+
+        SendMessageRequest msgRequest = SendMessageRequest.builder()
+            .chatRoomId(roomId)
+            .receiverId(receiverId)
+            .content("Hello")
+            .build();
+
+        assertThatThrownBy(() -> service.sendMessage(msgRequest, senderId))
+            .isInstanceOf(BusinessException.class)
+            .hasMessage("This pharmacy conversation is now read-only.");
+
+        verify(messageRepository, never()).save(any());
+        verify(messagingTemplate, never()).convertAndSendToUser(anyString(), anyString(), any());
+    }
+
+    @Test
+    void sendMessage_whenOrderRequestRoom_throwsBusinessException() {
+        String roomId = "room-order-req";
+        String senderId = "user-ph06";
+        String receiverId = "user-pat06";
+
+        ChatRoom chatRoom = ChatRoom.builder()
+            .chatRoomId(roomId)
+            .user1Id(senderId)
+            .user2Id(receiverId)
+            .build();
+
+        PharmacyConsultationRequest request = PharmacyConsultationRequest.builder()
+            .chatRoomId(roomId)
+            .requestType("ORDER")
+            .build();
+
+        when(chatRoomRepository.findById(roomId))
+            .thenReturn(Optional.of(chatRoom));
+        when(pharmacyConsultationRequestRepository.findByChatRoomId(roomId))
+            .thenReturn(Optional.of(request));
+
+        SendMessageRequest msgRequest = SendMessageRequest.builder()
+            .chatRoomId(roomId)
+            .receiverId(receiverId)
+            .content("Hello")
+            .build();
+
+        assertThatThrownBy(() -> service.sendMessage(msgRequest, senderId))
+            .isInstanceOf(BusinessException.class)
+            .hasMessage("This pharmacy conversation is now read-only.");
+
+        verify(messageRepository, never()).save(any());
+        verify(messagingTemplate, never()).convertAndSendToUser(anyString(), anyString(), any());
     }
 }

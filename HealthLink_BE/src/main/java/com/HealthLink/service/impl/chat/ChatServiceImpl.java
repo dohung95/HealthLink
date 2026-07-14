@@ -16,6 +16,7 @@ import com.HealthLink.repository.chat.ChatRoomRepository;
 import com.HealthLink.repository.chat.MessageRepository;
 import com.HealthLink.repository.pharmacy.PharmacyConsultationRequestRepository;
 import com.HealthLink.service.chat.ChatService;
+import com.HealthLink.service.impl.pharmacy.PharmacyServiceHelper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
@@ -167,15 +168,12 @@ public class ChatServiceImpl implements ChatService {
             throw new IllegalStateException("You cannot send messages because this conversation is blocked.");
         }
 
-        // Kiểm tra nếu phòng chat này thuộc về một pharmacy request đã có order
-        // → không cho phép gửi tin nhắn (read-only history)
         pharmacyConsultationRequestRepository
             .findByChatRoomId(room.getChatRoomId())
-            .filter(pharmacyReq -> pharmacyReq.getOrder() != null)
-            .ifPresent(pharmacyReq -> {
+            .filter(requestEntity -> !PharmacyServiceHelper.canSendPharmacyChat(requestEntity))
+            .ifPresent(requestEntity -> {
                 throw new BusinessException(
-                    "This pharmacy request has ended. Chat is read-only."
-                );
+                    "This pharmacy conversation is now read-only.");
             });
 
         // Tạo entity User tạm cho sender (chỉ cần ID để JPA set foreign key)
