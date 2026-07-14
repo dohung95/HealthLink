@@ -70,6 +70,52 @@ void main() {
       final requests = await service.getRequests(_token, _pharmacyId);
       expect(requests.length, 2);
     });
+
+    test('create order sends the strict backend item contract', () async {
+      final mockClient = MockClient((request) async {
+        expect(request.method, 'POST');
+        final body = jsonDecode(request.body) as Map<String, dynamic>;
+        final items = body['items'] as List<dynamic>;
+        final item = items.single as Map<String, dynamic>;
+
+        expect(body['estimatedDeliveryMinutes'], 45);
+        expect(body['estimatedDeliveryMinutes'], isA<int>());
+        expect(body.containsKey('estimatedDeliveryTime'), isFalse);
+        expect(item, {
+          'medicineId': 12,
+          'quantity': 2,
+          'totalSupplyDays': 30,
+          'route': 'ORAL',
+          'frequency': 'TID',
+          'timing': 'MORNING,AFTERNOON,EVENING',
+        });
+        expect(item.containsKey('medicationName'), isFalse);
+        expect(item.containsKey('unit'), isFalse);
+        expect(item.containsKey('unitPrice'), isFalse);
+
+        return http.Response(jsonEncode(_sampleOrderJson(41)), 201);
+      });
+
+      final service = PharmacyRequestService(client: mockClient);
+      final result = await service.createOrderFromRequest(
+        _token,
+        '41',
+        [
+          {
+            'medicineId': 12,
+            'quantity': 2,
+            'totalSupplyDays': 30,
+            'route': 'ORAL',
+            'frequency': 'TID',
+            'timing': 'MORNING,AFTERNOON,EVENING',
+          },
+        ],
+        deliveryFee: 25000,
+        estimatedDeliveryMinutes: 45,
+      );
+
+      expect(result['orderId'], 41);
+    });
   });
 
   group('PharmacyOrderService', () {
@@ -141,6 +187,43 @@ void main() {
       final service = PharmacyOrderService(client: mockClient);
       final order = await service.getOrderById(_token, '42');
       expect(order.orderId, 42);
+    });
+
+    test('update quote sends the same strict item contract', () async {
+      final mockClient = MockClient((request) async {
+        expect(request.method, 'PUT');
+        final body = jsonDecode(request.body) as Map<String, dynamic>;
+        final item = (body['items'] as List<dynamic>).single
+            as Map<String, dynamic>;
+
+        expect(body['estimatedDeliveryMinutes'], 90);
+        expect(body['estimatedDeliveryMinutes'], isA<int>());
+        expect(body.containsKey('estimatedDeliveryTime'), isFalse);
+        expect(item.containsKey('medicationName'), isFalse);
+        expect(item['medicineId'], 12);
+        expect(item['timing'], 'MORNING,EVENING');
+
+        return http.Response(jsonEncode(_sampleOrderJson(42)), 200);
+      });
+
+      final service = PharmacyOrderService(client: mockClient);
+      final result = await service.updateOrderQuote(
+        _token,
+        '42',
+        [
+          {
+            'medicineId': 12,
+            'quantity': 2,
+            'totalSupplyDays': 30,
+            'frequency': 'BID',
+            'timing': 'MORNING,EVENING',
+          },
+        ],
+        deliveryFee: 20000,
+        estimatedDeliveryMinutes: 90,
+      );
+
+      expect(result.orderId, 42);
     });
   });
 }
