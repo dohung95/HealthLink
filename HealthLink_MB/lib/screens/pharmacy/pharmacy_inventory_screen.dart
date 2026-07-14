@@ -1,3 +1,5 @@
+import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
@@ -6,9 +8,13 @@ import '../../models/pharmacy/pharmacy_inventory_item.dart';
 import '../../widgets/pharmacy/inventory_filter_sheet.dart';
 import '../../widgets/pharmacy/inventory_edit_sheet.dart';
 import '../../widgets/pharmacy/inventory_import_sheet.dart';
+import '../../utils/pharmacy/pharmacy_notification_target.dart';
+import '../../widgets/pharmacy/notification_attention_card.dart';
 
 class PharmacyInventoryScreen extends StatefulWidget {
-  const PharmacyInventoryScreen({super.key});
+  const PharmacyInventoryScreen({super.key, this.notificationAttention});
+
+  final ValueListenable<NotificationAttention?>? notificationAttention;
 
   @override
   State<PharmacyInventoryScreen> createState() =>
@@ -16,22 +22,61 @@ class PharmacyInventoryScreen extends StatefulWidget {
 }
 
 class _PharmacyInventoryScreenState extends State<PharmacyInventoryScreen> {
+  static const _estimatedRowExtent = 144.0;
+
   final ScrollController _scrollController = ScrollController();
   final TextEditingController _searchCtrl = TextEditingController();
+  final Map<String, BuildContext> _itemContexts = {};
+  Timer? _attentionTimer;
+  String? _highlightedId;
+  String? _attentionMessage;
 
   @override
   void initState() {
     super.initState();
+    _subscribeAttention();
     _scrollController.addListener(_onScroll);
     WidgetsBinding.instance.addPostFrameCallback((_) => _loadInventory());
   }
 
   @override
   void dispose() {
+    _unsubscribeAttention(widget.notificationAttention);
+    _attentionTimer?.cancel();
     _scrollController.removeListener(_onScroll);
     _scrollController.dispose();
     _searchCtrl.dispose();
     super.dispose();
+  }
+
+  @override
+  void didUpdateWidget(covariant PharmacyInventoryScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.notificationAttention != widget.notificationAttention) {
+      _unsubscribeAttention(oldWidget.notificationAttention);
+      _subscribeAttention();
+    }
+  }
+
+  void _subscribeAttention() {
+    widget.notificationAttention?.addListener(_onAttention);
+    final attention = widget.notificationAttention?.value;
+    if (attention != null) {
+      WidgetsBinding.instance.addPostFrameCallback(
+        (_) => _handleAttention(attention),
+      );
+    }
+  }
+
+  void _unsubscribeAttention(
+    ValueListenable<NotificationAttention?>? notifier,
+  ) {
+    notifier?.removeListener(_onAttention);
+  }
+
+  void _onAttention() {
+    final attention = widget.notificationAttention?.value;
+    if (attention != null) _handleAttention(attention);
   }
 
   void _onScroll() {
@@ -50,9 +95,83 @@ class _PharmacyInventoryScreenState extends State<PharmacyInventoryScreen> {
   Future<void> _loadInventory() async {
     final auth = context.read<AuthProvider>();
     if (auth.accessToken == null) return;
-    await context
-        .read<PharmacyInventoryProvider>()
-        .refresh(auth.accessToken!);
+    await context.read<PharmacyInventoryProvider>().refresh(auth.accessToken!);
+  }
+
+  Future<void> _handleAttention(NotificationAttention attention) async {
+    final target = attention.target;
+    if (target.tabIndex != PharmacyNotificationTarget.tabInventory ||
+        (target.detailType != 'inventory' &&
+            target.detailType != 'inventory-low-stock')) {
+      return;
+    }
+
+    final provider = context.read<PharmacyInventoryProvider>();
+    PharmacyInventoryItem? item;
+    if (target.detailType == 'inventory-low-stock') {
+      provider.setFilter(provider.filter.copyWith(lowStock: true));
+      await _loadInventory();
+      item = provider.items.cast<PharmacyInventoryItem?>().firstWhere(
+        (candidate) => candidate!.isLowStock,
+        orElse: () => null,
+      );
+    } else {
+      item = provider.items.cast<PharmacyInventoryItem?>().firstWhere(
+        (candidate) => candidate!.inventoryId.toString() == target.detailId,
+        orElse: () => null,
+      );
+      if (item == null) {
+        await _loadInventory();
+        item = provider.items.cast<PharmacyInventoryItem?>().firstWhere(
+          (candidate) => candidate!.inventoryId.toString() == target.detailId,
+          orElse: () => null,
+        );
+      }
+    }
+
+    if (!mounted ||
+        widget.notificationAttention?.value?.sequence != attention.sequence) {
+      return;
+    }
+    if (item == null || item.inventoryId == null) {
+      setState(() => _attentionMessage = 'Related item is no longer active');
+      return;
+    }
+
+    final key = 'inventory-${item.inventoryId}';
+    setState(() {
+      _attentionMessage = null;
+      _highlightedId = key;
+    });
+    _scrollToItem(key, provider.items.indexOf(item));
+    _attentionTimer?.cancel();
+    _attentionTimer = Timer(const Duration(seconds: 4), () {
+      if (mounted &&
+          widget.notificationAttention?.value?.sequence == attention.sequence) {
+        setState(() => _highlightedId = null);
+      }
+    });
+  }
+
+  void _scrollToItem(String key, int index) {
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted || !_scrollController.hasClients) return;
+      final position = _scrollController.position;
+      final offset = (index * _estimatedRowExtent).clamp(
+        0.0,
+        position.maxScrollExtent,
+      );
+      await _scrollController.animateTo(
+        offset,
+        duration: const Duration(milliseconds: 250),
+        curve: Curves.easeOut,
+      );
+      if (!mounted) return;
+      final itemContext = _itemContexts[key];
+      if (itemContext != null && itemContext.mounted) {
+        Scrollable.ensureVisible(itemContext);
+      }
+    });
   }
 
   void _showFilterSheet() {
@@ -82,13 +201,14 @@ class _PharmacyInventoryScreenState extends State<PharmacyInventoryScreen> {
         onSave: (updated) async {
           final auth = context.read<AuthProvider>();
           if (auth.accessToken == null) return;
-          final ok = await context
-              .read<PharmacyInventoryProvider>()
-              .updateItem(auth.accessToken!, updated);
+          final ok = await context.read<PharmacyInventoryProvider>().updateItem(
+            auth.accessToken!,
+            updated,
+          );
           if (ok && mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Item updated')),
-            );
+            ScaffoldMessenger.of(
+              context,
+            ).showSnackBar(const SnackBar(content: Text('Item updated')));
           }
         },
       ),
@@ -129,6 +249,11 @@ class _PharmacyInventoryScreenState extends State<PharmacyInventoryScreen> {
       ),
       body: Column(
         children: [
+          if (_attentionMessage != null)
+            MaterialBanner(
+              content: Text(_attentionMessage!),
+              actions: const [SizedBox.shrink()],
+            ),
           _buildSearchBar(theme),
           _buildSummaryBar(theme),
           Expanded(child: _buildInventoryList(theme)),
@@ -145,9 +270,7 @@ class _PharmacyInventoryScreenState extends State<PharmacyInventoryScreen> {
         decoration: InputDecoration(
           hintText: 'Search medicine...',
           prefixIcon: const Icon(Icons.search),
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
           contentPadding: const EdgeInsets.symmetric(vertical: 0),
           suffixIcon: _searchCtrl.text.isNotEmpty
               ? IconButton(
@@ -176,13 +299,14 @@ class _PharmacyInventoryScreenState extends State<PharmacyInventoryScreen> {
   }
 
   void _applySearch(String query) {
-    final provider = context.read<PharmacyInventoryProvider>();      provider.setFilter(provider.filter.copyWith(
-        search: query.isNotEmpty ? query : null,
-      ));
-      final auth = context.read<AuthProvider>();
-      if (auth.accessToken != null) {
-        provider.refresh(auth.accessToken!);
-      }
+    final provider = context.read<PharmacyInventoryProvider>();
+    provider.setFilter(
+      provider.filter.copyWith(search: query.isNotEmpty ? query : null),
+    );
+    final auth = context.read<AuthProvider>();
+    if (auth.accessToken != null) {
+      provider.refresh(auth.accessToken!);
+    }
   }
 
   Widget _buildSummaryBar(ThemeData theme) {
@@ -192,19 +316,25 @@ class _PharmacyInventoryScreenState extends State<PharmacyInventoryScreen> {
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
       child: Row(
         children: [
-          Text('${provider.items.length} items',
-              style: theme.textTheme.bodySmall),
+          Text(
+            '${provider.items.length} items',
+            style: theme.textTheme.bodySmall,
+          ),
           if (provider.lowStockCount > 0) ...[
             const SizedBox(width: 12),
-            Text('${provider.lowStockCount} low stock',
-                style: theme.textTheme.bodySmall
-                    ?.copyWith(color: theme.colorScheme.error)),
+            Text(
+              '${provider.lowStockCount} low stock',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.error,
+              ),
+            ),
           ],
           if (provider.expiringCount > 0) ...[
             const SizedBox(width: 12),
-            Text('${provider.expiringCount} expiring',
-                style: theme.textTheme.bodySmall
-                    ?.copyWith(color: Colors.orange)),
+            Text(
+              '${provider.expiringCount} expiring',
+              style: theme.textTheme.bodySmall?.copyWith(color: Colors.orange),
+            ),
           ],
         ],
       ),
@@ -223,14 +353,17 @@ class _PharmacyInventoryScreenState extends State<PharmacyInventoryScreen> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.error_outline,
-                size: 48, color: theme.colorScheme.error),
+            Icon(Icons.error_outline, size: 48, color: theme.colorScheme.error),
             const SizedBox(height: 12),
-            Text(provider.error!,
-                style: TextStyle(color: theme.colorScheme.error)),
+            Text(
+              provider.error!,
+              style: TextStyle(color: theme.colorScheme.error),
+            ),
             const SizedBox(height: 12),
             FilledButton.tonal(
-                onPressed: _loadInventory, child: const Text('Retry')),
+              onPressed: _loadInventory,
+              child: const Text('Retry'),
+            ),
           ],
         ),
       );
@@ -241,11 +374,16 @@ class _PharmacyInventoryScreenState extends State<PharmacyInventoryScreen> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.inventory_2,
-                size: 64, color: theme.colorScheme.outlineVariant),
+            Icon(
+              Icons.inventory_2,
+              size: 64,
+              color: theme.colorScheme.outlineVariant,
+            ),
             const SizedBox(height: 12),
-            Text('No inventory items found',
-                style: theme.textTheme.titleMedium),
+            Text(
+              'No inventory items found',
+              style: theme.textTheme.titleMedium,
+            ),
           ],
         ),
       );
@@ -266,7 +404,14 @@ class _PharmacyInventoryScreenState extends State<PharmacyInventoryScreen> {
               ),
             );
           }
-          return _buildItemCard(provider.items[i], theme);
+          final item = provider.items[i];
+          final key = 'inventory-${item.inventoryId}';
+          return Builder(
+            builder: (itemContext) {
+              _itemContexts[key] = itemContext;
+              return _buildItemCard(item, theme);
+            },
+          );
         },
       ),
     );
@@ -274,10 +419,12 @@ class _PharmacyInventoryScreenState extends State<PharmacyInventoryScreen> {
 
   Widget _buildItemCard(PharmacyInventoryItem item, ThemeData theme) {
     final avail = item.availableQuantity;
-    return Card(
-      margin: const EdgeInsets.symmetric(vertical: 4),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(12),
+    final key = 'inventory-${item.inventoryId}';
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: NotificationAttentionCard(
+        key: ValueKey(key),
+        highlighted: _highlightedId == key,
         onTap: () => _showEditSheet(item),
         child: Padding(
           padding: const EdgeInsets.all(12),
@@ -289,50 +436,65 @@ class _PharmacyInventoryScreenState extends State<PharmacyInventoryScreen> {
                   Expanded(
                     child: Text(
                       item.medicineName,
-                      style: theme.textTheme.titleSmall
-                          ?.copyWith(fontWeight: FontWeight.bold),
+                      style: theme.textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ),
                   if (!item.active)
                     Container(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 6, vertical: 2),
+                        horizontal: 6,
+                        vertical: 2,
+                      ),
                       decoration: BoxDecoration(
                         color: Colors.grey.withValues(alpha: 0.15),
                         borderRadius: BorderRadius.circular(8),
                       ),
-                      child: const Text('Inactive',
-                          style: TextStyle(fontSize: 11, color: Colors.grey)),
+                      child: const Text(
+                        'Inactive',
+                        style: TextStyle(fontSize: 11, color: Colors.grey),
+                      ),
                     ),
                   if (item.isLowStock)
                     Container(
                       margin: const EdgeInsets.only(left: 4),
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 6, vertical: 2),
+                        horizontal: 6,
+                        vertical: 2,
+                      ),
                       decoration: BoxDecoration(
                         color: theme.colorScheme.error.withValues(alpha: 0.15),
                         borderRadius: BorderRadius.circular(8),
                       ),
-                      child: Text('Low Stock',
-                          style: TextStyle(
-                              fontSize: 11,
-                              color: theme.colorScheme.error,
-                              fontWeight: FontWeight.w600)),
+                      child: Text(
+                        'Low Stock',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: theme.colorScheme.error,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
                     ),
                   if (item.isExpiringSoon)
                     Container(
                       margin: const EdgeInsets.only(left: 4),
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 6, vertical: 2),
+                        horizontal: 6,
+                        vertical: 2,
+                      ),
                       decoration: BoxDecoration(
                         color: Colors.orange.withValues(alpha: 0.15),
                         borderRadius: BorderRadius.circular(8),
                       ),
-                      child: const Text('Expiring',
-                          style: TextStyle(
-                              fontSize: 11,
-                              color: Colors.orange,
-                              fontWeight: FontWeight.w600)),
+                      child: const Text(
+                        'Expiring',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: Colors.orange,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
                     ),
                 ],
               ),
@@ -343,28 +505,36 @@ class _PharmacyInventoryScreenState extends State<PharmacyInventoryScreen> {
                   const SizedBox(width: 16),
                   _stat('Reserved', '${item.reservedQuantity}', theme),
                   const SizedBox(width: 16),
-                  _stat('Available', '$avail', theme,
-                      color: avail > 0
-                          ? theme.colorScheme.primary
-                          : theme.colorScheme.error),
+                  _stat(
+                    'Available',
+                    '$avail',
+                    theme,
+                    color: avail > 0
+                        ? theme.colorScheme.primary
+                        : theme.colorScheme.error,
+                  ),
                 ],
               ),
               const SizedBox(height: 6),
               Row(
                 children: [
                   if (item.unit != null)
-                    Text('${item.unit}',
-                        style: theme.textTheme.bodySmall),
+                    Text('${item.unit}', style: theme.textTheme.bodySmall),
                   if (item.unitPrice != null) ...[
                     if (item.unit != null) const SizedBox(width: 12),
-                    Text('\$${item.unitPrice!.toStringAsFixed(2)}',
-                        style: theme.textTheme.bodySmall
-                            ?.copyWith(fontWeight: FontWeight.w600)),
+                    Text(
+                      '\$${item.unitPrice!.toStringAsFixed(2)}',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
                   ],
                   const Spacer(),
                   if (item.expiryDate != null)
-                    Text('Exp: ${item.expiryDate}',
-                        style: theme.textTheme.bodySmall),
+                    Text(
+                      'Exp: ${item.expiryDate}',
+                      style: theme.textTheme.bodySmall,
+                    ),
                 ],
               ),
             ],
@@ -378,14 +548,19 @@ class _PharmacyInventoryScreenState extends State<PharmacyInventoryScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label,
-            style: theme.textTheme.bodySmall
-                ?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
-        Text(value,
-            style: theme.textTheme.bodyMedium?.copyWith(
-              fontWeight: FontWeight.bold,
-              color: color,
-            )),
+        Text(
+          label,
+          style: theme.textTheme.bodySmall?.copyWith(
+            color: theme.colorScheme.onSurfaceVariant,
+          ),
+        ),
+        Text(
+          value,
+          style: theme.textTheme.bodyMedium?.copyWith(
+            fontWeight: FontWeight.bold,
+            color: color,
+          ),
+        ),
       ],
     );
   }

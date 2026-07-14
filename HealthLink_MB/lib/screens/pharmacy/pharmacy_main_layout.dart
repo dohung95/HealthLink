@@ -1,12 +1,11 @@
 import 'dart:async';
-import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
 import 'package:provider/provider.dart';
-import '../../config/api_config.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/pharmacy/pharmacy_workflow_provider.dart';
 import '../../providers/pharmacy/pharmacy_revenue_provider.dart';
+import '../../services/notification/notification_service.dart';
+import '../../utils/pharmacy/pharmacy_notification_target.dart';
 import 'pharmacy_dashboard_screen.dart';
 import 'pharmacy_orders_screen.dart';
 import 'pharmacy_requests_screen.dart';
@@ -15,7 +14,9 @@ import 'pharmacy_more_screen.dart';
 import 'pharmacy_notification_center_sheet.dart';
 
 class PharmacyMainLayout extends StatefulWidget {
-  const PharmacyMainLayout({super.key});
+  const PharmacyMainLayout({super.key, this.notificationServiceFactory});
+
+  final NotificationService Function(String token)? notificationServiceFactory;
 
   @override
   State<PharmacyMainLayout> createState() => _PharmacyMainLayoutState();
@@ -28,24 +29,26 @@ class _PharmacyMainLayoutState extends State<PharmacyMainLayout> {
   Timer? _notifPollTimer;
   PharmacyWorkflowProvider? _workflowProvider;
   bool _revenueInitialized = false;
+  late final ValueNotifier<NotificationAttention?> _notificationAttention;
+  int _attentionSequence = 0;
 
   late final List<Widget> _screens;
 
   @override
   void initState() {
     super.initState();
+    _notificationAttention = ValueNotifier<NotificationAttention?>(null);
     _screens = [
       PharmacyDashboardScreen(
         onNavigate: (i) => setState(() => _currentIndex = i),
       ),
-      const PharmacyRequestsScreen(),
-      const PharmacyOrdersScreen(),
-      const PharmacyInventoryScreen(),
+      PharmacyRequestsScreen(notificationAttention: _notificationAttention),
+      PharmacyOrdersScreen(notificationAttention: _notificationAttention),
+      PharmacyInventoryScreen(notificationAttention: _notificationAttention),
       const PharmacyMoreScreen(),
     ];
 
-    WidgetsBinding.instance
-        .addPostFrameCallback((_) => _startPolling());
+    WidgetsBinding.instance.addPostFrameCallback((_) => _startPolling());
   }
 
   @override
@@ -81,19 +84,11 @@ class _PharmacyMainLayoutState extends State<PharmacyMainLayout> {
 
   Future<void> _pollUnreadCount(String token) async {
     try {
-      final res = await http
-          .get(
-            Uri.parse(ApiConfig.notificationUnreadCount),
-            headers: {
-              'Authorization': 'Bearer $token',
-              'Accept': 'application/json',
-            },
-          )
-          .timeout(ApiConfig.connectTimeout);
-      if (res.statusCode == 200) {
-        final count = jsonDecode(res.body)['count'] as int? ?? 0;
-        if (mounted) setState(() => _unreadCount = count);
-      }
+      final service =
+          widget.notificationServiceFactory?.call(token) ??
+          NotificationService(accessToken: token);
+      final count = await service.getUnreadCount();
+      if (mounted) setState(() => _unreadCount = count);
     } catch (_) {}
   }
 
@@ -101,7 +96,18 @@ class _PharmacyMainLayoutState extends State<PharmacyMainLayout> {
   void dispose() {
     _notifPollTimer?.cancel();
     _workflowProvider?.stopPolling();
+    _notificationAttention.dispose();
     super.dispose();
+  }
+
+  void _navigateToNotificationTarget(NotificationTarget target) {
+    Navigator.of(context).pop();
+    setState(() => _currentIndex = target.tabIndex);
+    _attentionSequence += 1;
+    _notificationAttention.value = NotificationAttention(
+      target: target,
+      sequence: _attentionSequence,
+    );
   }
 
   void _showNotificationCenter() {
@@ -112,11 +118,15 @@ class _PharmacyMainLayoutState extends State<PharmacyMainLayout> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      builder: (_) => PharmacyNotificationCenterSheet(
-        onNavigate: (target) {
-          Navigator.pop(context);
-          setState(() => _currentIndex = target.tabIndex);
-        },
+      builder: (_) => ChangeNotifierProvider<AuthProvider>.value(
+        value: auth,
+        child: PharmacyNotificationCenterSheet(
+          serviceFactory: widget.notificationServiceFactory,
+          onUnreadCountChanged: (count) {
+            if (mounted) setState(() => _unreadCount = count);
+          },
+          onNavigate: _navigateToNotificationTarget,
+        ),
       ),
     );
   }
@@ -126,7 +136,8 @@ class _PharmacyMainLayoutState extends State<PharmacyMainLayout> {
     final workflow = context.watch<PharmacyWorkflowProvider>();
     final totalBadge = workflow.totalBadgeCount;
 
-    if (_lastNotifiedBadgeTotal != null && totalBadge > _lastNotifiedBadgeTotal!) {
+    if (_lastNotifiedBadgeTotal != null &&
+        totalBadge > _lastNotifiedBadgeTotal!) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -137,9 +148,11 @@ class _PharmacyMainLayoutState extends State<PharmacyMainLayout> {
     }
     if (_lastNotifiedBadgeTotal == null && totalBadge > 0) {
       _lastNotifiedBadgeTotal = totalBadge;
-    } else if (_lastNotifiedBadgeTotal != null && totalBadge > _lastNotifiedBadgeTotal!) {
+    } else if (_lastNotifiedBadgeTotal != null &&
+        totalBadge > _lastNotifiedBadgeTotal!) {
       _lastNotifiedBadgeTotal = totalBadge;
-    } else if (_lastNotifiedBadgeTotal != null && totalBadge < _lastNotifiedBadgeTotal!) {
+    } else if (_lastNotifiedBadgeTotal != null &&
+        totalBadge < _lastNotifiedBadgeTotal!) {
       _lastNotifiedBadgeTotal = totalBadge;
     }
 
@@ -163,7 +176,10 @@ class _PharmacyMainLayoutState extends State<PharmacyMainLayout> {
                       color: Colors.red,
                       shape: BoxShape.circle,
                     ),
-                    constraints: const BoxConstraints(minWidth: 18, minHeight: 18),
+                    constraints: const BoxConstraints(
+                      minWidth: 18,
+                      minHeight: 18,
+                    ),
                     child: Text(
                       '$_unreadCount',
                       style: const TextStyle(
@@ -179,10 +195,7 @@ class _PharmacyMainLayoutState extends State<PharmacyMainLayout> {
           ),
         ],
       ),
-      body: IndexedStack(
-        index: _currentIndex,
-        children: _screens,
-      ),
+      body: IndexedStack(index: _currentIndex, children: _screens),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _currentIndex,
         onDestinationSelected: (i) => setState(() => _currentIndex = i),
