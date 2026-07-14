@@ -9,6 +9,7 @@ import '../../providers/video_call_provider.dart';
 import '../../services/video_audio/webrtc_stomp_service.dart';
 import '../../services/notification/notification_service.dart';
 import '../../services/notification/notification_realtime_service.dart';
+import '../../services/doctor/doctor_service.dart';
 import '../../models/notification/notification_item.dart';
 
 import 'doctor_home_screen.dart';
@@ -46,6 +47,7 @@ class _DoctorMainLayoutState extends State<DoctorMainLayout> {
   StreamSubscription<NotificationItem>? _notifSub;
 
   ComplianceStatus? _compliance;
+  double? _liveRating;
 
   late final List<Widget> _screens;
 
@@ -96,8 +98,24 @@ class _DoctorMainLayoutState extends State<DoctorMainLayout> {
         WebrtcStompService.instance.connect(auth.accessToken!, auth.userId!);
         _initNotifications(auth.accessToken!);
         _loadCompliance();
+        _loadRating();
       }
     });
+  }
+
+  /// Điểm đánh giá trung bình phải lấy trực tiếp từ API review stats (giống màn
+  /// Profile) thay vì dùng `auth.doctorProfile['averageRating']` — giá trị đó
+  /// chỉ được fetch 1 lần lúc login nên sẽ lệch nếu có review mới trong phiên.
+  Future<void> _loadRating() async {
+    final token = context.read<AuthProvider>().accessToken;
+    if (token == null) return;
+    try {
+      final stats = await DoctorService.getReviewStats(token);
+      final rating = (stats['averageRating'] as num?)?.toDouble();
+      if (mounted) setState(() => _liveRating = rating);
+    } catch (e) {
+      debugPrint('[Rating] load failed: $e');
+    }
   }
 
   Future<void> _loadCompliance() async {
@@ -159,7 +177,7 @@ class _DoctorMainLayoutState extends State<DoctorMainLayout> {
     Navigator.push(
       context,
       MaterialPageRoute(builder: (_) => const DoctorProfileScreen()),
-    );
+    ).then((_) => _loadRating());
   }
 
   void _openQrCode() {
@@ -178,35 +196,44 @@ class _DoctorMainLayoutState extends State<DoctorMainLayout> {
   Widget build(BuildContext context) {
     final auth = context.watch<AuthProvider>();
 
+    final isHomeTab = _currentIndex == 0;
+
     return Scaffold(
       backgroundColor: DoctorStyles.background,
       body: Column(
         children: [
-          _DoctorAppBar(
-            avatarUrl: auth.avatarUrl,
-            displayName: auth.displayName,
-            rating: (auth.doctorProfile?['averageRating'] as num?)?.toDouble(),
-            notifBadge: _notifUnread,
-            compliance: _compliance,
-            onAvatarTap: _openProfile,
-            onNotifTap: _openNotifications,
-            onSettingsTap: _openProfile,
-            onQrTap: _openQrCode,
-            onGoToSchedule: () => setState(() => _currentIndex = 4),
-          ),
+          // Header chỉ hiện ở trang Home — các tab khác (Chat/Patients/Prescriptions/
+          // Schedule) tự lo phần safe-area top của mình qua SafeArea bên dưới.
+          if (isHomeTab)
+            _DoctorAppBar(
+              avatarUrl: auth.avatarUrl,
+              displayName: auth.displayName,
+              rating: _liveRating,
+              notifBadge: _notifUnread,
+              compliance: _compliance,
+              onAvatarTap: _openProfile,
+              onNotifTap: _openNotifications,
+              onSettingsTap: _openProfile,
+              onQrTap: _openQrCode,
+              onGoToSchedule: () => setState(() => _currentIndex = 4),
+            ),
           Expanded(
-            child: AnimatedSwitcher(
-              duration: const Duration(milliseconds: 250),
-              switchInCurve: Curves.easeIn,
-              switchOutCurve: Curves.easeOut,
-              transitionBuilder: (child, animation) => FadeTransition(
-                opacity: animation,
-                child: child,
-              ),
-              child: IndexedStack(
-                key: ValueKey(_currentIndex),
-                index: _currentIndex,
-                children: _screens,
+            child: SafeArea(
+              top: !isHomeTab,
+              bottom: false,
+              child: AnimatedSwitcher(
+                duration: const Duration(milliseconds: 250),
+                switchInCurve: Curves.easeIn,
+                switchOutCurve: Curves.easeOut,
+                transitionBuilder: (child, animation) => FadeTransition(
+                  opacity: animation,
+                  child: child,
+                ),
+                child: IndexedStack(
+                  key: ValueKey(_currentIndex),
+                  index: _currentIndex,
+                  children: _screens,
+                ),
               ),
             ),
           ),

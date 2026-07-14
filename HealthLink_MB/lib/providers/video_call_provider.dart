@@ -31,6 +31,7 @@ class VideoCallProvider extends ChangeNotifier {
   
   // Call metadata
   String? currentPartnerName;
+  String currentPartnerRole = 'Doctor';
   String? currentPartnerId;
   String? currentRoomId;
   bool currentIsCaller = false;
@@ -82,12 +83,19 @@ class VideoCallProvider extends ChangeNotifier {
     final roomId = signal['data'];
 
     if (type == 'CALL_REQUEST') {
+      final context = navigatorKey.currentContext;
+      // Người dùng hiện tại có thể là Doctor hoặc Patient — không được giả định cố định,
+      // vì provider này dùng chung cho cả 2 app. Suy ra vai trò đối phương từ vai trò của chính mình.
+      final isMeDoctor = context != null && Provider.of<AuthProvider>(context, listen: false).isDoctor;
+      final myRoleLabel = isMeDoctor ? 'Doctor' : 'Patient';
+      final partnerRoleLabel = isMeDoctor ? 'Patient' : 'Doctor';
+
       if (_isInCall) {
         debugPrint('[VideoCallProvider] Automatically declining because already in a call.');
         WebrtcStompService.instance.sendWebRTCSignal({
           'type': 'CALL_DECLINED',
           'senderId': _lastUserId ?? '',
-          'senderName': 'Patient',
+          'senderName': myRoleLabel,
           'receiverId': senderId,
           'data': roomId,
         });
@@ -95,7 +103,7 @@ class VideoCallProvider extends ChangeNotifier {
       }
 
       debugPrint('[VideoCallProvider] 📲 Incoming call from $senderName - showing dialog...');
-      
+
       // Play ringtone
       try {
         FlutterRingtonePlayer().playRingtone();
@@ -103,8 +111,6 @@ class VideoCallProvider extends ChangeNotifier {
         debugPrint('[VideoCallProvider] Error playing ringtone: $e');
       }
 
-      final context = navigatorKey.currentContext;
-      
       if (context != null) {
         _incomingCallTimer = Timer(const Duration(seconds: 30), () {
           FlutterRingtonePlayer().stop();
@@ -118,7 +124,7 @@ class VideoCallProvider extends ChangeNotifier {
           WebrtcStompService.instance.sendWebRTCSignal({
             'type': 'CALL_DECLINED',
             'senderId': _lastUserId ?? '',
-            'senderName': 'Patient',
+            'senderName': myRoleLabel,
             'receiverId': senderId,
             'data': roomId,
           });
@@ -144,7 +150,7 @@ class VideoCallProvider extends ChangeNotifier {
                   const Text('Incoming Video Call'),
                 ],
               ),
-              content: Text('${senderName ?? 'A doctor'} is calling you for a consultation.'),
+              content: Text('${senderName ?? 'A $partnerRoleLabel'} is calling you for a consultation.'),
               actions: [
                 TextButton(
                   onPressed: () {
@@ -154,7 +160,7 @@ class VideoCallProvider extends ChangeNotifier {
                     WebrtcStompService.instance.sendWebRTCSignal({
                       'type': 'CALL_DECLINED',
                       'senderId': _lastUserId ?? '',
-                      'senderName': 'Patient',
+                      'senderName': myRoleLabel,
                       'receiverId': senderId,
                       'data': roomId,
                     });
@@ -177,7 +183,7 @@ class VideoCallProvider extends ChangeNotifier {
                     WebrtcStompService.instance.sendWebRTCSignal({
                       'type': 'CALL_ACCEPTED',
                       'senderId': _lastUserId ?? '',
-                      'senderName': 'Patient',
+                      'senderName': myRoleLabel,
                       'receiverId': senderId,
                       'data': roomId,
                     });
@@ -189,13 +195,14 @@ class VideoCallProvider extends ChangeNotifier {
                       'receiverId': _lastUserId ?? '',
                       'data': roomId,
                     });
-                    
+
                     _isInCall = true;
                     WakelockPlus.enable();
                     callStartTime = DateTime.now();
                     notifyListeners();
 
                     currentPartnerName = senderName ?? 'Unknown';
+                    currentPartnerRole = partnerRoleLabel;
                     currentPartnerId = senderId;
                     currentRoomId = roomId;
                     currentIsCaller = false;
@@ -206,7 +213,7 @@ class VideoCallProvider extends ChangeNotifier {
                         settings: const RouteSettings(name: '/video_call'),
                         builder: (_) => VideoCallScreen(
                           partnerName: currentPartnerName!,
-                          partnerRole: 'Doctor',
+                          partnerRole: currentPartnerRole,
                           partnerId: currentPartnerId,
                           roomId: currentRoomId,
                           isCaller: currentIsCaller,
@@ -369,6 +376,10 @@ class VideoCallProvider extends ChangeNotifier {
     required String roomId,
     required String myId,
     required String myName,
+    // Tên/vai trò hiển thị của NGƯỜI NHẬN cuộc gọi. Mặc định 'Doctor' để giữ nguyên
+    // hành vi cũ (patient gọi doctor); doctor gọi patient thì phải truyền tên bệnh nhân + 'Patient'.
+    String? receiverName,
+    String receiverRole = 'Doctor',
   }) {
     if (_isInCall) {
       debugPrint('[VideoCallProvider] Blocked: Already in a call');
@@ -379,7 +390,8 @@ class VideoCallProvider extends ChangeNotifier {
     WakelockPlus.enable();
     currentPartnerId = receiverId;
     currentRoomId = roomId;
-    currentPartnerName = 'Doctor';
+    currentPartnerName = receiverName ?? 'Doctor';
+    currentPartnerRole = receiverRole;
     currentIsCaller = true;
     notifyListeners();
 
@@ -543,7 +555,7 @@ class VideoCallProvider extends ChangeNotifier {
           settings: const RouteSettings(name: '/video_call'),
           builder: (_) => VideoCallScreen(
             partnerName: currentPartnerName!,
-            partnerRole: 'Doctor',
+            partnerRole: currentPartnerRole,
             partnerId: currentPartnerId,
             roomId: currentRoomId,
             isCaller: currentIsCaller,

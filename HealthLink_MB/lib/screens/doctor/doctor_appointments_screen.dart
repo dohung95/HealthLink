@@ -6,7 +6,6 @@ import '../../models/doctor/doctor_appointment.dart';
 import '../../models/doctor/doctor_profile.dart';
 import '../../config/doctor_theme.dart';
 import '../../widgets/doctor/doctor_widgets.dart';
-import '../../widgets/doctor/complete_appointment_sheet.dart';
 import 'doctor_appointment_detail_screen.dart';
 
 class DoctorAppointmentsScreen extends StatefulWidget {
@@ -27,9 +26,8 @@ class _DoctorAppointmentsScreenState extends State<DoctorAppointmentsScreen> {
   final List<_DateItemData> _dateItems = [];
   final List<Map<String, String>> _statusFilters = [
     {'key': 'ALL', 'label': 'All'},
-    {'key': 'PENDING', 'label': 'Pending'},
-    {'key': 'CONFIRMED', 'label': 'Confirmed'},
-    {'key': 'IN_PROGRESS', 'label': 'In Progress'},
+    {'key': 'SCHEDULED', 'label': 'Scheduled'},
+    {'key': 'IN_CONSULTATION', 'label': 'In Progress'},
     {'key': 'COMPLETED', 'label': 'Completed'},
     {'key': 'CANCELLED', 'label': 'Cancelled'},
   ];
@@ -96,7 +94,14 @@ class _DoctorAppointmentsScreenState extends State<DoctorAppointmentsScreen> {
 
   List<DoctorAppointment> get _filteredAppointments {
     List<DoctorAppointment> list = _allAppointments;
-    if (_selectedStatus != 'ALL') {
+    if (_selectedStatus == 'SCHEDULED') {
+      // Gộp cả rác dữ liệu cũ (Confirmed/Pending) vào "Scheduled" — appointment
+      // nào chưa completed/cancelled/in-consultation đều coi như chưa bắt đầu.
+      list = list.where((a) {
+        final s = a.status?.toUpperCase();
+        return s != 'COMPLETED' && s != 'CANCELLED' && s != 'IN_CONSULTATION';
+      }).toList();
+    } else if (_selectedStatus != 'ALL') {
       list = list.where((a) => a.status?.toUpperCase() == _selectedStatus).toList();
     }
     list.sort((a, b) {
@@ -209,13 +214,8 @@ class _DoctorAppointmentsScreenState extends State<DoctorAppointmentsScreen> {
                                   separatorBuilder: (_, __) => const SizedBox(height: 12),
                                   itemBuilder: (context, index) {
                                     final appt = _filteredAppointments[index];
-                                    final id = appt.appointmentId.toString();
                                     return DoctorAppointmentActionCard(
                                       appointment: appt,
-                                      onStart: () => _updateStatus(id, 'IN_PROGRESS'),
-                                      onCancel: () => _updateStatus(id, 'CANCELLED'),
-                                      onComplete: () => _openCompleteSheet(appt),
-                                      onCall: () => _startCall(id),
                                       onTap: () => _openDetail(appt),
                                     );
                                   },
@@ -267,56 +267,11 @@ class _DoctorAppointmentsScreenState extends State<DoctorAppointmentsScreen> {
     );
   }
 
-  Future<void> _updateStatus(String id, String newStatus) async {
-    try {
-      final auth = context.read<AuthProvider>();
-      final token = auth.accessToken;
-      if (token == null) return;
-
-      final appointmentId = int.tryParse(id);
-      if (appointmentId == null) return;
-
-      if (newStatus == 'IN_PROGRESS') {
-        await DoctorService.startConsultation(token, appointmentId);
-      }
-
-      if (mounted) {
-        await showDoctorNotice(
-          context,
-          newStatus == 'IN_PROGRESS' ? 'Consultation started' : 'Appointment updated',
-        );
-        _loadData();
-      }
-    } catch (e) {
-      if (mounted) {
-        showDoctorNotice(context, e.toString().replaceFirst('Exception: ', ''), isError: true);
-      }
-    }
-  }
-
-  void _openCompleteSheet(DoctorAppointment appointment) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (_) => CompleteAppointmentSheet(
-        appointmentId: appointment.appointmentId,
-        patientName: appointment.patientName,
-        onCompleted: _loadData,
-      ),
-    );
-  }
-
   void _openDetail(DoctorAppointment appointment) {
     Navigator.push(
       context,
       MaterialPageRoute(builder: (_) => DoctorAppointmentDetailScreen(appointment: appointment)),
     ).then((_) => _loadData());
-  }
-
-  void _startCall(String id) {
-    final apt = _allAppointments.firstWhere((a) => a.appointmentId.toString() == id, orElse: () => _allAppointments.first);
-    showDoctorNotice(context, 'Connecting call with ${apt.patientName ?? "patient"}...');
   }
 }
 

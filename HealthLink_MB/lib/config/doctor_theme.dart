@@ -17,7 +17,7 @@ class DoctorStyles {
   static const card = Colors.white;
   static const cardBorder = Color(0xFFE5E7EB); // gray-200
 
-  static const secondary = Color(0xFFF3F4F6); // gray-100
+  static const secondary = Color(0xFFEDEDED); // gray-100
   static const secondaryForeground = Color(0xFF374151); // gray-700
 
   static const muted = Color(0xFFF3F4F6); // gray-100
@@ -70,12 +70,18 @@ class DoctorStyles {
   // STATUS HELPERS
   // ============================================
 
+  /// Lưu ý: hàm này dùng chung cho cả trạng thái Appointment (SCHEDULED/
+  /// IN_CONSULTATION/COMPLETED/CANCELLED — khớp `Appointment.status` bên BE)
+  /// lẫn trạng thái Wallet/Settlement (PENDING/PROCESSING/ELIGIBLE/WITHDRAWN/
+  /// REJECTED — xem doctor_wallet_screen.dart). Không xoá case của domain nào.
   static Color getStatusColor(String? status) {
     switch (status?.toUpperCase()) {
       case 'PENDING':
         return amber600;
+      case 'SCHEDULED':
       case 'CONFIRMED':
         return sky600;
+      case 'IN_CONSULTATION':
       case 'IN_PROGRESS':
         return primary;
       case 'COMPLETED':
@@ -83,7 +89,6 @@ class DoctorStyles {
         return emerald600;
       case 'CANCELLED':
       case 'REJECTED':
-      case 'NO_SHOW':
         return rose600;
       case 'PROCESSING':
       case 'WITHDRAWN':
@@ -97,8 +102,10 @@ class DoctorStyles {
     switch (status?.toUpperCase()) {
       case 'PENDING':
         return amber100;
+      case 'SCHEDULED':
       case 'CONFIRMED':
         return sky100;
+      case 'IN_CONSULTATION':
       case 'IN_PROGRESS':
         return Color(0xFF0D7377).withOpacity(0.15);
       case 'COMPLETED':
@@ -106,7 +113,6 @@ class DoctorStyles {
         return emerald100;
       case 'CANCELLED':
       case 'REJECTED':
-      case 'NO_SHOW':
         return rose100;
       case 'PROCESSING':
       case 'WITHDRAWN':
@@ -120,8 +126,11 @@ class DoctorStyles {
     switch (status?.toUpperCase()) {
       case 'PENDING':
         return 'Pending';
+      case 'SCHEDULED':
+        return 'Scheduled';
       case 'CONFIRMED':
         return 'Confirmed';
+      case 'IN_CONSULTATION':
       case 'IN_PROGRESS':
         return 'In Progress';
       case 'COMPLETED':

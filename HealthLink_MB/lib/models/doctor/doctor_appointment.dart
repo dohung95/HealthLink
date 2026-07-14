@@ -9,7 +9,7 @@ class DoctorAppointment {
   final DateTime? appointmentTime;
   final DateTime? endTime;
   final String? consultationType; // VIDEO, AUDIO, CHAT, OFFLINE
-  final String? status; // PENDING, CONFIRMED, IN_PROGRESS, COMPLETED, CANCELLED, NO_SHOW
+  final String? status; // SCHEDULED, IN_CONSULTATION, COMPLETED, CANCELLED (matches HealthLink_BE Appointment.status)
   final String? symptoms;
   final String? notes;
   final double? fee;
@@ -21,6 +21,12 @@ class DoctorAppointment {
   final DateTime? consultationEndTime;
   final String? diagnosis;
   final String? consultationNotes;
+
+  // Follow-up info
+  final DateTime? followUpDate;
+  final String? followUpNotes;
+  final String? followUpConsultationType;
+  final int? followUpAppointmentId;
 
   const DoctorAppointment({
     required this.appointmentId,
@@ -42,6 +48,10 @@ class DoctorAppointment {
     this.consultationEndTime,
     this.diagnosis,
     this.consultationNotes,
+    this.followUpDate,
+    this.followUpNotes,
+    this.followUpConsultationType,
+    this.followUpAppointmentId,
   });
 
   factory DoctorAppointment.fromJson(Map<String, dynamic> json) {
@@ -65,6 +75,13 @@ class DoctorAppointment {
       consultationEndTime: _parseDateTime(json['consultationEndTime'] ?? json['consultation']?['endTime']),
       diagnosis: json['diagnosis'] as String? ?? json['consultation']?['diagnosis'] as String?,
       consultationNotes: json['consultationNotes'] as String? ?? json['consultation']?['notes'] as String?,
+      followUpDate: _parseDateTime(json['followUpDate'] ?? json['consultation']?['followUpDate']),
+      followUpNotes: json['followUpNotes'] as String? ?? json['consultation']?['followUpNotes'] as String?,
+      followUpConsultationType: json['followUpConsultationType'] as String? ??
+          json['followUpType'] as String? ??
+          json['consultation']?['followUpConsultationType'] as String?,
+      followUpAppointmentId: json['followUpAppointmentId'] as int? ??
+          json['consultation']?['followUpAppointmentId'] as int?,
     );
   }
 
@@ -117,16 +134,14 @@ class DoctorAppointment {
   /// Lấy màu theo trạng thái
   String get statusColor {
     switch (status?.toUpperCase()) {
-      case 'CONFIRMED':
+      case 'SCHEDULED':
         return 'blue';
-      case 'IN_PROGRESS':
+      case 'IN_CONSULTATION':
         return 'orange';
       case 'COMPLETED':
         return 'green';
       case 'CANCELLED':
-      case 'NO_SHOW':
         return 'red';
-      case 'PENDING':
       default:
         return 'grey';
     }
