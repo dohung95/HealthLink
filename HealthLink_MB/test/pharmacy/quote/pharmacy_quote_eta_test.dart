@@ -43,4 +43,33 @@ void main() {
     expect(pharmacyEtaMinutesInRange(720), isTrue);
     expect(pharmacyEtaMinutesInRange(721), isFalse);
   });
+
+  group('pharmacyEtaValidationMessage', () {
+    test('rejects empty input', () {
+      expect(pharmacyEtaValidationMessage(''),
+          'Enter estimated delivery time in minutes');
+    });
+
+    test('rejects 0 minutes', () {
+      expect(pharmacyEtaValidationMessage('0'),
+          'Delivery time must be between 1 and 720 minutes');
+    });
+
+    test('rejects 721 minutes', () {
+      expect(pharmacyEtaValidationMessage('721'),
+          'Delivery time must be between 1 and 720 minutes');
+    });
+
+    test('accepts 1 minute', () {
+      expect(pharmacyEtaValidationMessage('1'), isNull);
+    });
+
+    test('accepts 45 minutes', () {
+      expect(pharmacyEtaValidationMessage('45'), isNull);
+    });
+
+    test('accepts 720 minutes', () {
+      expect(pharmacyEtaValidationMessage('720'), isNull);
+    });
+  });
 }

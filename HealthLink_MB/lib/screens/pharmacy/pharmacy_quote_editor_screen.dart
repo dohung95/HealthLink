@@ -6,6 +6,7 @@ import '../../providers/pharmacy/pharmacy_inventory_provider.dart';
 import '../../providers/pharmacy/pharmacy_order_provider.dart';
 import '../../providers/pharmacy/pharmacy_request_provider.dart';
 import '../../providers/pharmacy/pharmacy_workflow_provider.dart';
+import '../../utils/pharmacy/pharmacy_quote_eta.dart';
 import '../../utils/pharmacy/pharmacy_quote_mapper.dart';
 import '../../widgets/pharmacy/pharmacy_medicine_picker.dart';
 import '../../widgets/pharmacy/pharmacy_order_item_editor.dart';
@@ -72,7 +73,7 @@ class _PharmacyQuoteEditorScreenState
   final _etaCtrl = TextEditingController();
   final _notesCtrl = TextEditingController();
 
-  DateTime? _estimatedDeliveryTime;
+  int? _estimatedDeliveryMinutes;
   double? _deliveryLatitudeValue;
   double? _deliveryLongitudeValue;
 
@@ -131,8 +132,12 @@ class _PharmacyQuoteEditorScreenState
     if (order.deliveryPhoneNumber != null) {
       _deliveryPhoneCtrl.text = order.deliveryPhoneNumber!;
     }
-    _estimatedDeliveryTime = order.estimatedDeliveryTime;
-    _etaCtrl.text = order.estimatedDeliveryTime?.toIso8601String() ?? '';
+    final remaining = pharmacyRemainingEtaMinutes(
+      order.estimatedDeliveryTime,
+      DateTime.now(),
+    );
+    _estimatedDeliveryMinutes = remaining;
+    _etaCtrl.text = remaining?.toString() ?? '';
     _deliveryLatitudeValue = order.deliveryLatitude;
     _deliveryLongitudeValue = order.deliveryLongitude;
 
@@ -154,7 +159,7 @@ class _PharmacyQuoteEditorScreenState
     _notesCtrl.text = request.additionalNotes ?? '';
     if (_deliveryType == 'PICKUP') {
       _deliveryFeeCtrl.text = '0';
-      _estimatedDeliveryTime = null;
+      _estimatedDeliveryMinutes = null;
       _etaCtrl.clear();
     }
   }
@@ -271,8 +276,9 @@ class _PharmacyQuoteEditorScreenState
       _validationError = 'Enter a non-negative delivery fee';
       return false;
     }
-    if (_estimatedDeliveryTime == null) {
-      _validationError = 'Enter an estimated delivery time';
+    final etaMsg = pharmacyEtaValidationMessage(_etaCtrl.text);
+    if (etaMsg != null) {
+      _validationError = etaMsg;
       return false;
     }
     _validationError = null;
@@ -294,7 +300,9 @@ class _PharmacyQuoteEditorScreenState
 
     final isPickup = _deliveryType == 'PICKUP';
     final deliveryFee = isPickup ? 0.0 : double.parse(_deliveryFeeCtrl.text);
-    final estimatedDeliveryTime = isPickup ? null : _estimatedDeliveryTime;
+    final estimatedDeliveryTime = isPickup
+        ? null
+        : pharmacyEstimatedArrival(_estimatedDeliveryMinutes!, DateTime.now());
     final notes = _notesCtrl.text.isNotEmpty ? _notesCtrl.text : null;
     bool success = false;
     String? requestError;
@@ -471,7 +479,7 @@ class _PharmacyQuoteEditorScreenState
               etaController: _etaCtrl,
               onFeeChanged: (_) => _markDirty(),
               onEtaChanged: (value) {
-                _estimatedDeliveryTime = DateTime.tryParse(value);
+                _estimatedDeliveryMinutes = int.tryParse(value);
                 _markDirty();
               },
             ),
@@ -487,7 +495,10 @@ class _PharmacyQuoteEditorScreenState
               deliveryFee: _deliveryType == 'PICKUP'
                   ? 0
                   : (double.tryParse(_deliveryFeeCtrl.text) ?? 0),
-              eta: _deliveryType == 'PICKUP' ? null : _estimatedDeliveryTime,
+              estimatedDeliveryMinutes:
+                  _deliveryType == 'PICKUP' ? null : _estimatedDeliveryMinutes,
+              latitude: _deliveryLatitudeValue,
+              longitude: _deliveryLongitudeValue,
               notes: _notesCtrl.text,
               error: _submitError,
               isSubmitting: _isSubmitting,

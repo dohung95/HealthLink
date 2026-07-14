@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 import 'package:HealthLink/models/pharmacy/pharmacy_inventory_item.dart';
@@ -9,6 +10,7 @@ import 'package:HealthLink/providers/pharmacy/pharmacy_order_provider.dart';
 import 'package:HealthLink/providers/pharmacy/pharmacy_request_provider.dart';
 import 'package:HealthLink/providers/pharmacy/pharmacy_workflow_provider.dart';
 import 'package:HealthLink/screens/pharmacy/pharmacy_quote_editor_screen.dart';
+import 'package:HealthLink/utils/pharmacy/pharmacy_quote_eta.dart';
 
 import 'package:HealthLink/widgets/pharmacy/pharmacy_medicine_picker.dart';
 import 'package:HealthLink/widgets/pharmacy/pharmacy_order_item_editor.dart';
@@ -333,6 +335,54 @@ void main() {
       expect(find.byType(TextFormField), findsNWidgets(2));
       expect(find.text('Patient address'), findsOneWidget);
       expect(find.text('0900000000'), findsOneWidget);
+    });
+
+    testWidgets('ETA field shows minutes suffix',
+        (tester) async {
+      await tester.pumpWidget(MaterialApp(
+        home: Scaffold(
+          body: PharmacyQuoteDeliveryStep(
+            fulfillmentType: 'DELIVERY',
+            address: 'addr',
+            phone: '0900000000',
+            latitude: null,
+            longitude: null,
+            feeController: TextEditingController(),
+            etaController: TextEditingController(),
+            onFeeChanged: (_) {},
+            onEtaChanged: (_) {},
+          ),
+        ),
+      ));
+
+      expect(find.text('Estimated delivery time'), findsOneWidget);
+      expect(find.text('minutes'), findsOneWidget);
+    });
+
+    testWidgets('ETA input filters non-digit characters', (tester) async {
+      int? etaValue;
+      await tester.pumpWidget(MaterialApp(
+        home: Scaffold(
+          body: PharmacyQuoteDeliveryStep(
+            fulfillmentType: 'DELIVERY',
+            address: 'addr',
+            phone: '0900000000',
+            latitude: null,
+            longitude: null,
+            feeController: TextEditingController(),
+            etaController: TextEditingController(),
+            onFeeChanged: (_) {},
+            onEtaChanged: (v) => etaValue = int.tryParse(v),
+          ),
+        ),
+      ));
+
+      final etaField = find.widgetWithText(TextFormField, 'Estimated delivery time');
+      await tester.tap(etaField);
+      await tester.enterText(etaField, '45abc');
+      await tester.pumpAndSettle();
+
+      expect(etaValue, 45);
     });
   });
 }

@@ -22,3 +22,14 @@ int? pharmacyRemainingEtaMinutes(DateTime? eta, DateTime now) {
       ? roundedMinutes
       : null;
 }
+
+String? pharmacyEtaValidationMessage(String raw) {
+  if (raw.trim().isEmpty) {
+    return 'Enter estimated delivery time in minutes';
+  }
+  final minutes = int.tryParse(raw);
+  if (!pharmacyEtaMinutesInRange(minutes)) {
+    return 'Delivery time must be between 1 and 720 minutes';
+  }
+  return null;
+}

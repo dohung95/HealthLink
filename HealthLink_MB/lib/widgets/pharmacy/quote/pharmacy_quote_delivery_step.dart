@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 class PharmacyQuoteDeliveryStep extends StatelessWidget {
   final String? fulfillmentType;
@@ -63,9 +64,12 @@ class PharmacyQuoteDeliveryStep extends StatelessWidget {
             controller: etaController,
             decoration: const InputDecoration(
               labelText: 'Estimated delivery time',
-              hintText: '2026-07-15T14:00',
+              hintText: 'e.g. 45',
+              suffixText: 'minutes',
               border: OutlineInputBorder(),
             ),
+            keyboardType: TextInputType.number,
+            inputFormatters: [FilteringTextInputFormatter.digitsOnly],
             onChanged: onEtaChanged,
           ),
         ],

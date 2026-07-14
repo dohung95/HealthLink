@@ -8,7 +8,9 @@ class PharmacyQuoteReviewStep extends StatelessWidget {
   final String? address;
   final String? phone;
   final double deliveryFee;
-  final DateTime? eta;
+  final int? estimatedDeliveryMinutes;
+  final double? latitude;
+  final double? longitude;
   final String notes;
   final String? error;
   final bool isSubmitting;
@@ -22,12 +24,26 @@ class PharmacyQuoteReviewStep extends StatelessWidget {
     required this.address,
     required this.phone,
     required this.deliveryFee,
-    required this.eta,
+    required this.estimatedDeliveryMinutes,
+    this.latitude,
+    this.longitude,
     required this.notes,
     required this.error,
     required this.isSubmitting,
     required this.onSubmit,
   });
+
+  String? _etaText() {
+    if (estimatedDeliveryMinutes == null) return null;
+    return 'Estimated arrival: $estimatedDeliveryMinutes minutes';
+  }
+
+  String _coordinatesText() {
+    if (latitude != null && longitude != null) {
+      return '${latitude!.toStringAsFixed(6)}, ${longitude!.toStringAsFixed(6)}';
+    }
+    return 'Not set';
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -42,8 +58,14 @@ class PharmacyQuoteReviewStep extends StatelessWidget {
         Text('Address: ${address ?? 'Not set'}'),
         Text('Phone: ${phone ?? 'Not set'}'),
         Text('Fee: \$${deliveryFee.toStringAsFixed(2)}'),
-        if (eta != null) Text('ETA: ${eta!.toIso8601String()}'),
-        if (notes.isNotEmpty) Text('Notes: $notes'),
+        if (_etaText() != null) ...[
+          const SizedBox(height: 4),
+          Text(_etaText()!),
+        ],
+        const SizedBox(height: 4),
+        Text('Delivery coordinates: ${_coordinatesText()}'),
+        const SizedBox(height: 4),
+        Text('Notes: ${notes.trim().isEmpty ? 'None' : notes}'),
         if (error != null) ...[
           const SizedBox(height: 12),
           Text(error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
