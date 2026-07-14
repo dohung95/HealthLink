@@ -139,44 +139,23 @@ void main() {
       expect(orders[0].patientName, vietnameseName);
     });
 
-    test('does not append or request fake pages', () async {
-      int callCount = 0;
-
+    test('orders request does not send unsupported pagination parameters', () async {
+      var calls = 0;
       final mockClient = MockClient((request) async {
-        callCount++;
-        final uri = request.url;
-        expect(uri.queryParameters['page'], isNotNull);
-        if (callCount <= 2) {
-          return http.Response(
-            jsonEncode(List.generate(
-              20,
-              (i) => _sampleOrderJson(callCount == 1 ? i : 20 + i),
-            )),
-            200,
-          );
-        }
-        return http.Response(jsonEncode([]), 200);
+        calls++;
+        expect(request.url.queryParameters.containsKey('page'), isFalse);
+        expect(request.url.queryParameters.containsKey('size'), isFalse);
+        return http.Response(jsonEncode([
+          _sampleOrderJson(1),
+          _sampleOrderJson(2),
+        ]), 200);
       });
 
       final service = PharmacyOrderService(client: mockClient);
-      // First page
-      final page1 = await service.getOrders(_token, _pharmacyId, page: 0);
-      expect(page1.length, 20);
-      // Second page
-      final page2 = await service.getOrders(_token, _pharmacyId, page: 1);
-      expect(page2.length, 20);
-      // Third page (empty)
-      final page3 = await service.getOrders(_token, _pharmacyId, page: 2);
-      expect(page3.length, 0);
+      final orders = await service.getOrders(_token, _pharmacyId);
 
-      // Verify no duplicates across pages
-      final allIds = [
-        ...page1.map((o) => o.orderId),
-        ...page2.map((o) => o.orderId),
-        ...page3.map((o) => o.orderId),
-      ];
-      expect(allIds.toSet().length, allIds.length,
-          reason: 'No duplicate order IDs across pages');
+      expect(calls, 1);
+      expect(orders.map((order) => order.orderId), [1, 2]);
     });
 
     test('loading single order by id works', () async {

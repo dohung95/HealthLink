@@ -39,7 +39,6 @@ class _PharmacyOrdersScreenState extends State<PharmacyOrdersScreen>
     _subscribeAttention();
     _tabController = TabController(length: 2, vsync: this);
     _tabController.addListener(_onTabChanged);
-    _scrollController.addListener(_onScroll);
     WidgetsBinding.instance.addPostFrameCallback((_) => _loadOrders());
   }
 
@@ -49,7 +48,6 @@ class _PharmacyOrdersScreenState extends State<PharmacyOrdersScreen>
     _attentionTimer?.cancel();
     _tabController.removeListener(_onTabChanged);
     _tabController.dispose();
-    _scrollController.removeListener(_onScroll);
     _scrollController.dispose();
     _flowScrollController.dispose();
     super.dispose();
@@ -90,29 +88,6 @@ class _PharmacyOrdersScreenState extends State<PharmacyOrdersScreen>
     final isFlow = _tabController.index == 0;
     if (provider.flowView != isFlow) {
       provider.setFlowView(isFlow);
-      final auth = context.read<AuthProvider>();
-      if (auth.accessToken != null) {
-        provider.fetchOrders(
-          auth.accessToken!,
-          auth.pharmacyProfile?['pharmacyId']?.toString() ?? auth.userId!,
-        );
-      }
-    }
-  }
-
-  void _onScroll() {
-    if (_scrollController.position.pixels >=
-        _scrollController.position.maxScrollExtent - 200) {
-      final provider = context.read<PharmacyOrderProvider>();
-      if (!provider.flowView && provider.hasMore && !provider.isLoading) {
-        final auth = context.read<AuthProvider>();
-        if (auth.accessToken != null) {
-          provider.fetchOrders(
-            auth.accessToken!,
-            auth.pharmacyProfile?['pharmacyId']?.toString() ?? auth.userId!,
-          );
-        }
-      }
     }
   }
 
@@ -142,14 +117,6 @@ class _PharmacyOrdersScreenState extends State<PharmacyOrdersScreen>
         .toList();
   }
 
-  List<PharmacyOrder> _historyOrders(PharmacyOrderProvider provider) {
-    return provider.orders
-        .where(
-          (order) => order.status == 'COMPLETED' || order.status == 'CANCELLED',
-        )
-        .toList();
-  }
-
   Future<void> _handleAttention(NotificationAttention attention) async {
     final target = attention.target;
     if (target.tabIndex != PharmacyNotificationTarget.tabOrders ||
@@ -160,7 +127,7 @@ class _PharmacyOrdersScreenState extends State<PharmacyOrdersScreen>
 
     final provider = context.read<PharmacyOrderProvider>();
     var flow = _flowOrders(provider);
-    var history = _historyOrders(provider);
+    var history = provider.historyOrders;
     var isFlowTarget = flow.any(
       (order) => order.orderId.toString() == target.detailId,
     );
@@ -178,7 +145,7 @@ class _PharmacyOrdersScreenState extends State<PharmacyOrdersScreen>
         return;
       }
       flow = _flowOrders(provider);
-      history = _historyOrders(provider);
+      history = provider.historyOrders;
       isFlowTarget = flow.any(
         (order) => order.orderId.toString() == target.detailId,
       );
@@ -290,17 +257,7 @@ class _PharmacyOrdersScreenState extends State<PharmacyOrdersScreen>
           return FilterChip(
             label: Text(filter),
             selected: isSelected,
-            onSelected: (_) {
-              provider.setFilter(filter);
-              final auth = context.read<AuthProvider>();
-              if (auth.accessToken != null) {
-                provider.fetchOrders(
-                  auth.accessToken!,
-                  auth.pharmacyProfile?['pharmacyId']?.toString() ??
-                      auth.userId!,
-                );
-              }
-            },
+            onSelected: (_) => provider.setFilter(filter),
           );
         },
       ),
@@ -424,9 +381,7 @@ class _PharmacyOrdersScreenState extends State<PharmacyOrdersScreen>
       );
     }
 
-    final terminal = provider.orders
-        .where((o) => o.status == 'COMPLETED' || o.status == 'CANCELLED')
-        .toList();
+    final terminal = provider.historyOrders;
 
     if (terminal.isEmpty) {
       return Center(
@@ -458,16 +413,8 @@ class _PharmacyOrdersScreenState extends State<PharmacyOrdersScreen>
       child: ListView.builder(
         controller: _scrollController,
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-        itemCount: terminal.length + (provider.hasMore ? 1 : 0),
+        itemCount: terminal.length,
         itemBuilder: (_, i) {
-          if (i >= terminal.length) {
-            return const Center(
-              child: Padding(
-                padding: EdgeInsets.all(16),
-                child: CircularProgressIndicator(),
-              ),
-            );
-          }
           final order = terminal[i];
           return Builder(
             builder: (itemContext) {

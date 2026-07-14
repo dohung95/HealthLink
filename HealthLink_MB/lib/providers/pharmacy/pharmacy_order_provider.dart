@@ -8,8 +8,6 @@ class PharmacyOrderProvider extends ChangeNotifier {
   PharmacyOrder? _currentOrder;
   bool _isLoading = false;
   String? _error;
-  int _currentPage = 0;
-  bool _hasMore = true;
   String _activeFilter = 'ALL';
   bool _flowView = true;
 
@@ -20,16 +18,23 @@ class PharmacyOrderProvider extends ChangeNotifier {
   PharmacyOrder? get currentOrder => _currentOrder;
   bool get isLoading => _isLoading;
   String? get error => _error;
-  bool get hasMore => _hasMore;
   String get activeFilter => _activeFilter;
   bool get flowView => _flowView;
+
+  List<PharmacyOrder> get historyOrders {
+    final terminal = _orders.where(
+      (order) => order.status == 'COMPLETED' || order.status == 'CANCELLED',
+    );
+    if (_activeFilter == 'ALL') return terminal.toList(growable: false);
+    return terminal
+        .where((order) => order.status == _activeFilter)
+        .toList(growable: false);
+  }
 
   void setFlowView(bool flowView) {
     if (_flowView == flowView) return;
     _flowView = flowView;
-    if (flowView) {
-      _activeFilter = 'ALL';
-    }
+    if (flowView) _activeFilter = 'ALL';
     notifyListeners();
   }
 
@@ -55,10 +60,15 @@ class PharmacyOrderProvider extends ChangeNotifier {
   void setFilter(String filter) {
     if (_activeFilter == filter) return;
     _activeFilter = filter;
-    _orders = [];
-    _currentPage = 0;
-    _hasMore = true;
     notifyListeners();
+  }
+
+  List<PharmacyOrder> _deduplicateById(Iterable<PharmacyOrder> input) {
+    final unique = <int, PharmacyOrder>{};
+    for (final order in input) {
+      unique[order.orderId] = order;
+    }
+    return unique.values.toList(growable: false);
   }
 
   Future<void> fetchOrders(String token, String pharmacyId) async {
@@ -68,19 +78,8 @@ class PharmacyOrderProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final newOrders = await _orderService.getOrders(
-        token,
-        pharmacyId,
-        status: _activeFilter,
-        page: _currentPage,
-      );
-      if (_currentPage == 0) {
-        _orders = newOrders;
-      } else {
-        _orders.addAll(newOrders);
-      }
-      _hasMore = newOrders.length >= 20;
-      _currentPage++;
+      final loaded = await _orderService.getOrders(token, pharmacyId);
+      _orders = _deduplicateById(loaded);
     } catch (e) {
       _error = e.toString();
     }
@@ -90,10 +89,20 @@ class PharmacyOrderProvider extends ChangeNotifier {
   }
 
   Future<void> refreshOrders(String token, String pharmacyId) async {
-    _currentPage = 0;
-    _hasMore = true;
-    _orders = [];
-    await fetchOrders(token, pharmacyId);
+    _isLoading = true;
+    _error = null;
+    // Keep old snapshot visible during loading
+    notifyListeners();
+
+    try {
+      final loaded = await _orderService.getOrders(token, pharmacyId);
+      _orders = _deduplicateById(loaded);
+    } catch (e) {
+      _error = e.toString();
+    }
+
+    _isLoading = false;
+    notifyListeners();
   }
 
   Future<void> fetchOrderDetail(String token, String orderId) async {
@@ -152,7 +161,7 @@ class PharmacyOrderProvider extends ChangeNotifier {
     String orderId,
     List<Map<String, dynamic>> items, {
     double? deliveryFee,
-    String? estimatedDeliveryTime,
+    int? estimatedDeliveryMinutes,
   }) async {
     _isLoading = true;
     _error = null;
@@ -164,7 +173,7 @@ class PharmacyOrderProvider extends ChangeNotifier {
         orderId,
         items,
         deliveryFee: deliveryFee,
-        estimatedDeliveryTime: estimatedDeliveryTime,
+        estimatedDeliveryMinutes: estimatedDeliveryMinutes,
       );
       final index = _orders.indexWhere((o) => o.orderId.toString() == orderId);
       if (index >= 0) {

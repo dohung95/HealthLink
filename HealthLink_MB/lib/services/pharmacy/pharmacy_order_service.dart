@@ -25,18 +25,13 @@ class PharmacyOrderService {
     String token,
     String pharmacyId, {
     String? status,
-    int page = 0,
-    int size = 20,
   }) async {
-    final queryParams = <String, String>{
-      'page': page.toString(),
-      'size': size.toString(),
-    };
+    final queryParams = <String, String>{};
     if (status != null && status != 'ALL') {
       queryParams['status'] = status;
     }
     final uri = Uri.parse(ApiConfig.pharmacyOrdersByPharmacy(pharmacyId))
-        .replace(queryParameters: queryParams);
+        .replace(queryParameters: queryParams.isEmpty ? null : queryParams);
     final res = await _client
         .get(uri, headers: _authHeaders(token))
         .timeout(ApiConfig.connectTimeout);
@@ -111,12 +106,12 @@ class PharmacyOrderService {
     String orderId,
     List<Map<String, dynamic>> items, {
     double? deliveryFee,
-    String? estimatedDeliveryTime,
+    int? estimatedDeliveryMinutes,
   }) async {
     final body = <String, dynamic>{
       'items': items,
       if (deliveryFee != null) 'deliveryFee': deliveryFee,
-      if (estimatedDeliveryTime != null) 'estimatedDeliveryTime': estimatedDeliveryTime,
+      if (estimatedDeliveryMinutes != null) 'estimatedDeliveryMinutes': estimatedDeliveryMinutes,
     };
     final res = await _client
         .put(
