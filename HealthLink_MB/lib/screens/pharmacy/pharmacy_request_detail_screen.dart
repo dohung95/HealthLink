@@ -5,7 +5,6 @@ import '../../providers/auth_provider.dart';
 import '../../providers/pharmacy/pharmacy_request_provider.dart';
 import '../../models/pharmacy/pharmacy_consultation_request.dart';
 import '../../models/pharmacy/pharmacy_work_item.dart';
-import '../../models/chat/conversation.dart';
 import '../../widgets/pharmacy/request_status_chip.dart';
 import '../../widgets/pharmacy/delivery_contact_review_sheet.dart';
 import '../chat/chat_room_screen.dart';
@@ -32,12 +31,10 @@ class _PharmacyRequestDetailScreenState
   Future<void> _loadDetail() async {
     final auth = context.read<AuthProvider>();
     if (auth.accessToken != null) {
-      await context
-          .read<PharmacyRequestProvider>()
-          .fetchRequestDetail(auth.accessToken!, widget.requestId);
-      await context
-          .read<PharmacyRequestProvider>()
-          .fetchPrescriptions(auth.accessToken!, widget.requestId);
+      final provider = context.read<PharmacyRequestProvider>();
+      await provider.fetchRequestDetail(auth.accessToken!, widget.requestId);
+      if (!mounted) return;
+      await provider.fetchPrescriptions(auth.accessToken!, widget.requestId);
     }
   }
 
@@ -68,16 +65,18 @@ class _PharmacyRequestDetailScreenState
           : 'Reject and cancel this consultation request?',
     );
     if (!confirmed) return;
+    if (!mounted) return;
 
     final auth = context.read<AuthProvider>();
     if (auth.accessToken == null) return;
-    final success =
-        await context.read<PharmacyRequestProvider>().updateRequestStatus(
+    final provider = context.read<PharmacyRequestProvider>();
+    final success = await provider.updateRequestStatus(
               auth.accessToken!,
               widget.requestId,
               status,
             );
-    if (success && mounted) {
+    if (!mounted) return;
+    if (success) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
             content: Text(
