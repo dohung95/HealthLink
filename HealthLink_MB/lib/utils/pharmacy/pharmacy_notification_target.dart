@@ -95,12 +95,24 @@ class PharmacyNotificationTarget {
         detailType: 'request',
       );
     }
+    if (_isCollectionPath(path, '/pharmacy-requests')) {
+      return const NotificationTarget(
+        tabIndex: tabRequests,
+        detailType: 'request',
+      );
+    }
 
     final orderId = _pathIdentifier(path, '/pharmacy-orders/');
     if (orderId != null) {
       return NotificationTarget(
         tabIndex: tabOrders,
         detailId: orderId,
+        detailType: 'order',
+      );
+    }
+    if (_isCollectionPath(path, '/pharmacy-orders')) {
+      return const NotificationTarget(
+        tabIndex: tabOrders,
         detailType: 'order',
       );
     }
@@ -130,5 +142,11 @@ class PharmacyNotificationTarget {
     if (start < 0) return null;
     final value = path.substring(start + prefix.length).split('/').first;
     return value.isEmpty ? null : value;
+  }
+
+  static bool _isCollectionPath(String path, String suffix) {
+    return path == suffix ||
+        path.endsWith(suffix) ||
+        path.endsWith('$suffix/');
   }
 }

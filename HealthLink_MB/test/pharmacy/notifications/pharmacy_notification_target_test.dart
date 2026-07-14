@@ -21,6 +21,30 @@ void main() {
       )));
     });
 
+    test('request action URL without identifier keeps request target precedence', () {
+      final target = PharmacyNotificationTarget.resolve(
+        '/api/pharmacy-requests',
+        'ORDER_STATUS',
+        91,
+      );
+      expect(target, equals(const NotificationTarget(
+        tabIndex: PharmacyNotificationTarget.tabRequests,
+        detailType: 'request',
+      )));
+    });
+
+    test('order action URL without identifier keeps order target precedence', () {
+      final target = PharmacyNotificationTarget.resolve(
+        '/api/pharmacy-orders',
+        'NEW_PHARMACY_REQUEST',
+        73,
+      );
+      expect(target, equals(const NotificationTarget(
+        tabIndex: PharmacyNotificationTarget.tabOrders,
+        detailType: 'order',
+      )));
+    });
+
     test('request page order action URL maps to Requests with request-order detail', () {
       final target = PharmacyNotificationTarget.resolve(
         '/pharmacy-page/requests?orderId=91',

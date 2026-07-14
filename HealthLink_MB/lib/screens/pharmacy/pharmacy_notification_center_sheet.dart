@@ -195,12 +195,10 @@ class _PharmacyNotificationCenterSheetState
 
   void _onTap(NotificationItem item) {
     if (!item.read) _markRead(item);
-    final type = item.type.toUpperCase();
     final target = PharmacyNotificationTarget.resolve(
-      actionUrl: item.actionUrl,
-      requestId: type.contains('REQUEST') ? item.relatedId : null,
-      orderId: type.contains('ORDER') ? item.relatedId : null,
-      type: item.type,
+      item.actionUrl,
+      item.type,
+      item.relatedId,
     );
     widget.onNavigate?.call(target);
   }
