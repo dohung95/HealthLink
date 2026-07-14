@@ -12,6 +12,8 @@ import 'package:HealthLink/models/notification/notification_item.dart';
 import 'package:HealthLink/services/notification/notification_service.dart';
 import 'package:HealthLink/models/pharmacy/pharmacy_work_item.dart';
 import 'package:HealthLink/widgets/pharmacy/notification_attention_card.dart';
+import 'package:HealthLink/services/video_audio/webrtc_stomp_service.dart';
+import 'package:HealthLink/providers/video_call_provider.dart';
 
 class _MockAuthProvider extends AuthProvider {
   @override
@@ -136,6 +138,9 @@ Widget _buildTestApp({
         ChangeNotifierProvider<PharmacyRevenueProvider>.value(
           value: revenueProvider ?? PharmacyRevenueProvider(),
         ),
+        ChangeNotifierProvider<VideoCallProvider>(
+          create: (_) => VideoCallProvider(),
+        ),
       ],
       child: PharmacyMainLayout(
         notificationServiceFactory: notificationServiceFactory,
@@ -199,6 +204,29 @@ ListTile _notificationTile(WidgetTester tester, NotificationItem notification) {
 
 void main() {
   group('PharmacyMainLayout shell', () {
+    testWidgets(
+      'connects pharmacy WebRTC transport and disconnects on dispose',
+      (tester) async {
+        WebrtcStompService.instance.disconnect();
+
+        await tester.pumpWidget(_buildTestApp());
+        await tester.pump();
+
+        expect(
+          WebrtcStompService.instance.connectionState,
+          isNot(WebrtcConnectionState.disconnected),
+        );
+
+        await tester.pumpWidget(const SizedBox.shrink());
+        await tester.pump();
+
+        expect(
+          WebrtcStompService.instance.connectionState,
+          WebrtcConnectionState.disconnected,
+        );
+      },
+    );
+
     testWidgets('renders five navigation destinations', (tester) async {
       await tester.pumpWidget(_buildTestApp());
 

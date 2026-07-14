@@ -2,9 +2,11 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
+import '../../providers/video_call_provider.dart';
 import '../../providers/pharmacy/pharmacy_workflow_provider.dart';
 import '../../providers/pharmacy/pharmacy_revenue_provider.dart';
 import '../../services/notification/notification_service.dart';
+import '../../services/video_audio/webrtc_stomp_service.dart';
 import '../../utils/pharmacy/pharmacy_notification_target.dart';
 import 'pharmacy_dashboard_screen.dart';
 import 'pharmacy_orders_screen.dart';
@@ -31,6 +33,7 @@ class _PharmacyMainLayoutState extends State<PharmacyMainLayout> {
   bool _revenueInitialized = false;
   late final ValueNotifier<NotificationAttention?> _notificationAttention;
   int _attentionSequence = 0;
+  String? _webrtcIdentity;
 
   late final List<Widget> _screens;
 
@@ -48,13 +51,43 @@ class _PharmacyMainLayoutState extends State<PharmacyMainLayout> {
       const PharmacyMoreScreen(),
     ];
 
-    WidgetsBinding.instance.addPostFrameCallback((_) => _startPolling());
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _startPolling();
+      _syncWebrtcConnection();
+    });
   }
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
     _workflowProvider ??= context.read<PharmacyWorkflowProvider>();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _syncWebrtcConnection();
+    });
+  }
+
+  void _syncWebrtcConnection() {
+    final auth = context.read<AuthProvider>();
+    final token = auth.accessToken;
+    final userId = auth.userId;
+    if (!auth.isPharmacy || token == null || userId == null) {
+      if (_webrtcIdentity != null ||
+          WebrtcStompService.instance.connectionState !=
+              WebrtcConnectionState.disconnected) {
+        WebrtcStompService.instance.disconnect();
+        _webrtcIdentity = null;
+      }
+      return;
+    }
+
+    final identity = '$token\u0000$userId';
+    if (_webrtcIdentity == identity) return;
+    if (_webrtcIdentity != null) {
+      WebrtcStompService.instance.disconnect();
+    }
+    _webrtcIdentity = identity;
+    context.read<VideoCallProvider>().updateUserId(userId);
+    WebrtcStompService.instance.connect(token, userId);
   }
 
   void _startPolling() {
@@ -96,6 +129,8 @@ class _PharmacyMainLayoutState extends State<PharmacyMainLayout> {
   void dispose() {
     _notifPollTimer?.cancel();
     _workflowProvider?.stopPolling();
+    WebrtcStompService.instance.disconnect();
+    _webrtcIdentity = null;
     _notificationAttention.dispose();
     super.dispose();
   }
@@ -133,6 +168,7 @@ class _PharmacyMainLayoutState extends State<PharmacyMainLayout> {
 
   @override
   Widget build(BuildContext context) {
+    context.watch<AuthProvider>();
     final workflow = context.watch<PharmacyWorkflowProvider>();
     final totalBadge = workflow.totalBadgeCount;
 

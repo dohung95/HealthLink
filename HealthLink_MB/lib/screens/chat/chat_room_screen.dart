@@ -21,6 +21,7 @@ import 'profile_patient_normal_forChar_screen.dart';
 import 'profile_doctor_normal_forChat_screen.dart';
 import '../../utils/localization_utils.dart';
 import '../../providers/video_call_provider.dart';
+import '../../services/video_audio/webrtc_stomp_service.dart';
 import '../video_audio/video_call_screen.dart';
 import '../../services/patient/vitals/vital_sign_service.dart';
 import '../../widgets/patient/vitals_bottom_sheet.dart';
@@ -268,22 +269,41 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
     });
   }
 
-  void _handleVideoCall(BuildContext context, Conversation conv) {
+  Future<void> _handleVideoCall(BuildContext context, Conversation conv) async {
     if (conv.isSupport) return;
     final auth = context.read<AuthProvider>();
     final videoCallProvider = context.read<VideoCallProvider>();
 
     if (auth.isAuthenticated && auth.userId != null) {
-      final success = videoCallProvider.sendCallRequest(
-        receiverId: conv.partnerId,
-        roomId: conv.id,
-        myId: auth.userId!,
-        myName: auth.displayName ?? 'User',
-      );
+      final success = auth.isPharmacy
+          ? await videoCallProvider.sendPharmacyCallRequest(
+              receiverId: conv.partnerId,
+              roomId: conv.id,
+              myId: auth.userId!,
+              myName: auth.displayName ?? 'Pharmacy',
+            )
+          : videoCallProvider.sendCallRequest(
+              receiverId: conv.partnerId,
+              roomId: conv.id,
+              myId: auth.userId!,
+              myName: auth.displayName ?? 'User',
+            );
+
+      if (!context.mounted) return;
 
       if (!success) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('You are already in a call!', style: TextStyle(color: Colors.white)), backgroundColor: Colors.red),
+          SnackBar(
+            content: Text(
+              auth.isPharmacy &&
+                      WebrtcStompService.instance.connectionState !=
+                          WebrtcConnectionState.connected
+                  ? 'Unable to start video call: connection is unavailable.'
+                  : 'You are already in a call!',
+              style: const TextStyle(color: Colors.white),
+            ),
+            backgroundColor: Colors.red,
+          ),
         );
         return;
       }
