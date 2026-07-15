@@ -111,6 +111,10 @@ class ChatProvider extends ChangeNotifier {
   bool          get hasMoreMessages      => _hasMoreMessages;
   bool          get isLoadingMoreMessages => _isLoadingMoreMessages;
 
+  int get totalUnreadCount {
+    return _conversations.fold(0, (sum, conv) => sum + conv.unreadCount);
+  }
+
   // ── WebSocket ──────────────────────────────────────────────────────────────
 
   String? _lastToken;
@@ -289,12 +293,31 @@ class ChatProvider extends ChangeNotifier {
     String userId,
     Conversation conversation,
   ) async {
+    // 1. Fetch lại thông tin mới nhất của phòng chat từ backend
+    try {
+      final updatedConv = await ChatService.getRoomById(accessToken, userId, conversation.id);
+      conversation = updatedConv;
+
+      // Cập nhật lại trong danh sách _conversations
+      final idx = _conversations.indexWhere((c) => c.id == updatedConv.id);
+      if (idx != -1) {
+        _conversations[idx] = updatedConv;
+        // Báo cho UI cập nhật (nếu cần thiết ngay lập tức)
+        // notifyListeners();
+      }
+    } catch (e) {
+      debugPrint('Error refreshing conversation in openConversation: $e');
+    }
+
     // Reset nếu chuyển phòng
     if (_currentConversation?.id != conversation.id) {
       _messages = [];
       _currentConversation = conversation;
       _currentPage = 0;
       _hasMoreMessages = true;
+    } else {
+      // Dù không chuyển phòng vẫn cập nhật thông tin mới (trạng thái appointment, blockedBy,...)
+      _currentConversation = conversation;
     }
 
     _isLoadingMessages = true;

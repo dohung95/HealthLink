@@ -1,4 +1,4 @@
--- =====================================================
+﻿-- =====================================================
 -- HEALTHLINK DATABASE SEED DATA
 -- Sample records per table (following FK dependencies order)
 -- =====================================================
@@ -2083,11 +2083,11 @@ INSERT INTO ChatMessages (MessageID, ChatRoomId, SenderId, ReceiverId, content, 
 ('1df65e7e-7407-458e-bc09-93ddf9d2f3b2', N'chat-1245', N'user-p06', N'user-d01', N'Great, thank you! I will be there.', N'http://localhost:8096/uploads/avatars/patients/benhnhan_06.png', NULL, NULL, NULL, 1, '2026-07-12 11:10:00');
 GO
 
--- Enum type-safety đã được đảm bảo ở tầng Java (@Enumerated(EnumType.STRING)).
--- CHECK constraint dưới DB chỉ gây lỗi mỗi khi enum Java có giá trị mới (Hibernate
--- ddl-auto=update không tự nới constraint) nên xoá hẳn toàn bộ, không tạo lại.
--- Đồng bộ với db/migration-v12-drop-stale-enum-check-constraints.sql — sửa 1 trong 2
--- chỗ thì nhớ sửa luôn chỗ còn lại.
+-- Enum type-safety Ä‘Ă£ Ä‘Æ°á»£c Ä‘áº£m báº£o á»Ÿ táº§ng Java (@Enumerated(EnumType.STRING)).
+-- CHECK constraint dÆ°á»›i DB chá»‰ gĂ¢y lá»—i má»—i khi enum Java cĂ³ giĂ¡ trá»‹ má»›i (Hibernate
+-- ddl-auto=update khĂ´ng tá»± ná»›i constraint) nĂªn xoĂ¡ háº³n toĂ n bá»™, khĂ´ng táº¡o láº¡i.
+-- Äá»“ng bá»™ vá»›i db/migration-v12-drop-stale-enum-check-constraints.sql â€” sá»­a 1 trong 2
+-- chá»— thĂ¬ nhá»› sá»­a luĂ´n chá»— cĂ²n láº¡i.
 DECLARE @cc_table NVARCHAR(128);
 DECLARE @cc_column NVARCHAR(128);
 DECLARE @cc_constraintName NVARCHAR(128);

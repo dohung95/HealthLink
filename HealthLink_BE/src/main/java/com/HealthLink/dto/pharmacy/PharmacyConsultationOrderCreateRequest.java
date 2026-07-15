@@ -30,7 +30,7 @@ public class PharmacyConsultationOrderCreateRequest {
     private LocalDateTime estimatedDeliveryTime;
 
     @Min(value = 1, message = "Estimated delivery minutes must be >= 1")
-    @Max(value = 999, message = "Estimated delivery minutes must be <= 999")
+    @Max(value = 720, message = "Estimated delivery minutes must be <= 720")
     private Integer estimatedDeliveryMinutes;
 
     private String paymentMethod;

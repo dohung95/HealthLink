@@ -28,15 +28,18 @@ public class PartnerPinException extends RuntimeException {
     }
 
     public static PartnerPinException required() {
-        return new PartnerPinException("A withdrawal PIN is required", HttpStatus.CONFLICT, null, null);
+        return new PartnerPinException("A withdrawal PIN is required", HttpStatus.CONFLICT,
+                null, null, "PIN_REQUIRED", null);
     }
 
     public static PartnerPinException invalid(int attemptsRemaining) {
-        return new PartnerPinException("Invalid withdrawal PIN", HttpStatus.UNPROCESSABLE_ENTITY, attemptsRemaining, null);
+        return new PartnerPinException("Invalid withdrawal PIN", HttpStatus.UNPROCESSABLE_ENTITY,
+                attemptsRemaining, null, "PIN_INVALID", null);
     }
 
     public static PartnerPinException locked(LocalDateTime lockedUntil) {
-        return new PartnerPinException("Withdrawal PIN is temporarily locked", HttpStatus.LOCKED, 0, lockedUntil);
+        return new PartnerPinException("Withdrawal PIN is temporarily locked", HttpStatus.LOCKED,
+                0, lockedUntil, "PIN_LOCKED", null);
     }
 
     public static PartnerPinException badRequest(String message) {

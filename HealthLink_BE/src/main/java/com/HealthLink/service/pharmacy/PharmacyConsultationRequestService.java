@@ -1,5 +1,6 @@
 package com.HealthLink.service.pharmacy;
 
+import com.HealthLink.dto.chat.ChatRoomDTO;
 import com.HealthLink.dto.pharmacy.PharmacyConsultationRequestCreateRequest;
 import com.HealthLink.dto.pharmacy.PharmacyConsultationRequestResponse;
 import com.HealthLink.dto.pharmacy.PharmacyConsultationRequestStatusUpdateRequest;
@@ -16,6 +17,8 @@ public interface PharmacyConsultationRequestService {
     List<PharmacyConsultationRequestResponse> getRequestsByPatient(String patientId);
 
     PharmacyConsultationRequestResponse getRequestById(Integer requestId);
+
+    ChatRoomDTO getOrCreateRequestChatRoom(Integer requestId, String userId);
 
     PharmacyConsultationRequestResponse updateRequestStatus(
             Integer requestId,

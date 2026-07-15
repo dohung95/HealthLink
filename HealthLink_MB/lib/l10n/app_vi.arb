@@ -501,6 +501,8 @@
   "chatBlockedVitalsWarning": "Vui lòng cung cấp thông tin sức khỏe của bạn trước khi bắt đầu chat.",
   "fillHealthInfoBtn": "Nhập thông tin sức khỏe",
   "vitalsSavedSuccess": "Đã lưu thông tin sức khỏe thành công.",
+  "chatAppointmentCompleted": "Buổi hẹn đã kết thúc. Cuộc trò chuyện hiện ở chế độ chỉ đọc.",
+  "chatAppointmentNotStarted": "Cuộc hẹn chưa bắt đầu. Chat sẽ tự động mở khi đến giờ khám.",
   "vitalsInstructionsTitle": "Hướng dẫn trước khi bắt đầu tư vấn",
   "vitalsInstructions1": "Nếu có máy đo huyết áp tại nhà, vui lòng nhập các chỉ số hiển thị trên máy: SYS, DIA và Nhịp tim (Pulse).",
   "vitalsInstructions2": "Nếu không có máy đo, bạn vẫn có thể tự đo nhịp tim: ngồi yên, đếm nhịp đập trong 30 giây rồi nhân đôi để ra số nhịp/phút.",

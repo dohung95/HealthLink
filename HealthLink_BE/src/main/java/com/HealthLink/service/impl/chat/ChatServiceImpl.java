@@ -7,13 +7,17 @@ import com.HealthLink.dto.chat.SendMessageRequest;
 import com.HealthLink.entity.Appointment;
 import com.HealthLink.entity.ChatRoom;
 import com.HealthLink.entity.Message;
+import com.HealthLink.entity.PharmacyConsultationRequest;
 import com.HealthLink.entity.User;
+import com.HealthLink.exception.BusinessException;
 import com.HealthLink.exception.ResourceNotFoundException;
 import com.HealthLink.repository.appointment.AppointmentRepository;
 import com.HealthLink.repository.auth.UserRepository;
 import com.HealthLink.repository.chat.ChatRoomRepository;
 import com.HealthLink.repository.chat.MessageRepository;
+import com.HealthLink.repository.pharmacy.PharmacyConsultationRequestRepository;
 import com.HealthLink.service.chat.ChatService;
+import com.HealthLink.service.impl.pharmacy.PharmacyServiceHelper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
@@ -37,6 +41,7 @@ public class ChatServiceImpl implements ChatService {
     private final UserRepository        userRepository;
     private final SimpMessagingTemplate messagingTemplate;
     private final com.HealthLink.service.chat.PresenceService presenceService;
+    private final PharmacyConsultationRequestRepository pharmacyConsultationRequestRepository;
 
     // -------------------------------------------------------------------------
     // Tạo hoặc lấy phòng chat
@@ -141,11 +146,50 @@ public class ChatServiceImpl implements ChatService {
     // Lấy phòng chat theo ID
     // -------------------------------------------------------------------------
     @Override
-    @Transactional(readOnly = true)
+    @Transactional
     public ChatRoomDTO getRoomById(String chatRoomId, String userId) {
         ChatRoom room = chatRoomRepository.findById(chatRoomId)
                 .orElseThrow(() -> new ResourceNotFoundException("ChatRoom", "id", chatRoomId));
+
+        syncLatestAppointment(room);
+
         return toRoomDTO(room, userId);
+    }
+
+    private void syncLatestAppointment(ChatRoom room) {
+        try {
+            User user1 = userRepository.findById(room.getUser1Id()).orElse(null);
+            User user2 = userRepository.findById(room.getUser2Id()).orElse(null);
+
+            if (user1 == null || user2 == null) return;
+
+            String doctorId = null;
+            String patientId = null;
+
+            if (user1.getDoctor() != null) doctorId = user1.getId();
+            else if (user1.getPatient() != null) patientId = user1.getId();
+
+            if (user2.getDoctor() != null) doctorId = user2.getId();
+            else if (user2.getPatient() != null) patientId = user2.getId();
+
+            if (doctorId != null && patientId != null) {
+                List<Appointment> apps = appointmentRepository.findDoctorPatientAppointments(doctorId, patientId);
+                if (!apps.isEmpty()) {
+                    // Pick the first appointment that is not CANCELLED if possible
+                    Appointment latest = apps.stream()
+                        .filter(a -> !"CANCELLED".equalsIgnoreCase(a.getStatus()))
+                        .findFirst()
+                        .orElse(apps.get(0));
+
+                    if (room.getAppointment() == null || !room.getAppointment().getAppointmentId().equals(latest.getAppointmentId())) {
+                        room.setAppointment(latest);
+                        chatRoomRepository.save(room);
+                    }
+                }
+            }
+        } catch (Exception e) {
+            System.err.println("Error auto-syncing appointment for chat room: " + e.getMessage());
+        }
     }
 
     // -------------------------------------------------------------------------
@@ -162,6 +206,19 @@ public class ChatServiceImpl implements ChatService {
         // Kiểm tra xem phòng có bị chặn không
         if (room.getBlockedBy() != null) {
             throw new IllegalStateException("You cannot send messages because this conversation is blocked.");
+        }
+
+        List<PharmacyConsultationRequest> linkedRequests =
+                pharmacyConsultationRequestRepository
+                        .findAllByChatRoomId(room.getChatRoomId());
+
+        boolean pharmacyRoom = !linkedRequests.isEmpty();
+        boolean hasEditableRequest = linkedRequests.stream()
+                .anyMatch(PharmacyServiceHelper::canSendPharmacyChat);
+
+        if (pharmacyRoom && !hasEditableRequest) {
+            throw new BusinessException(
+                    "This pharmacy conversation is now read-only.");
         }
 
         // Tạo entity User tạm cho sender (chỉ cần ID để JPA set foreign key)

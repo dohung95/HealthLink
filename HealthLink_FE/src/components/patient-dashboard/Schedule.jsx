@@ -206,6 +206,9 @@ const Schedule = () => {
     if (preselectedDoctor) {
       setSelectedSpecialty(preselectedDoctor.specialtyName || '');
       setSelectedDoctorId(preselectedDoctor.doctorId);
+      if (!isFromProposal) {
+        setDoctorSelectionMode('MANUAL_SELECTED');
+      }
       setSelectedHomeVisitDoctor(preselectedDoctor);
 
       // Nếu từ home visit proposal: pre-set consultationType, skip Visit Type step
@@ -424,20 +427,20 @@ const Schedule = () => {
   };
 
   const hasSelectableSlots = (slotList = [], targetDate = null) => {
-  const now = new Date();
-  return slotList.some((slot) => {
-    const isAvailable =
-      slot.selectable === true ||
-      String(slot.status || '').toUpperCase() === 'AVAILABLE';
-    if (!isAvailable) return false;
-    // Nếu có targetDate thì kiểm tra slot bị quá giờ
-    if (targetDate) {
-      const slotDateTime = new Date(`${targetDate}T${slot.startTime}`);
-      if (slotDateTime < now) return false;
-    }
-    return true;
-  });
-};
+    const now = new Date();
+    return slotList.some((slot) => {
+      const isAvailable =
+        slot.selectable === true ||
+        String(slot.status || '').toUpperCase() === 'AVAILABLE';
+      if (!isAvailable) return false;
+      // Nếu có targetDate thì kiểm tra slot bị quá giờ
+      if (targetDate) {
+        const slotDateTime = new Date(`${targetDate}T${slot.startTime}`);
+        if (slotDateTime < now) return false;
+      }
+      return true;
+    });
+  };
 
   const loadSlotsForDate = async (targetDate) => {
     if (!selectedDoctorId || !targetDate) return [];
@@ -1022,7 +1025,7 @@ const Schedule = () => {
                     setSelectedSlot(null);
                     setSlots([]);
                     setFirstSlotSearchKey('');
-                    setDoctorSelectionMode('');
+                    setDoctorSelectionMode(hasPreselectedDoctor && type === 'Online' ? 'MANUAL_SELECTED' : '');
                     setRecommendedDoctor(null);
                     setManualSelectionFee(0);
 

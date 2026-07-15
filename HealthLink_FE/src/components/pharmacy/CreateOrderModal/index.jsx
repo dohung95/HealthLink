@@ -422,8 +422,8 @@ export default function CreateOrderModal({
       toast.error('Please enter a valid delivery fee.');
       return;
     }
-    if (deliveryEnabled && (estimatedDeliveryMinutes < 1 || estimatedDeliveryMinutes > 999)) {
-      toast.error('Please select a delivery time from 001 to 999 minutes.');
+    if (deliveryEnabled && (estimatedDeliveryMinutes < 1 || estimatedDeliveryMinutes > 720)) {
+      toast.error('Please select a delivery time from 001 to 720 minutes.');
       return;
     }
     setCreatingOrder(true);

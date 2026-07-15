@@ -109,12 +109,11 @@ class PharmacyInventoryService {
   void close() => _client.close();
 
   Future<PharmacyInventoryPage> getInventory(
-    String token,
-    String pharmacyId, {
+    String token, {
     PharmacyInventoryFilter? filter,
   }) async {
     final f = filter ?? const PharmacyInventoryFilter();
-    final uri = Uri.parse(ApiConfig.pharmacyInventoryPage(pharmacyId))
+    final uri = Uri.parse(ApiConfig.pharmacyInventoryPage())
         .replace(queryParameters: f.toQueryParams());
     final res = await _client
         .get(uri, headers: _authHeaders(token))

@@ -649,6 +649,8 @@
   "chatBlockedVitalsWarning": "Please provide your health information before starting the chat.",
   "fillHealthInfoBtn": "Fill Health Info",
   "vitalsSavedSuccess": "Pre-consultation vitals saved successfully.",
+  "chatAppointmentCompleted": "This consultation has ended. The chat is now read-only.",
+  "chatAppointmentNotStarted": "The appointment has not started yet. Chat will open automatically when it's time.",
   "vitalsInstructionsTitle": "Instructions before starting the consultation",
   "vitalsInstructions1": "If you have a home blood pressure monitor, please enter the readings shown on the device: SYS, DIA and Pulse.",
   "vitalsInstructions2": "If you do not have a monitor, you can still measure your pulse manually: sit still, count your pulse for 30 seconds, then multiply by two to get beats/minute.",

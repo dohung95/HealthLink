@@ -32,7 +32,9 @@ const PatientSidebar = () => {
         refreshUnreadCount();
 
         const unsub = stompChatService.subscribeToChat(() => {
-            refreshUnreadCount();
+            setTimeout(() => {
+                refreshUnreadCount();
+            }, 1000);
         });
 
         const handleReadUpdate = () => {

@@ -9,7 +9,6 @@ import com.HealthLink.dto.pharmacy.PharmacyConsultationRequestStatusUpdateReques
 import com.HealthLink.dto.prescription.PrescriptionResponse;
 import com.HealthLink.exception.ResourceNotFoundException;
 import com.HealthLink.repository.auth.UserRepository;
-import com.HealthLink.service.chat.ChatService;
 import com.HealthLink.service.pharmacy.PharmacyConsultationRequestService;
 import com.HealthLink.service.pharmacy.PharmacyOrderService;
 import com.HealthLink.utility.SecurityUtils;
@@ -33,7 +32,6 @@ public class PharmacyConsultationRequestController {
     private final PharmacyOrderService pharmacyOrderService;
     private final SecurityUtils securityUtils;
     private final UserRepository userRepository;
-    private final ChatService chatService;
 
     @PostMapping
     @PreAuthorize("hasRole('PATIENT')")
@@ -76,13 +74,10 @@ public class PharmacyConsultationRequestController {
     public ResponseEntity<ChatRoomDTO> getChatRoom(
             @PathVariable Integer requestId,
             @AuthenticationPrincipal UserDetails userDetails) {
-        PharmacyConsultationRequestResponse request = pharmacyConsultationRequestService
-                .getRequestById(requestId);
-        if (request.getChatRoomId() == null) {
-            return ResponseEntity.notFound().build();
-        }
         String userId = resolveUserId(userDetails);
-        return ResponseEntity.ok(chatService.getRoomById(request.getChatRoomId(), userId));
+        return ResponseEntity.ok(
+                pharmacyConsultationRequestService.getOrCreateRequestChatRoom(requestId, userId)
+        );
     }
 
     @PatchMapping("/{requestId}/status")

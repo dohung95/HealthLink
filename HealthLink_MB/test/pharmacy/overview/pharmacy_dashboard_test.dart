@@ -6,6 +6,7 @@ import 'package:HealthLink/providers/pharmacy/pharmacy_workflow_provider.dart';
 import 'package:HealthLink/providers/pharmacy/pharmacy_order_provider.dart';
 import 'package:HealthLink/providers/pharmacy/pharmacy_request_provider.dart';
 import 'package:HealthLink/providers/pharmacy/pharmacy_inventory_provider.dart';
+import 'package:HealthLink/providers/pharmacy/pharmacy_revenue_provider.dart';
 import 'package:HealthLink/screens/pharmacy/pharmacy_dashboard_screen.dart';
 
 class _MockAuthProvider extends AuthProvider {
@@ -57,6 +58,9 @@ Widget _buildTestApp({
         ),
         ChangeNotifierProvider<PharmacyRequestProvider>(
           create: (_) => PharmacyRequestProvider(),
+        ),
+        ChangeNotifierProvider<PharmacyRevenueProvider>(
+          create: (_) => PharmacyRevenueProvider(),
         ),
         ChangeNotifierProvider<PharmacyInventoryProvider>.value(
           value: inventoryProvider ?? PharmacyInventoryProvider(),

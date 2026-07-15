@@ -1,5 +1,7 @@
 package com.HealthLink.service.impl.pharmacy;
 
+import com.HealthLink.dto.chat.ChatRoomDTO;
+import com.HealthLink.dto.chat.CreateRoomRequest;
 import com.HealthLink.dto.pharmacy.PharmacyConsultationRequestCreateRequest;
 import com.HealthLink.dto.pharmacy.PharmacyConsultationRequestResponse;
 import com.HealthLink.dto.pharmacy.PharmacyConsultationRequestStatusUpdateRequest;
@@ -17,6 +19,7 @@ import com.HealthLink.entity.PrescriptionItem;
 import com.HealthLink.entity.User;
 import com.HealthLink.entity.enums.NotificationType;
 import com.HealthLink.exception.BadRequestException;
+import com.HealthLink.exception.BusinessException;
 import com.HealthLink.exception.ForbiddenException;
 import com.HealthLink.repository.notification.DeviceTokenRepository;
 import com.HealthLink.repository.patient.PatientRepository;
@@ -42,6 +45,7 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.mockito.ArgumentMatchers.any;
@@ -461,6 +465,7 @@ class PharmacyConsultationRequestServiceImplTest {
                 .patient(patient)
                 .pharmacy(pharmacy)
                 .status("PENDING")
+                .requestType("ORDER_REQUEST")
                 .build();
 
         PharmacyConsultationRequestStatusUpdateRequest request =
@@ -625,7 +630,119 @@ class PharmacyConsultationRequestServiceImplTest {
     }
 
     @Test
-    void updateRequestStatus_shouldNotCreateChatRoomForOrderRequest() {
+    void updateRequestStatus_createsChatRoomForConsultation() {
+        PharmacyConsultationRequest request = request("CONSULTATION", "PENDING", null);
+        when(consultationRequestRepository.findById(41)).thenReturn(Optional.of(request));
+        when(consultationRequestRepository.save(any(PharmacyConsultationRequest.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+        when(chatService.getOrCreateRoom(any(CreateRoomRequest.class)))
+                .thenReturn(ChatRoomDTO.builder().chatRoomId("room-41").build());
+
+        consultationRequestService.updateRequestStatus(41, statusRequest("IN_REVIEW"));
+
+        assertThat(request.getChatRoomId()).isEqualTo("room-41");
+        verify(chatService).getOrCreateRoom(org.mockito.ArgumentMatchers.argThat(room ->
+                room.getUser1Id().equals("pharmacy-user-1")
+                        && room.getUser2Id().equals("patient-user-1")));
+    }
+
+    @Test
+    void updateRequestStatus_doesNotCreateChatForOrderRequest() {
+        PharmacyConsultationRequest request = request("ORDER_REQUEST", "PENDING", null);
+        when(consultationRequestRepository.findById(41)).thenReturn(Optional.of(request));
+        when(consultationRequestRepository.save(any(PharmacyConsultationRequest.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        consultationRequestService.updateRequestStatus(41, statusRequest("IN_REVIEW"));
+
+        assertThat(request.getChatRoomId()).isNull();
+        verifyNoInteractions(chatService);
+    }
+
+    @Test
+    void getOrCreateRequestChatRoom_returnsExistingRoomWithoutCreatingAnother() {
+        PharmacyConsultationRequest request = request("CONSULTATION", "IN_REVIEW", "room-41");
+        ChatRoomDTO room = ChatRoomDTO.builder().chatRoomId("room-41").build();
+        when(consultationRequestRepository.findById(41)).thenReturn(Optional.of(request));
+        when(chatService.getRoomById("room-41", "patient-user-1")).thenReturn(room);
+
+        ChatRoomDTO result = consultationRequestService.getOrCreateRequestChatRoom(41, "patient-user-1");
+
+        assertThat(result).isSameAs(room);
+        verify(chatService, never()).getOrCreateRoom(any());
+    }
+
+    @Test
+    void getOrCreateRequestChatRoom_repairsInReviewConsultationWithoutRoom() {
+        PharmacyConsultationRequest request = request("CONSULTATION", "IN_REVIEW", null);
+        ChatRoomDTO room = ChatRoomDTO.builder().chatRoomId("room-41").build();
+        when(consultationRequestRepository.findById(41)).thenReturn(Optional.of(request));
+        when(consultationRequestRepository.save(any(PharmacyConsultationRequest.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+        when(chatService.getOrCreateRoom(any(CreateRoomRequest.class))).thenReturn(room);
+
+        ChatRoomDTO result = consultationRequestService.getOrCreateRequestChatRoom(41, "patient-user-1");
+
+        assertThat(result).isSameAs(room);
+        assertThat(request.getChatRoomId()).isEqualTo("room-41");
+    }
+
+    @Test
+    void getOrCreateRequestChatRoom_rejectsCallerOutsideRequest() {
+        PharmacyConsultationRequest request = request("CONSULTATION", "IN_REVIEW", "room-41");
+        when(consultationRequestRepository.findById(41)).thenReturn(Optional.of(request));
+
+        assertThatThrownBy(() -> consultationRequestService.getOrCreateRequestChatRoom(41, "outsider"))
+                .isInstanceOf(ForbiddenException.class);
+
+        verifyNoInteractions(chatService);
+    }
+
+    @Test
+    void getOrCreateRequestChatRoom_returnsExistingRoomAsHistoryAfterOrderExists() {
+        PharmacyConsultationRequest request = request("CONSULTATION", "ORDER_CREATED", "room-41");
+        ChatRoomDTO room = ChatRoomDTO.builder().chatRoomId("room-41").build();
+        request.setOrder(PharmacyOrder.builder().orderId(99).build());
+        when(consultationRequestRepository.findById(41)).thenReturn(Optional.of(request));
+        when(chatService.getRoomById("room-41", "pharmacy-user-1")).thenReturn(room);
+
+        assertThat(consultationRequestService.getOrCreateRequestChatRoom(41, "pharmacy-user-1"))
+                .isSameAs(room);
+        verify(chatService, never()).getOrCreateRoom(any());
+    }
+
+    @Test
+    void getOrCreateRequestChatRoom_rejectsLazyCreationForNonConsultationRequest() {
+        PharmacyConsultationRequest request = request("ORDER_REQUEST", "IN_REVIEW", null);
+        when(consultationRequestRepository.findById(41)).thenReturn(Optional.of(request));
+
+        assertThatThrownBy(() -> consultationRequestService.getOrCreateRequestChatRoom(41, "patient-user-1"))
+                .isInstanceOf(BusinessException.class)
+                .hasMessage("Chat is available only for consultation requests");
+    }
+
+    @Test
+    void getOrCreateRequestChatRoom_rejectsLazyCreationAfterOrderExistsWithoutHistory() {
+        PharmacyConsultationRequest request = request("CONSULTATION", "IN_REVIEW", null);
+        request.setOrder(PharmacyOrder.builder().orderId(99).build());
+        when(consultationRequestRepository.findById(41)).thenReturn(Optional.of(request));
+
+        assertThatThrownBy(() -> consultationRequestService.getOrCreateRequestChatRoom(41, "patient-user-1"))
+                .isInstanceOf(BusinessException.class)
+                .hasMessage("Chat history is not available for this order");
+    }
+
+    @Test
+    void getOrCreateRequestChatRoom_rejectsLazyCreationOutsideInReview() {
+        PharmacyConsultationRequest request = request("CONSULTATION", "PENDING", null);
+        when(consultationRequestRepository.findById(41)).thenReturn(Optional.of(request));
+
+        assertThatThrownBy(() -> consultationRequestService.getOrCreateRequestChatRoom(41, "patient-user-1"))
+                .isInstanceOf(BusinessException.class)
+                .hasMessage("Chat is available only while the request is in review");
+    }
+
+    private PharmacyConsultationRequest request(String requestType, String status, String chatRoomId) {
         User patientUser = User.builder().id("patient-user-1").build();
         Patient patient = Patient.builder()
                 .patientId("patient-1")
@@ -637,27 +754,21 @@ class PharmacyConsultationRequestServiceImplTest {
                 .name("Central Pharmacy")
                 .user(User.builder().id("pharmacy-user-1").build())
                 .build();
-        PharmacyConsultationRequest consultationRequest = PharmacyConsultationRequest.builder()
-                .requestId(15)
+        return PharmacyConsultationRequest.builder()
+                .requestId(41)
                 .patient(patient)
                 .pharmacy(pharmacy)
-                .status("PENDING")
-                .requestType("ORDER_REQUEST")
+                .requestType(requestType)
+                .status(status)
+                .chatRoomId(chatRoomId)
                 .build();
+    }
 
+    private PharmacyConsultationRequestStatusUpdateRequest statusRequest(String status) {
         PharmacyConsultationRequestStatusUpdateRequest request =
                 new PharmacyConsultationRequestStatusUpdateRequest();
-        request.setStatus("IN_REVIEW");
-
-        when(consultationRequestRepository.findById(15)).thenReturn(Optional.of(consultationRequest));
-        when(consultationRequestRepository.save(any(PharmacyConsultationRequest.class)))
-                .thenAnswer(invocation -> invocation.getArgument(0));
-        when(deviceTokenRepository.findByUser_IdAndActiveTrue("patient-user-1"))
-                .thenReturn(List.of());
-
-        consultationRequestService.updateRequestStatus(15, request);
-
-        verify(chatService, never()).getOrCreateRoom(any());
+        request.setStatus(status);
+        return request;
     }
 
     private PrescriptionHeader prescription(

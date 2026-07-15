@@ -279,7 +279,7 @@ export default function PharmacyRequestsPage({
     if (reviewed) setDeliveryChangeConfirm(null);
   };
 
-  const noChatVideoKinds = ['deliveryOrderRequest', 'deliveryQuote', 'pickupReview', 'deliveryContactChange', 'retailReview', 'revision'];
+  const noChatKinds = ['deliveryOrderRequest', 'deliveryQuote', 'pickupReview', 'deliveryContactChange', 'retailReview'];
 
   return (
     <>
@@ -333,7 +333,7 @@ export default function PharmacyRequestsPage({
               const itemId = getItemId(item);
               const isSaving = savingId === itemId;
               const canChat = canUseRequestChat(item);
-              const showChatAction = canChat && !noChatVideoKinds.includes(kind);
+              const showChatAction = canChat && !noChatKinds.includes(kind);
 
               let badgeLabel = stage;
               if (kind === 'deliveryOrderRequest') badgeLabel = 'Delivery quote';

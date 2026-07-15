@@ -9,6 +9,7 @@ import 'providers/theme_provider.dart';
 import 'providers/pharmacy/pharmacy_order_provider.dart';
 import 'providers/pharmacy/pharmacy_request_provider.dart';
 import 'providers/pharmacy/pharmacy_inventory_provider.dart';
+import 'providers/pharmacy/pharmacy_revenue_provider.dart';
 import 'providers/pharmacy/pharmacy_workflow_provider.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'l10n/app_localizations.dart';
@@ -60,6 +61,9 @@ Future<void> main() async {
         ),
         ChangeNotifierProvider<PharmacyInventoryProvider>(
           create: (_) => PharmacyInventoryProvider(),
+        ),
+        ChangeNotifierProvider<PharmacyRevenueProvider>(
+          create: (_) => PharmacyRevenueProvider(),
         ),
         ChangeNotifierProvider<PharmacyWorkflowProvider>(
           create: (_) => PharmacyWorkflowProvider(),

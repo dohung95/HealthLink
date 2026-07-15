@@ -21,9 +21,11 @@ import 'profile_patient_normal_forChar_screen.dart';
 import 'profile_doctor_normal_forChat_screen.dart';
 import '../../utils/localization_utils.dart';
 import '../../providers/video_call_provider.dart';
+import '../../services/video_audio/webrtc_stomp_service.dart';
 import '../video_audio/video_call_screen.dart';
-import '../../services/patient/vitals/vital_sign_service.dart';
-import '../../widgets/patient/vitals_bottom_sheet.dart';
+// [DEPRECATED - 2026-07-14] Import vitals — giữ lại để dễ phục hồi, không còn dùng ở đây.
+// import '../../services/patient/vitals/vital_sign_service.dart';
+// import '../../widgets/patient/vitals_bottom_sheet.dart';
 import '../../l10n/app_localizations.dart';
 
 /// Màn hình Chat Room – hiển thị tin nhắn và cho phép gửi tin nhắn.
@@ -31,7 +33,22 @@ class ChatRoomScreen extends StatefulWidget {
   /// Thông tin conversation đến từ ChatListScreen
   final Conversation conversation;
 
-  const ChatRoomScreen({super.key, required this.conversation});
+  /// If true, suppresses input, send, call, and mutation actions.
+  final bool readOnly;
+
+  /// Overrides the app bar title when [readOnly] is true.
+  final String? title;
+
+  /// Custom read-only banner message.
+  final String? readOnlyMessage;
+
+  const ChatRoomScreen({
+    super.key,
+    required this.conversation,
+    this.readOnly = false,
+    this.title,
+    this.readOnlyMessage,
+  });
 
   @override
   State<ChatRoomScreen> createState() => _ChatRoomScreenState();
@@ -58,13 +75,15 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
   bool _isRecording = false;
   int _recordingDuration = 0;
   Timer? _recordingTimer;
-  Timer? _vitalsTimer;
   String? _audioPath;
-
-  // Vitals state
-  bool _hasFilledVitals = false;
-  bool _checkingVitals = false;
-  int? _checkedAppointmentId;
+  // ---------------------------------------------------------------------------
+  // [DEPRECATED - 2026-07-14] Patient vitals flow đã bỏ — bác sĩ nhập vitals thay.
+  // Giữ lại code để tiện phục hồi nếu cần. Xem: VitalsBottomSheet, VitalSignService.
+  // bool _hasFilledVitals = false;
+  // bool _checkingVitals = false;
+  // int? _checkedAppointmentId;
+  // Timer? _vitalsTimer;
+  // ---------------------------------------------------------------------------
 
   ColorScheme _colors(BuildContext context) => Theme.of(context).colorScheme;
 
@@ -116,49 +135,49 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
     });
   }
 
-  void _checkVitals(String token, int appointmentId) {
-    if (_checkingVitals) return;
-    setState(() => _checkingVitals = true);
-    
-    VitalSignService.getLatestAppointmentVitalSign(token, appointmentId)
-        .then((data) {
-      if (mounted) {
-        setState(() {
-          _hasFilledVitals = data != null && data['vitalSignId'] != null;
-          _checkingVitals = false;
-        });
-
-        // Start polling if not filled yet (like web logic)
-        if (!_hasFilledVitals && _vitalsTimer == null) {
-          _vitalsTimer = Timer.periodic(const Duration(milliseconds: 500), (_) {
-            VitalSignService.getLatestAppointmentVitalSign(token, appointmentId)
-                .then((pollData) {
-              if (mounted && pollData != null && pollData['vitalSignId'] != null) {
-                setState(() => _hasFilledVitals = true);
-                _vitalsTimer?.cancel();
-                _vitalsTimer = null;
-              }
-            }).catchError((_) {});
-          });
-        } else if (_hasFilledVitals) {
-          _vitalsTimer?.cancel();
-          _vitalsTimer = null;
-        }
-      }
-    }).catchError((e) {
-      if (mounted) {
-        setState(() {
-          _hasFilledVitals = false;
-          _checkingVitals = false;
-        });
-      }
-    });
-  }
+  // ---------------------------------------------------------------------------
+  // [DEPRECATED - 2026-07-14] _checkVitals — bỏ vì Patient không tự nhập vitals nữa.
+  // void _checkVitals(String token, int appointmentId) {
+  //   if (_checkingVitals) return;
+  //   setState(() => _checkingVitals = true);
+  //   VitalSignService.getLatestAppointmentVitalSign(token, appointmentId)
+  //       .then((data) {
+  //     if (mounted) {
+  //       setState(() {
+  //         _hasFilledVitals = data != null && data['vitalSignId'] != null;
+  //         _checkingVitals = false;
+  //       });
+  //       if (!_hasFilledVitals && _vitalsTimer == null) {
+  //         _vitalsTimer = Timer.periodic(const Duration(milliseconds: 500), (_) {
+  //           VitalSignService.getLatestAppointmentVitalSign(token, appointmentId)
+  //               .then((pollData) {
+  //             if (mounted && pollData != null && pollData['vitalSignId'] != null) {
+  //               setState(() => _hasFilledVitals = true);
+  //               _vitalsTimer?.cancel();
+  //               _vitalsTimer = null;
+  //             }
+  //           }).catchError((_) {});
+  //         });
+  //       } else if (_hasFilledVitals) {
+  //         _vitalsTimer?.cancel();
+  //         _vitalsTimer = null;
+  //       }
+  //     }
+  //   }).catchError((e) {
+  //     if (mounted) {
+  //       setState(() {
+  //         _hasFilledVitals = false;
+  //         _checkingVitals = false;
+  //       });
+  //     }
+  //   });
+  // }
+  // ---------------------------------------------------------------------------
 
   @override
   void dispose() {
     _recordingTimer?.cancel();
-    _vitalsTimer?.cancel();
+    // [DEPRECATED] _vitalsTimer?.cancel(); // Bỏ vì không còn poll vitals từ Patient
     _audioRecorder.dispose();
     _messageController.dispose();
     _scrollController.dispose();
@@ -253,22 +272,43 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
     });
   }
 
-  void _handleVideoCall(BuildContext context, Conversation conv) {
+  Future<void> _handleVideoCall(BuildContext context, Conversation conv) async {
     if (conv.isSupport) return;
     final auth = context.read<AuthProvider>();
     final videoCallProvider = context.read<VideoCallProvider>();
 
     if (auth.isAuthenticated && auth.userId != null) {
-      final success = videoCallProvider.sendCallRequest(
-        receiverId: conv.partnerId,
-        roomId: conv.id,
-        myId: auth.userId!,
-        myName: auth.displayName ?? 'User',
-      );
+      final success = auth.isPharmacy
+          ? await videoCallProvider.sendPharmacyCallRequest(
+              receiverId: conv.partnerId,
+              roomId: conv.id,
+              myId: auth.userId!,
+              myName: auth.displayName ?? 'Pharmacy',
+            )
+          : videoCallProvider.sendCallRequest(
+              receiverId: conv.partnerId,
+              roomId: conv.id,
+              myId: auth.userId!,
+              myName: auth.displayName ?? 'User',
+              receiverName: conv.partnerName,
+              receiverRole: auth.isDoctor ? 'Patient' : 'Doctor',
+            );
+
+      if (!context.mounted) return;
 
       if (!success) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('You are already in a call!', style: TextStyle(color: Colors.white)), backgroundColor: Colors.red),
+          SnackBar(
+            content: Text(
+              auth.isPharmacy &&
+                      WebrtcStompService.instance.connectionState !=
+                          WebrtcConnectionState.connected
+                  ? 'Unable to start video call: connection is unavailable.'
+                  : 'You are already in a call!',
+              style: const TextStyle(color: Colors.white),
+            ),
+            backgroundColor: Colors.red,
+          ),
         );
         return;
       }
@@ -522,21 +562,22 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
   Widget build(BuildContext context) {
     final colors = _colors(context);
     final chat = context.watch<ChatProvider>();
-    final auth = context.read<AuthProvider>();
+    // ignore: unused_local_variable
+    final auth = context.read<AuthProvider>(); // Dùng trong _buildInputArea và _buildAppBar
     
-    final conv = chat.currentConversation ?? widget.conversation;
+    final conv = chat.currentConversation ?? widget.conversation; // ignore: unused_local_variable
     
-    // Check vitals dynamically if appointmentId is present and hasn't been checked yet
-    if (conv.appointmentId != null && 
-        _checkedAppointmentId != conv.appointmentId && 
-        conv.appointmentStatus?.toUpperCase() != 'COMPLETED') {
-      _checkedAppointmentId = conv.appointmentId;
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (auth.accessToken != null) {
-          _checkVitals(auth.accessToken!, conv.appointmentId!);
-        }
-      });
-    }
+    // [DEPRECATED - 2026-07-14] Kiểm tra vitals bỏ — bác sĩ nhập thay cho bệnh nhân.
+    // if (conv.appointmentId != null &&
+    //     _checkedAppointmentId != conv.appointmentId &&
+    //     conv.appointmentStatus?.toUpperCase() != 'COMPLETED') {
+    //   _checkedAppointmentId = conv.appointmentId;
+    //   WidgetsBinding.instance.addPostFrameCallback((_) {
+    //     if (auth.accessToken != null) {
+    //       _checkVitals(auth.accessToken!, conv.appointmentId!);
+    //     }
+    //   });
+    // }
 
     final chatTheme = getActiveChatTheme(context, chat.chatThemeIndex);
 
@@ -723,7 +764,8 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
     final conv = chat.currentConversation ?? widget.conversation;
     final chatThemeIndex = chat.chatThemeIndex;
     final chatTheme = getActiveChatTheme(context, chatThemeIndex);
-    final auth = context.read<AuthProvider>();
+    // ignore: unused_local_variable
+    final auth = context.read<AuthProvider>(); // Giữ lại cho logic gọi video call
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -786,7 +828,9 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
                   children: [
                     Flexible(
                       child: Text(
-                        conv.partnerName,
+                        widget.readOnly
+                            ? (widget.title ?? 'Chat history')
+                            : conv.partnerName,
                         style: TextStyle(
                           fontFamily: 'Inter',
                           fontSize: 16,
@@ -824,15 +868,15 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
           if (context.watch<ChatProvider>().isMuted(conv.id))
             Icon(Icons.notifications_off, color: colors.outline, size: 20),
 
-          if (!conv.isSupport)
+          if (!widget.readOnly && !conv.isSupport)
             Builder(
               builder: (context) {
                 final isBlocked = context.watch<ChatProvider>().isBlocked(conv.id);
                 final isCompleted = conv.appointmentStatus == 'COMPLETED';
-                final isMissingVitals = auth.isPatient && !_hasFilledVitals && !isCompleted;
-                final isCallDisabled = isBlocked || isCompleted || isMissingVitals;
+                final isCallDisabled = isBlocked || isCompleted;
                 
                 return IconButton(
+                  key: const Key('chat-video-call-button'),
                   icon: const Icon(Icons.videocam),
                   color: isCallDisabled ? colors.outline : chatTheme.primary,
                   onPressed: isCallDisabled
@@ -842,11 +886,12 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
               }
             ),
             
-          IconButton(
-            icon: const Icon(Icons.info),
-            color: chatTheme.primary,
-            onPressed: () => _showChatDetails(context, conv, colors),
-          ),
+          if (!widget.readOnly)
+            IconButton(
+              icon: const Icon(Icons.info),
+              color: chatTheme.primary,
+              onPressed: () => _showChatDetails(context, conv, colors),
+            ),
         ],
       ),
     );
@@ -932,8 +977,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
     final conv = chat.currentConversation ?? widget.conversation;
     final isBlocked = chat.isBlocked(conv.id);
     final isCompleted = conv.appointmentStatus == 'COMPLETED';
-    final isMissingVitals = !_hasFilledVitals && !isCompleted;
-    final isCallDisabled = isBlocked || isCompleted || isMissingVitals;
+    final isCallDisabled = isBlocked || isCompleted;
 
     return GestureDetector(
       onTap: () {
@@ -1187,6 +1231,17 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
     final conv = chat.currentConversation ?? widget.conversation;
     final chatTheme = getActiveChatTheme(context, chat.chatThemeIndex);
     
+    // ── Ưu tiên 0: Read-only mode (pharmacy request history) ──────────────
+    if (widget.readOnly) {
+      return _buildReadOnlyBanner(
+        colors: colors,
+        chatTheme: chatTheme,
+        icon: Icons.history,
+        message: widget.readOnlyMessage ??
+            'This request has ended. Messages are view-only.',
+      );
+    }
+
     final auth = context.read<AuthProvider>();
     final l10n = AppLocalizations.of(context)!;
     final blockedBy = chat.getBlockedBy(conv.id);
@@ -1199,97 +1254,42 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
         conv.appointmentStatus?.toUpperCase() == 'COMPLETED';
 
     if (isAppointmentCompleted) {
-      // Hiển thị banner thông báo chat đã bị khóa
+      // Hiển thị banner thông báo chat đã bị khóa sau khi hoàn tất cuộc hẹn
       return _buildReadOnlyBanner(
         colors: colors,
         chatTheme: chatTheme,
         icon: Icons.lock_outline,
-        // Thông báo tiếng Anh hiển thị trên màn hình
-        message: 'This consultation has been completed. Chat is now read-only.',
+        message: l10n.chatAppointmentCompleted,
       );
     }
 
     // ── Ưu tiên 2: Kiểm tra xem phòng chat có bị block không ────────────────
-    // Block có thể do bác sĩ hoặc bệnh nhân chủ động block qua tính năng Block.
+    // Block có thể do bác sĩ chặn, hoặc buổi hẹn chưa bắt đầu (backend dùng blockedBy).
     if (blockedBy != null) {
       final isBlockedByMe = blockedBy == auth.userId;
       return _buildReadOnlyBanner(
         colors: colors,
         chatTheme: chatTheme,
-        icon: Icons.block,
-        // Phân biệt thông báo: bạn block người kia hay bị người kia block
+        icon: isBlockedByMe ? Icons.block : Icons.access_time_rounded,
+        // [UPDATED] Thông báo thân thiện: phân biệt "bạn block" vs "chưa đến giờ hẹn"
         message: isBlockedByMe
             ? 'You blocked this user.'
-            : 'You cannot reply to this conversation.',
+            : l10n.chatAppointmentNotStarted,
       );
     }
 
-    // Checking vitals in progress
-    if (_checkingVitals && !isAppointmentCompleted) {
-      return const Padding(
-        padding: EdgeInsets.all(16.0),
-        child: Center(child: CircularProgressIndicator()),
-      );
-    }
+    return _buildMessageInput(context, conv, colors, chatTheme, l10n);
+  }
 
-    // Missing Vitals (Patient & Doctor)
-    if (!_hasFilledVitals && !isAppointmentCompleted) {
-      if (auth.isPatient) {
-        return Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Colors.orange.shade50,
-          border: Border(top: BorderSide(color: Colors.orange.shade200)),
-        ),
-        child: Column(
-          children: [
-            Row(
-              children: [
-                Icon(Icons.warning_amber_rounded, color: Colors.orange.shade700),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    l10n.chatBlockedVitalsWarning,
-                    style: TextStyle(color: Colors.orange.shade900, fontWeight: FontWeight.bold),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            ElevatedButton(
-              onPressed: () {
-                showModalBottomSheet(
-                  context: context,
-                  isScrollControlled: true,
-                  backgroundColor: colors.surface,
-                  shape: const RoundedRectangleBorder(
-                    borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-                  ),
-                  builder: (_) => VitalsBottomSheet(
-                    appointmentId: conv.appointmentId!,
-                    onSaved: () {
-                      setState(() => _hasFilledVitals = true);
-                    },
-                  ),
-                );
-              },
-              child: Text(l10n.fillHealthInfoBtn),
-            ),
-          ],
-        ),
-      );
-      } else {
-        // Missing Vitals (Doctor)
-        return _buildReadOnlyBanner(
-          colors: colors,
-          chatTheme: chatTheme,
-          icon: Icons.hourglass_empty,
-          message: 'Waiting for patient to fill medical information...',
-        );
-      }
-    }
-
-    // ── Trường hợp bình thường: hiển thị input area đầy đủ ─────────────────
+  /// Builds the normal message input area.
+  /// Called when appointment is active and not blocked.
+  Widget _buildMessageInput(
+    BuildContext context,
+    dynamic conv,
+    ColorScheme colors,
+    dynamic chatTheme,
+    dynamic l10n,
+  ) {
     final hasAttachment = _attachedImage != null || _attachedVideo != null || _attachedFile != null;
     final canSend = !_isTextEmpty || hasAttachment;
 
@@ -1406,6 +1406,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
                       border: Border.all(color: chatTheme.primary.withValues(alpha: 0.2)),
                     ),
                     child: TextField(
+                      key: const Key('chat-message-input'),
                       controller: _messageController,
                       maxLines: null,
                       keyboardType: TextInputType.multiline,
@@ -1462,6 +1463,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
                               )
                             : const Icon(Icons.send, size: 20),
                         color: colors.onPrimary,
+                        key: const Key('chat-send-button'),
                         onPressed: !chat.isSending ? _sendMessage : null,
                       ),
                     ),

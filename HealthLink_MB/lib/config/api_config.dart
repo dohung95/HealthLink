@@ -15,7 +15,7 @@ class ApiConfig {
 
   // true = Android Emulator (dùng 10.0.2.2)
   // false = máy thật USB (dùng 127.0.0.1 + adb reverse)
-  static const bool isEmulator = true;
+  static const bool isEmulator = false;
 
   static const String baseUrl = isTeamConfig
       ? 'http://192.168.120.6:8096/api'
@@ -277,9 +277,8 @@ class ApiConfig {
   static String pharmacyRequestCreateOrder(String id) => '$baseUrl/pharmacy-requests/$id/order';
   static String pharmacyWorkItems(String id) => '$baseUrl/pharmacy-work-items/pharmacy/$id';
   static String pharmacyRequestChatRoom(String id) => '$baseUrl/pharmacy-requests/$id/chat-room';
-  static String pharmacyInventory(String pharmacyId) => '$baseUrl/pharmacy/inventory/$pharmacyId';
-  static String pharmacyInventoryPage(String pharmacyId, {int page = 0, int size = 20}) =>
-      '$baseUrl/pharmacy/inventory/$pharmacyId?page=$page&size=$size';
+  static String pharmacyInventoryPage({int page = 0, int size = 20}) =>
+      '$baseUrl/pharmacy/inventory?page=$page&size=$size';
   static const String pharmacyInventoryTemplate = '$baseUrl/pharmacy/inventory/template';
   static const String pharmacyInventoryImport = '$baseUrl/pharmacy/inventory/import';
   static String pharmacyInventoryItemUpdate(int inventoryId) => '$baseUrl/pharmacy/inventory/$inventoryId';
