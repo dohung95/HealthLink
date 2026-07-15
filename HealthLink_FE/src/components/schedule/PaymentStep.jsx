@@ -268,6 +268,16 @@ const PaymentStep = ({ bookingDraft, selectedDoctor, onBack, onPaymentComplete }
                 <span>Status</span>
                 <strong className="text-success">{paidInvoice.status}</strong>
               </div>
+              {!isHomeVisit && (
+                <div className="payment-success-note">
+                  <i className="bi bi-heart-pulse"></i>
+                  <span>
+                    Before your online consultation, please measure basic vitals such as heart rate,
+                    temperature, blood pressure and SpO2 if available. Sharing these readings helps
+                    the doctor save time and prepare better for your consultation.
+                  </span>
+                </div>
+              )}
             </div>
 
             <button

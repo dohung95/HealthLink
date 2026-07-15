@@ -259,6 +259,7 @@
   "bookingUploadDocs": "Tải lên tài liệu y tế",
   "bookingSuccessTitle": "Đặt lịch thành công",
   "bookingSuccessMsg": "Lịch hẹn của bạn đã được tạo.",
+  "bookingOnlineVitalsHint": "Trước khi tư vấn trực tuyến, vui lòng đo các chỉ số sinh hiệu cơ bản như nhịp tim, nhiệt độ, huyết áp và SpO2 nếu có. Chia sẻ các chỉ số này giúp bác sĩ tiết kiệm thời gian và chuẩn bị tốt hơn cho buổi tư vấn.",
   "actionDone": "Hoàn tất",
   "bookingUploadWarnTitle": "Một số tài liệu không được tải lên",
   "actionGotIt": "Đã hiểu",
