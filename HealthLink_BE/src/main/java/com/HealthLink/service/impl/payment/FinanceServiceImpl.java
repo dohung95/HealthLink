@@ -1622,8 +1622,7 @@ public class FinanceServiceImpl implements FinanceService {
 
     /**
      * Trả về phí tự chọn bác sĩ theo cấu hình server (booking.manual-doctor-selection-fee).
-     * Không dùng giá trị manualSelectionFee do client gửi lên nữa — trước đây tin thẳng
-     * giá trị đó nên client có thể gửi 0 để né phí.
+     * Không dùng giá trị manualSelectionFee do client gửi lên nữa
      */
     private BigDecimal resolveManualSelectionFee() {
         return manualDoctorSelectionFee.setScale(2, RoundingMode.HALF_UP);

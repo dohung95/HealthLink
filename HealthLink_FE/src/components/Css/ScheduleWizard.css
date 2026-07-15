@@ -268,66 +268,10 @@
   font-weight: 600;
 }
 
-/* .symptom-field textarea {
-  border: 1.5px solid #d8dedd;
-  border-radius: 12px;
-  padding: 12px 14px;
-  font-size: 15px;
-  resize: vertical;
-} */
-
 /* CSS for DateTimeStep */
 .slot-section {
   margin-top: 20px;
 }
-
-/* .date-field,
-.symptom-field {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.date-field label,
-.symptom-field label {
-  color: #4d6460;
-  font-weight: 600;
-}
-
-.date-field input,
-.symptom-field textarea {
-  border: 1.5px solid #d8dedd;
-  border-radius: 12px;
-  padding: 12px 14px;
-  font-size: 15px;
-}
-
-.slot-section {
-  margin-top: 20px;
-}
-
-.slot-title {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.slot-title h3 {
-  margin: 0 0 14px;
-  color: #0a2e2a;
-  font-size: 16px;
-} */
-
-/* .slot-button.selected {
-  background: #1f7a69;
-  border-color: #1f7a69;
-  color: #fff;
-}
-
-.slot-button:disabled {
-  opacity: 0.45;
-  cursor: not-allowed;
-} */
 
 .upload-box {
   margin-top: 18px;
@@ -1029,6 +973,24 @@
   margin-top: 20px;
 }
 
+.payment-success-note {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  margin: 14px 0;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: #e9f7f2;
+  color: #0f4d43;
+  font-size: 0.92rem;
+  line-height: 1.45;
+}
+
+.payment-success-note i {
+  margin-top: 2px;
+  color: #168575;
+}
+
 @media (max-width: 720px) {
 
   .payment-summary div,
@@ -1481,92 +1443,6 @@
   flex-direction: column;
   gap: 18px;
 }
-
-/* .home-visit-session-list {
-  display: grid;
-  gap: 16px;
-}
-
-.home-visit-session-group {
-  border: 1px solid #dce7e5;
-  border-radius: 16px;
-  padding: 18px;
-  background: #f8fbfa;
-}
-
-.home-visit-session-header {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  margin-bottom: 14px;
-}
-
-.home-visit-session-icon {
-  width: 44px;
-  height: 44px;
-  border-radius: 50%;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  background: #e6f7f3;
-  color: #155248;
-  font-size: 26px;
-  font-weight: 800;
-}
-
-.home-visit-session-header h3 {
-  margin: 0;
-  color: #0a2e2a;
-  font-size: 20px;
-  text-transform: capitalize;
-}
-
-.home-visit-session-header p {
-  margin: 3px 0 0;
-  color: #60736f;
-  font-weight: 600;
-}
-
-.home-visit-date-list {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-} */
-
-/* .home-visit-date-option {
-  border: 1px solid #d8e1df;
-  background: #fff;
-  color: #0a2e2a;
-  border-radius: 999px;
-  padding: 10px 14px;
-  font-weight: 800;
-  transition: 0.18s ease;
-}
-
-.home-visit-date-option:hover {
-  border-color: #8ddecf;
-  background: #f0fbf8;
-}
-
-.home-visit-date-option.selected {
-  border-color: #1f7a69;
-  background: #1f7a69;
-  color: #fff;
-} */
-
-/* @media (max-width: 720px) {
-  .home-visit-session-group {
-    padding: 14px;
-  }
-
-  .home-visit-session-header {
-    align-items: flex-start;
-  }
-
-  .home-visit-date-option {
-    width: 100%;
-  }
-} */
 
 .home-visit-slot-list {
   display: grid;

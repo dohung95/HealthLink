@@ -319,6 +319,7 @@
   "bookingUploadDocs": "Upload medical documents",
   "bookingSuccessTitle": "Booking successful",
   "bookingSuccessMsg": "Your appointment has been created.",
+  "bookingOnlineVitalsHint": "Before your online consultation, please measure basic vitals such as heart rate, temperature, blood pressure and SpO2 if available. Sharing these readings helps the doctor save time and prepare better for your consultation.",
   "actionDone": "Done",
   "bookingUploadWarnTitle": "Some documents were not uploaded",
   "actionGotIt": "Got it",

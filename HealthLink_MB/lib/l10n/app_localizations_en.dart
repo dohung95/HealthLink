@@ -848,6 +848,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get bookingSuccessMsg => 'Your appointment has been created.';
 
   @override
+  String get bookingOnlineVitalsHint =>
+      'Before your online consultation, please measure basic vitals such as heart rate, temperature, blood pressure and SpO2 if available. Sharing these readings helps the doctor save time and prepare better for your consultation.';
+
+  @override
   String get actionDone => 'Done';
 
   @override

@@ -1,7 +1,6 @@
 part of '../booking_screen.dart';
 
 extension _BookingPaymentActions on _BookingScreenState {
-
   Future<void> _handlePayPalDeepLink(Uri uri) async {
     if (uri.scheme != 'healthlink') return;
 
@@ -55,7 +54,7 @@ extension _BookingPaymentActions on _BookingScreenState {
     try {
       final appointmentTime =
           _pendingAppointmentTime ??
-              _appointmentDateTime(_selectedDate, _selectedSlot!.startTime);
+          _appointmentDateTime(_selectedDate, _selectedSlot!.startTime);
 
       final invoice = await _service!.captureAppointmentPayPalPayment(
         orderId: _pendingPayPalOrderId!,
@@ -431,7 +430,44 @@ extension _BookingPaymentActions on _BookingScreenState {
         size: 48,
       ),
       title: Text(AppLocalizations.of(context)!.bookingSuccessTitle),
-      content: Text(AppLocalizations.of(context)!.bookingSuccessMsg),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(AppLocalizations.of(context)!.bookingSuccessMsg),
+          if (!_isHomeVisit) ...[
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: Colors.blue.shade50,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.blue.shade200),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(
+                    Icons.info_outline,
+                    size: 16,
+                    color: Colors.blue.shade700,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      AppLocalizations.of(context)!.bookingOnlineVitalsHint,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.blue.shade800,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ],
+      ),
       actions: [
         FilledButton(
           onPressed: () => Navigator.of(context).pop(),
@@ -459,7 +495,7 @@ extension _BookingPaymentActions on _BookingScreenState {
               Text(AppLocalizations.of(context)!.bookingUploadWarnDesc),
               const SizedBox(height: 12),
               ...messages.map(
-                    (message) => Padding(
+                (message) => Padding(
                   padding: const EdgeInsets.only(bottom: 8),
                   child: Text('• $message'),
                 ),
@@ -476,5 +512,4 @@ extension _BookingPaymentActions on _BookingScreenState {
       },
     );
   }
-
 }

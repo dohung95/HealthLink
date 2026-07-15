@@ -850,6 +850,10 @@ class AppLocalizationsVi extends AppLocalizations {
   String get bookingSuccessMsg => 'Lịch hẹn của bạn đã được tạo.';
 
   @override
+  String get bookingOnlineVitalsHint =>
+      'Trước khi tư vấn trực tuyến, vui lòng đo các chỉ số sinh hiệu cơ bản như nhịp tim, nhiệt độ, huyết áp và SpO2 nếu có. Chia sẻ các chỉ số này giúp bác sĩ tiết kiệm thời gian và chuẩn bị tốt hơn cho buổi tư vấn.';
+
+  @override
   String get actionDone => 'Hoàn tất';
 
   @override
