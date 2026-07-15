@@ -191,6 +191,46 @@ export default function MiniChatBox({
     return () => { window.removeEventListener('mousemove', handleMouseMove); window.removeEventListener('mouseup', handleMouseUp); };
   }, [isDragging, handleMouseMove, handleMouseUp]);
 
+  // Đảm bảo chat box không bị lọt ra ngoài màn hình khi expand/collapse hoặc resize window
+  useEffect(() => {
+    if (isFullTab) return;
+    
+    const checkBounds = () => {
+      if (!chatRef.current) return;
+      const vw = window.innerWidth;
+      const vh = window.innerHeight;
+      const chatWidth = 350;
+      const chatHeight = chatRef.current.offsetHeight;
+      
+      setPosition(prev => {
+        const minX = -(vw - 24 - chatWidth);
+        const minY = -(vh - 24 - chatHeight);
+        
+        let newX = prev.x;
+        let newY = prev.y;
+        
+        if (newX < minX) newX = minX;
+        if (newX > 24) newX = 24;
+        if (newY < minY) newY = minY;
+        if (newY > 24) newY = 24;
+        
+        if (newX !== prev.x || newY !== prev.y) {
+          return { x: newX, y: newY };
+        }
+        return prev;
+      });
+    };
+
+    checkBounds();
+    const timer = setTimeout(checkBounds, 250); // Đợi CSS transition height (0.2s) hoàn tất
+    window.addEventListener('resize', checkBounds);
+    
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener('resize', checkBounds);
+    };
+  }, [isExpanded, isFullTab]);
+
   const sendMsg = async (e) => {
     e.preventDefault();
     if (readOnly) return;
@@ -505,7 +545,7 @@ export default function MiniChatBox({
           >
             <i className="bi bi-camera-video-fill" />
           </button>
-          <button className="btn btn-sm text-white border-0" onClick={() => { setIsExpanded(p => !p); if (isExpanded) { setPosition({ x: 0, y: 0 }); } }} type="button">
+          <button className="btn btn-sm text-white border-0" onClick={() => setIsExpanded(p => !p)} type="button">
             <i className={`bi ${isExpanded ? 'bi-dash' : 'bi-plus-lg'}`} />
           </button>
           <button className="btn btn-sm text-white border-0" onClick={onClose} type="button"><i className="bi bi-x-lg" /></button>
