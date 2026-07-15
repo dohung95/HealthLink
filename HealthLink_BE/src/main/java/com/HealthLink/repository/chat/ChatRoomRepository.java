@@ -14,10 +14,15 @@ public interface ChatRoomRepository extends JpaRepository<ChatRoom, String> {
 
     /**
      * Tìm phòng chat giữa 2 người dùng (không phân biệt thứ tự user1/user2).
+     * Sắp theo lastMessageAt mới nhất trước — nếu có nhiều phòng trùng cho cùng
+     * cặp user (dữ liệu cũ/race condition), getOrCreateRoom() lấy phần tử đầu
+     * tiên nên phải khớp với phòng mà getRoomsByUser() hiển thị cho người dùng,
+     * chứ không phải một phòng "ẩn" khác.
      */
     @Query("SELECT cr FROM ChatRoom cr WHERE " +
            "(cr.user1Id = :a AND cr.user2Id = :b) OR " +
-           "(cr.user1Id = :b AND cr.user2Id = :a)")
+           "(cr.user1Id = :b AND cr.user2Id = :a) " +
+           "ORDER BY cr.lastMessageAt DESC NULLS LAST")
     List<ChatRoom> findByUsers(@Param("a") String userId1,
                                    @Param("b") String userId2);
 
