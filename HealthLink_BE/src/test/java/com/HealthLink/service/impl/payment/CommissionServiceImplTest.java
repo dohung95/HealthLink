@@ -148,7 +148,7 @@ class CommissionServiceImplTest {
                 .status("PENDING")
                 .netAmount(new BigDecimal("42.50"))
                 .build();
-        when(commissionTransactionRepository.findByAppointmentId(55)).thenReturn(List.of(tx));
+        when(commissionTransactionRepository.findIdsByAppointmentId(55)).thenReturn(List.of(101));
         when(commissionTransactionRepository.findByIdForUpdate(101)).thenReturn(java.util.Optional.of(tx));
 
         commissionService.vestConsultationCommission(55);
@@ -167,7 +167,7 @@ class CommissionServiceImplTest {
                 .status("PENDING")
                 .netAmount(new BigDecimal("42.50"))
                 .build();
-        when(commissionTransactionRepository.findByPharmacyOrderId(56)).thenReturn(List.of(tx));
+        when(commissionTransactionRepository.findIdsByPharmacyOrderId(56)).thenReturn(List.of(102));
         when(commissionTransactionRepository.findByIdForUpdate(102)).thenReturn(java.util.Optional.of(tx));
 
         commissionService.vestPharmacyCommission(56);
@@ -189,7 +189,7 @@ class CommissionServiceImplTest {
                 .netAmount(new BigDecimal("42.50"))
                 .build();
         when(invoiceRepository.findById(77)).thenReturn(java.util.Optional.of(invoice));
-        when(commissionTransactionRepository.findByAppointmentId(55)).thenReturn(List.of(tx));
+        when(commissionTransactionRepository.findIdsByAppointmentId(55)).thenReturn(List.of(103));
         when(commissionTransactionRepository.findByIdForUpdate(103)).thenReturn(java.util.Optional.of(tx));
         when(prescriptionHeaderRepository.findByAppointment_AppointmentId(55)).thenReturn(List.of());
         when(pharmacyOrderRepository.findByPatient_PatientId(any())).thenReturn(List.of());
@@ -213,7 +213,7 @@ class CommissionServiceImplTest {
                 .netAmount(new BigDecimal("42.50"))
                 .build();
         when(invoiceRepository.findById(77)).thenReturn(java.util.Optional.of(invoice));
-        when(commissionTransactionRepository.findByAppointmentId(55)).thenReturn(List.of(tx));
+        when(commissionTransactionRepository.findIdsByAppointmentId(55)).thenReturn(List.of(104));
         when(commissionTransactionRepository.findByIdForUpdate(104)).thenReturn(java.util.Optional.of(tx));
         when(prescriptionHeaderRepository.findByAppointment_AppointmentId(55)).thenReturn(List.of());
         when(pharmacyOrderRepository.findByPatient_PatientId(any())).thenReturn(List.of());
@@ -236,7 +236,7 @@ class CommissionServiceImplTest {
                 .netAmount(new BigDecimal("42.50"))
                 .build();
         when(invoiceRepository.findById(77)).thenReturn(java.util.Optional.of(invoice));
-        when(commissionTransactionRepository.findByAppointmentId(55)).thenReturn(List.of(tx));
+        when(commissionTransactionRepository.findIdsByAppointmentId(55)).thenReturn(List.of(105));
         when(commissionTransactionRepository.findByIdForUpdate(105)).thenReturn(java.util.Optional.of(tx));
         when(prescriptionHeaderRepository.findByAppointment_AppointmentId(55)).thenReturn(List.of());
         when(pharmacyOrderRepository.findByPatient_PatientId(any())).thenReturn(List.of());
@@ -269,17 +269,10 @@ class CommissionServiceImplTest {
         AtomicReference<String> earningStatus = new AtomicReference<>("PENDING");
 
         when(invoiceRepository.findById(77)).thenReturn(java.util.Optional.of(invoice));
-        when(commissionTransactionRepository.findByAppointmentId(55)).thenAnswer(invocation -> {
+        when(commissionTransactionRepository.findIdsByAppointmentId(55)).thenAnswer(invocation -> {
             bothReadPending.countDown();
             await(bothReadPending);
-            return List.of(CommissionTransaction.builder()
-                    .transactionId(901)
-                    .appointmentId(55)
-                    .recipientType("DOCTOR")
-                    .recipientId("doctor-1")
-                    .status("PENDING")
-                    .netAmount(new BigDecimal("42.50"))
-                    .build());
+            return List.of(901);
         });
         when(prescriptionHeaderRepository.findByAppointment_AppointmentId(55)).thenReturn(List.of());
         when(pharmacyOrderRepository.findByPatient_PatientId(any())).thenReturn(List.of());
@@ -376,7 +369,7 @@ class CommissionServiceImplTest {
         AtomicReference<String> earningStatus = new AtomicReference<>("PENDING");
 
         when(invoiceRepository.findById(78)).thenReturn(java.util.Optional.of(invoice));
-        when(commissionTransactionRepository.findByAppointmentId(55)).thenReturn(List.of(canonical));
+        when(commissionTransactionRepository.findIdsByAppointmentId(55)).thenReturn(List.of(902));
         when(prescriptionHeaderRepository.findByAppointment_AppointmentId(55)).thenReturn(List.of());
         when(pharmacyOrderRepository.findByPatient_PatientId(any())).thenReturn(List.of());
         when(commissionTransactionRepository.findByIdForUpdate(902)).thenAnswer(invocation -> {

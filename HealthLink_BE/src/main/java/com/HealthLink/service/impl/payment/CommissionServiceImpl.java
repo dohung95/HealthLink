@@ -211,10 +211,9 @@ public class CommissionServiceImpl implements CommissionService {
     @Override
     @Transactional
     public void vestConsultationCommission(Integer appointmentId) {
-        List<CommissionTransaction> txs = commissionTransactionRepository
-                .findByAppointmentId(appointmentId);
-        for (CommissionTransaction candidate : txs) {
-            CommissionTransaction tx = lockForTransition(candidate);
+        List<Integer> transactionIds = commissionTransactionRepository.findIdsByAppointmentId(appointmentId);
+        for (Integer transactionId : transactionIds) {
+            CommissionTransaction tx = lockForTransition(transactionId);
             if (tx == null) continue;
             if (!TX_STATUS_PENDING.equals(tx.getStatus())
                     || !RECIPIENT_DOCTOR.equals(tx.getRecipientType()))
@@ -233,10 +232,9 @@ public class CommissionServiceImpl implements CommissionService {
     @Override
     @Transactional
     public void vestPharmacyCommission(Integer orderId) {
-        List<CommissionTransaction> txs = commissionTransactionRepository
-                .findByPharmacyOrderId(orderId);
-        for (CommissionTransaction candidate : txs) {
-            CommissionTransaction tx = lockForTransition(candidate);
+        List<Integer> transactionIds = commissionTransactionRepository.findIdsByPharmacyOrderId(orderId);
+        for (Integer transactionId : transactionIds) {
+            CommissionTransaction tx = lockForTransition(transactionId);
             if (tx == null) continue;
             if (!TX_STATUS_PENDING.equals(tx.getStatus())
                     || !RECIPIENT_PHARMACY.equals(tx.getRecipientType()))
@@ -282,10 +280,10 @@ public class CommissionServiceImpl implements CommissionService {
         }
 
         // --- 1. Hoàn tiền commission cho Bác sĩ ---
-        List<CommissionTransaction> doctorTxs = commissionTransactionRepository
-                .findByAppointmentId(appointment.getAppointmentId());
-        for (CommissionTransaction candidate : doctorTxs) {
-            CommissionTransaction tx = lockForTransition(candidate);
+        List<Integer> doctorTransactionIds = commissionTransactionRepository
+                .findIdsByAppointmentId(appointment.getAppointmentId());
+        for (Integer transactionId : doctorTransactionIds) {
+            CommissionTransaction tx = lockForTransition(transactionId);
             if (tx == null) continue;
             if (TX_STATUS_REFUNDED.equals(tx.getStatus())) continue;  // idempotency
 
@@ -327,10 +325,10 @@ public class CommissionServiceImpl implements CommissionService {
 
         // Trực tiếp tìm commission transactions theo pharmacyOrderId
         for (PharmacyOrder order : linkedOrders) {
-            List<CommissionTransaction> pharmacyTxs = commissionTransactionRepository
-                    .findByPharmacyOrderId(order.getOrderId());
-            for (CommissionTransaction candidate : pharmacyTxs) {
-                CommissionTransaction tx = lockForTransition(candidate);
+            List<Integer> pharmacyTransactionIds = commissionTransactionRepository
+                    .findIdsByPharmacyOrderId(order.getOrderId());
+            for (Integer transactionId : pharmacyTransactionIds) {
+                CommissionTransaction tx = lockForTransition(transactionId);
                 if (tx == null) continue;
                 if (TX_STATUS_REFUNDED.equals(tx.getStatus())) continue;  // idempotency
 
@@ -375,8 +373,8 @@ public class CommissionServiceImpl implements CommissionService {
      * Keeping this order (commission transaction, then partner) prevents vest and refund
      * from deciding on separate stale statuses for the same earning.
      */
-    private CommissionTransaction lockForTransition(CommissionTransaction candidate) {
-        return commissionTransactionRepository.findByIdForUpdate(candidate.getTransactionId()).orElse(null);
+    private CommissionTransaction lockForTransition(Integer transactionId) {
+        return commissionTransactionRepository.findByIdForUpdate(transactionId).orElse(null);
     }
 
     private void notifyDoctorWalletChange(
@@ -448,10 +446,10 @@ public class CommissionServiceImpl implements CommissionService {
     }
 
     private void refundPharmacyOrderCommissions(PharmacyOrder pharmacyOrder) {
-        List<CommissionTransaction> pharmacyTxs = commissionTransactionRepository
-                .findByPharmacyOrderId(pharmacyOrder.getOrderId());
-        for (CommissionTransaction candidate : pharmacyTxs) {
-            CommissionTransaction tx = lockForTransition(candidate);
+        List<Integer> pharmacyTransactionIds = commissionTransactionRepository
+                .findIdsByPharmacyOrderId(pharmacyOrder.getOrderId());
+        for (Integer transactionId : pharmacyTransactionIds) {
+            CommissionTransaction tx = lockForTransition(transactionId);
             if (tx == null) continue;
             if (TX_STATUS_REFUNDED.equals(tx.getStatus())) continue;
             String previousStatus = tx.getStatus();

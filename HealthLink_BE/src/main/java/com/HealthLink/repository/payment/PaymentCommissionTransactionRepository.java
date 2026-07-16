@@ -72,9 +72,15 @@ public interface PaymentCommissionTransactionRepository extends JpaRepository<Co
      */
     List<CommissionTransaction> findByAppointmentId(Integer appointmentId);
 
+    @Query("select t.transactionId from CommissionTransaction t where t.appointmentId = :appointmentId")
+    List<Integer> findIdsByAppointmentId(@Param("appointmentId") Integer appointmentId);
+
     /**
      * Lấy danh sách giao dịch commission theo pharmacyOrderId.
      * Dùng để truy vết khi xử lý hoàn tiền đơn thuốc (Refund).
      */
     List<CommissionTransaction> findByPharmacyOrderId(Integer pharmacyOrderId);
+
+    @Query("select t.transactionId from CommissionTransaction t where t.pharmacyOrderId = :pharmacyOrderId")
+    List<Integer> findIdsByPharmacyOrderId(@Param("pharmacyOrderId") Integer pharmacyOrderId);
 }
