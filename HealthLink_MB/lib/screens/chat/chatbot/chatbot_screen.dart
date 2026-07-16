@@ -2,7 +2,9 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../providers/chat/chatbot_provider.dart';
+import '../../../providers/auth_provider.dart';
 import '../../patient/booking/booking_screen.dart';
+
 
 /// Màn hình chat với HealthLink AI Bot.
 class ChatbotScreen extends StatefulWidget {
@@ -38,7 +40,8 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
   Future<void> _sendMessage(String text) async {
     if (text.trim().isEmpty) return;
     _controller.clear();
-    await context.read<ChatbotProvider>().sendMessage(text);
+    final authProvider = context.read<AuthProvider>();
+    await context.read<ChatbotProvider>().sendMessage(text, accessToken: authProvider.accessToken);
     _scrollToBottom();
   }
 
@@ -245,6 +248,15 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
               ),
             ),
           ],
+          
+          if (isBot && msg.suggestedDoctors != null && msg.suggestedDoctors!.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            Padding(
+              padding: const EdgeInsets.only(left: 40),
+              child: _buildSuggestedDoctors(msg.suggestedDoctors!, colorScheme),
+            ),
+          ],
+          
           const SizedBox(height: 2),
           Padding(
             padding: EdgeInsets.only(left: isBot ? 40 : 0, right: isBot ? 0 : 4),
@@ -255,6 +267,84 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildSuggestedDoctors(List<dynamic> doctors, ColorScheme colorScheme) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: doctors.map((doc) {
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 8),
+          child: InkWell(
+            onTap: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (context) => Scaffold(
+                    appBar: AppBar(
+                      title: const Text(
+                        'Booking',
+                        style: TextStyle(fontFamily: 'Inter', fontSize: 18, fontWeight: FontWeight.bold),
+                      ),
+                      backgroundColor: Theme.of(context).colorScheme.surface,
+                      elevation: 0,
+                    ),
+                    body: BookingScreen(initialDoctorId: doc.doctorId),
+                  ),
+                ),
+              );
+            },
+            borderRadius: BorderRadius.circular(12),
+            child: Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: colorScheme.surface,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: colorScheme.outlineVariant),
+              ),
+              child: Row(
+                children: [
+                  CircleAvatar(
+                    radius: 20,
+                    backgroundImage: doc.avatarUrl.isNotEmpty ? NetworkImage(doc.avatarUrl) : null,
+                    backgroundColor: colorScheme.primaryContainer,
+                    child: doc.avatarUrl.isEmpty
+                        ? Text(doc.initials, style: TextStyle(color: colorScheme.onPrimaryContainer, fontSize: 14))
+                        : null,
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          doc.fullName,
+                          style: TextStyle(
+                            fontFamily: 'Inter',
+                            fontWeight: FontWeight.bold,
+                            color: colorScheme.onSurface,
+                            fontSize: 14,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          doc.specialtyName,
+                          style: TextStyle(
+                            fontFamily: 'Inter',
+                            color: colorScheme.onSurfaceVariant,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Icon(Icons.chevron_right, color: colorScheme.onSurfaceVariant, size: 20),
+                ],
+              ),
+            ),
+          ),
+        );
+      }).toList(),
     );
   }
 

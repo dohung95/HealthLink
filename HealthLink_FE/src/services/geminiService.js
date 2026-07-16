@@ -38,6 +38,7 @@ Intent → Tag:
 - User wants pharmacy / medicine → [ACTION:/patient-dashboard/pharmacy]
 - User describes symptoms → suggest booking with the relevant specialty: [ACTION:/schedule?specialty=SpecialtyName]
   Valid specialties (use exact names): Internal Medicine, Cardiology, Neurology, Dermatology, Pediatrics, Obstetrics & Gynecology, ENT, Ophthalmology, Surgery, Dentistry
+- If the user explicitly asks for doctors in a specific location (city/country), append ?location=LocationName to the tag. Example: [ACTION:/doctors?location=Vietnam] or [ACTION:/schedule?specialty=Cardiology&location=New York]
 
 ## EXAMPLES:
 User: "Tuần sau tôi muốn đi khám cái răng"
