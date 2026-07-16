@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { getOrCreateRoom, getMyRooms, getRoomMessages, getRoomMedia, sendMessage as apiSendMessage, markAsRead, uploadMedia, toggleBlock, getRoomById } from '../api/chatApi';
 import stompChatService from '../services/stompChatService';
 import { getGeminiResponse } from '../services/geminiService';
-import { checkKeywordAndGetBotReply, checkSymptomAndGetSpecialty, getDoctorsBySpecialty } from '../AI_BOT/BotBrain';
+import { checkKeywordAndGetBotReply, checkSymptomAndGetSpecialty, checkSymptomsAndGetAllSpecialties, getDoctorsBySpecialty } from '../AI_BOT/BotBrain';
 import { doctorService } from '../api/doctorApi';
 import { toast } from 'sonner';
 import BasicProfileModal from './BasicProfileModal';
@@ -917,6 +917,39 @@ export default function ChatPage({ showBot = true }) {
             .catch(() => { });
     }, []);
 
+    // Key lưu lịch sử chat bot vào sessionStorage (tồn tại đến khi đóng tab)
+    const BOT_HISTORY_KEY = 'healthlink_bot_chat_history';
+
+    // Khôi phục lịch sử chat bot từ sessionStorage khi chatPartner là bot
+    useEffect(() => {
+        if (!chatPartner?.isBot) return;
+        try {
+            const saved = sessionStorage.getItem(BOT_HISTORY_KEY);
+            if (saved) {
+                const parsed = JSON.parse(saved);
+                if (Array.isArray(parsed) && parsed.length > 0) {
+                    setMessages(parsed);
+                    return;
+                }
+            }
+        } catch (_) { /* sessionStorage không hỗ trợ hoặc bị lỗi */ }
+        // Không có lịch sử → hiển thị tin nhắn chào ban đầu
+        setMessages([{
+            messageId: 'bot_welcome',
+            senderId: BOT_USER.userId,
+            content: '👋 Hi, I\'m HealthLink Assistant. How can I help you today?',
+            timestamp: new Date().toISOString(),
+        }]);
+    }, [chatPartner?.isBot]);
+
+    // Lưu lịch sử chat bot vào sessionStorage mỗi khi messages thay đổi
+    useEffect(() => {
+        if (!chatPartner?.isBot || messages.length === 0) return;
+        try {
+            sessionStorage.setItem(BOT_HISTORY_KEY, JSON.stringify(messages));
+        } catch (_) { /* bỏ qua nếu sessionStorage đầy */ }
+    }, [messages, chatPartner?.isBot]);
+
     // Stomp connection
     useEffect(() => {
         if (!authUser) return;
@@ -1040,7 +1073,10 @@ export default function ChatPage({ showBot = true }) {
     // Load room messages
     useEffect(() => {
         if (!currentRoom) {
-            setMessages([]);
+            // Nếu đang chat với bot thì KHÔNG xóa messages — lịch sử được quản lý bởi sessionStorage
+            if (!chatPartner?.isBot) {
+                setMessages([]);
+            }
             setPage(0);
             pageRef.current = 0;
             setHasMore(true);
@@ -1083,6 +1119,7 @@ export default function ChatPage({ showBot = true }) {
         if (!chatPartner || chatPartner.isBot) {
             if (chatPartner?.isBot) {
                 setCurrentRoom(null);
+                // Không reset messages ở đây — sessionStorage effect sẽ khôi phục
             }
             return;
         }
@@ -1186,51 +1223,142 @@ export default function ChatPage({ showBot = true }) {
 
         if (chatPartner.isBot) {
             setIsBotTyping(true);
-            const keywordMatch = checkKeywordAndGetBotReply(text);
-            if (keywordMatch) {
-                await new Promise(r => setTimeout(r, 600));
-                setIsBotTyping(false);
-                const newMsgId = `bot_kw_${Date.now()}`;
-                setLatestBotMsgId(newMsgId);
-                setMessages(prev => [...prev, {
-                    messageId: newMsgId, senderId: BOT_USER.userId,
-                    content: keywordMatch.reply, actionUrl: keywordMatch.actionUrl, actionLabel: keywordMatch.actionLabel,
-                    timestamp: new Date().toISOString(),
-                }]);
-            } else {
+
+            // Phát hiện ngôn ngữ
+            const hasVI = /[àáảãạăằắẳẵặâầấẩẫậèéẻẽẹêềếểễệìíỉĩịòóỏõọôồốổỗộơờớởỡợùúủũụưừứửữựỳýỷỹỵđ]/i.test(text);
+            const hasID = /saya|aku|sakit|demam|batuk|pusing|dokter/i.test(text.toLowerCase());
+            const lang = hasVI ? 'vi' : hasID ? 'id' : 'en';
+
+            let replyText = null;
+            let finalActionUrl = null;
+            let finalActionLabel = null;
+            let suggestedDoctors = [];
+
+            // 0. Nhận diện địa điểm (nếu user có nhắc đến một thành phố/khu vực có trong DB - offline fallback)
+            const uniqueLocations = [...new Set(allDoctors.map(d => d.location).filter(Boolean))];
+            let targetLocation = null;
+            for (const loc of uniqueLocations) {
+                if (text.toLowerCase().includes(loc.toLowerCase())) {
+                    targetLocation = loc;
+                    break;
+                }
+            }
+
+            // 1. Ưu tiên Gemini AI trước để hiểu ngữ cảnh tự nhiên
+            try {
+                const aiRes = await getGeminiResponse(text, []);
+                if (aiRes && aiRes.text) {
+                    replyText = aiRes.text;
+                    finalActionUrl = aiRes.actionUrl;
+                    finalActionLabel = aiRes.actionLabel;
+                }
+            } catch (err) {
+                console.error('[ChatPage] Gemini failed:', err);
+            }
+
+            // 2. Fallback: khớp triệu chứng/chuyên khoa nếu Gemini không trả lời
+            if (!replyText) {
                 const specialtyMatch = checkSymptomAndGetSpecialty(text);
                 if (specialtyMatch) {
-                    const suggestedDoctors = getDoctorsBySpecialty(allDoctors, specialtyMatch.specialty, 3);
-                    const hasVI = /[àáảãạăằắẳẵặâầấẩẫậèéẻẽẹêềếểễệìíỉĩịòóỏõọôồốổỗộơờớởỡợùúủũụưừứửữựỳýỷỹỵđ]/i.test(text);
-                    const hasID = /saya|aku|sakit|demam|batuk|pusing|dokter/i.test(text.toLowerCase());
-                    const lang = hasVI ? 'vi' : hasID ? 'id' : 'en';
                     const specialtyName = specialtyMatch.label[lang] || specialtyMatch.label.en;
-                    const replyText = lang === 'vi' ? `${specialtyMatch.icon} Based on your symptoms, I recommend seeing a **${specialtyName}** specialist! Here are some available doctors:` : lang === 'id' ? `${specialtyMatch.icon} Berdasarkan gejala yang kamu ceritakan, aku sarankan periksa ke spesialis **${specialtyName}**! Berikut beberapa dokter yang bisa membantu:` : `${specialtyMatch.icon} Based on your symptoms, I recommend seeing a **${specialtyName}** specialist! Here are some available doctors:`;
+                    replyText = lang === 'vi'
+                        ? `${specialtyMatch.icon} Dựa trên triệu chứng bạn mô tả, mình gợi ý bạn nên khám chuyên khoa **${specialtyName}**! Dưới đây là một số bác sĩ phù hợp:`
+                        : `${specialtyMatch.icon} Based on your symptoms, I recommend seeing a **${specialtyName}** specialist! Here are some available doctors:`;
+                    finalActionUrl = `/patient-dashboard/booking?specialty=${encodeURIComponent(specialtyMatch.specialty)}`;
+                    finalActionLabel = lang === 'vi' ? `📅 Xem tất cả bác sĩ ${specialtyName}` : `📅 View all ${specialtyName} doctors`;
+                    suggestedDoctors = getDoctorsBySpecialty(availableDoctors, specialtyMatch.specialty, 50);
+                }
+            }
 
-                    await new Promise(r => setTimeout(r, 700));
-                    setIsBotTyping(false);
-                    const newMsgId = `bot_sp_${Date.now()}`;
-                    setLatestBotMsgId(newMsgId);
-                    setMessages(prev => [...prev, {
-                        messageId: newMsgId, senderId: BOT_USER.userId,
-                        content: replyText, suggestedDoctors: suggestedDoctors,
-                        actionUrl: `/patient-dashboard/booking?specialty=${encodeURIComponent(specialtyMatch.specialty)}`,
-                        actionLabel: lang === 'vi' ? `📅 View available doctors` : lang === 'id' ? `📅 Lihat semua dokter ${specialtyName}` : `📅 View all ${specialtyName} doctors`,
-                        timestamp: new Date().toISOString(),
-                    }]);
-                    return;
+            // 3. Fallback: keyword match nếu cả 2 trên đều không có kết quả
+            if (!replyText) {
+                const keywordMatch = checkKeywordAndGetBotReply(text);
+                if (keywordMatch) {
+                    replyText = keywordMatch.reply;
+                    finalActionUrl = keywordMatch.actionUrl;
+                    finalActionLabel = keywordMatch.actionLabel;
+                }
+            }
+
+            // 4. Fallback cuối cùng
+            if (!replyText) {
+                replyText = lang === 'vi'
+                    ? 'Xin lỗi, mình chưa hiểu câu hỏi của bạn. Bạn có thể mô tả rõ hơn triệu chứng hoặc vấn đề sức khỏe không?'
+                    : "Sorry, I didn't quite understand. Could you describe your symptoms more clearly?";
+            }
+
+            // 5. Bổ sung danh sách bác sĩ gợi ý dựa trên actionUrl của AI
+            if (suggestedDoctors.length === 0 && finalActionUrl) {
+                let matchedSpecialties = new Set();
+
+                // Override targetLocation nếu AI truyền tham số location trong URL
+                if (finalActionUrl.includes('location=')) {
+                    const locParam = new URLSearchParams(finalActionUrl.split('?')[1]).get('location');
+                    if (locParam) targetLocation = locParam;
                 }
 
-                const { text: aiText, actionUrl, actionLabel } = await getGeminiResponse(text, []);
-                setIsBotTyping(false);
-                const newMsgId = `bot_ai_${Date.now()}`;
-                setLatestBotMsgId(newMsgId);
-                setMessages(prev => [...prev, {
-                    messageId: newMsgId, senderId: BOT_USER.userId,
-                    content: aiText, actionUrl, actionLabel,
-                    timestamp: new Date().toISOString(),
-                }]);
+                // Lọc danh sách bác sĩ theo location
+                const availableByLocation = targetLocation
+                    ? allDoctors.filter(d => d.location && d.location.toLowerCase().includes(targetLocation.toLowerCase()))
+                    : allDoctors;
+
+                // 5.1. Thêm chuyên khoa do Gemini AI chỉ định (nếu có)
+                if (finalActionUrl.includes('specialty=')) {
+                    const specialtyParam = new URLSearchParams(finalActionUrl.split('?')[1]).get('specialty');
+                    if (specialtyParam) matchedSpecialties.add(specialtyParam.toLowerCase());
+                }
+
+                // 5.2. Luôn chạy offline symptom match để bổ sung các chuyên khoa khác (nếu user hỏi nhiều bệnh 1 lúc)
+                const allSymptoms = checkSymptomsAndGetAllSpecialties(text);
+                if (allSymptoms && allSymptoms.length > 0) {
+                    allSymptoms.forEach(symp => matchedSpecialties.add(symp.specialty.toLowerCase()));
+                }
+
+                // 5.3. Lấy TẤT CẢ bác sĩ của CÁC chuyên khoa đã khớp
+                if (matchedSpecialties.size > 0) {
+                    let combinedDoctors = [];
+                    for (const spec of matchedSpecialties) {
+                        const docs = getDoctorsBySpecialty(availableByLocation, spec, 50);
+                        combinedDoctors = [...combinedDoctors, ...docs];
+                    }
+                    // Loại bỏ trùng lặp (dựa vào doctorId)
+                    const uniqueDoctors = Array.from(new Map(combinedDoctors.map(d => [d.doctorId, d])).values());
+                    suggestedDoctors = uniqueDoctors;
+                }
+
+                // Chỉ fallback sang toàn bộ bác sĩ (top rated) nếu KHÔNG CÓ targetLocation
+                // Nếu có targetLocation nhưng trống, không fallback để tránh hiển thị bác sĩ sai khu vực
+                if (suggestedDoctors.length === 0 && !targetLocation && matchedSpecialties.size === 0) {
+                    suggestedDoctors = [...availableByLocation]
+                        .sort((a, b) => (b.averageRating || 0) - (a.averageRating || 0))
+                        .slice(0, 50);
+                } else if (suggestedDoctors.length === 0 && targetLocation && matchedSpecialties.size === 0) {
+                    suggestedDoctors = [...availableByLocation]; // có thể rỗng nếu không có ai
+                }
             }
+
+            // 6. Ghi đè phản hồi của AI nếu có bộ lọc nhưng không tìm thấy bác sĩ nào
+            if (finalActionUrl && suggestedDoctors.length === 0 && (targetLocation || (finalActionUrl.includes('specialty=') || checkSymptomsAndGetAllSpecialties(text).length > 0))) {
+                replyText = lang === 'vi'
+                    ? `Xin lỗi bạn, hiện tại HealthLink chưa có bác sĩ nào phù hợp với khu vực hoặc chuyên khoa bạn tìm kiếm.`
+                    : `Sorry, HealthLink currently doesn't have any doctors available for that specific location or specialty.`;
+                finalActionUrl = null;
+                finalActionLabel = null;
+            }
+
+            setIsBotTyping(false);
+            const newMsgId = `bot_${Date.now()}`;
+            setLatestBotMsgId(newMsgId);
+            setMessages(prev => [...prev, {
+                messageId: newMsgId,
+                senderId: BOT_USER.userId,
+                content: replyText,
+                actionUrl: finalActionUrl ?? null,
+                actionLabel: finalActionLabel ?? null,
+                suggestedDoctors: suggestedDoctors.length > 0 ? suggestedDoctors : undefined,
+                timestamp: new Date().toISOString(),
+            }]);
+            return;
         } else {
             if (!currentRoom) {
                 toast.error('You have not opened the chat room!');
@@ -1458,9 +1586,9 @@ export default function ChatPage({ showBot = true }) {
                                         }}
                                         disabled={videoCallDisabled}
                                         title={
-                                          isBlocked
-                                            ? 'Cannot call when chat is blocked or appointment completed'
-                                            : 'Video Call'
+                                            isBlocked
+                                                ? 'Cannot call when chat is blocked or appointment completed'
+                                                : 'Video Call'
                                         }
                                     >
                                         <i className={`bi bi-camera-video ${videoCallDisabled ? 'text-muted' : 'text-primary'} fs-5`}></i>

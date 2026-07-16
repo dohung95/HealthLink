@@ -1,5 +1,7 @@
 /// Logic chatbot offline — port từ BotBrain.jsx.
 /// Không cần gọi API, 0 token cost.
+import 'bot_brain_ext.dart';
+
 class BotBrain {
   BotBrain._();
 
@@ -283,5 +285,34 @@ class BotBrain {
     }
 
     return null; // Không khớp → nhường Gemini
+  }
+
+  static List<SpecialtyMatch> checkSymptomsAndGetAllSpecialties(String text) {
+    final lower = text.toLowerCase();
+    final List<SpecialtyMatch> matched = [];
+    
+    // Sort words by length descending to match longer keywords first (e.g. 'nội tổng quát' before 'nội')
+    final sortedMap = List<SpecialtyMatch>.from(specialtySymptomMap);
+    
+    for (final spec in sortedMap) {
+      bool isMatch = false;
+      final sortedKeywords = List<String>.from(spec.keywords)
+        ..sort((a, b) => b.length.compareTo(a.length));
+        
+      for (final kw in sortedKeywords) {
+        if (lower.contains(kw.toLowerCase())) {
+          isMatch = true;
+          break;
+        }
+      }
+      if (isMatch) matched.add(spec);
+    }
+    return matched;
+  }
+
+  static SpecialtyMatch? checkSymptomAndGetSpecialty(String text) {
+    final matched = checkSymptomsAndGetAllSpecialties(text);
+    if (matched.isNotEmpty) return matched.first;
+    return null;
   }
 }

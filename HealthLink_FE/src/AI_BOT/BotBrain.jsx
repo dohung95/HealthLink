@@ -12,8 +12,8 @@ export const SPECIALTY_SYMPTOM_MAP = [
             'nhiễm trùng', 'sốt xuất huyết', 'sốt rét', 'bệnh nội khoa', 'nội tổng quát',
             // EN
             'fatigue', 'prolonged fever', 'weight loss', 'anemia', 'diabetes', 'hypertension',
-            'high blood pressure', 'low blood pressure', 'weakness', 'hepatitis', 'jaundice',
             'tuberculosis', 'infection', 'dengue', 'malaria', 'internal medicine',
+            'khoa nội', 'nội khoa', 'nội tổng quát',
             // ID
             'kelelahan', 'demam berkepanjangan', 'penurunan berat', 'kurang darah', 'gula darah',
             'hipertensi', 'lemas', 'liver', 'kuning', 'tbc', 'infeksi', 'demam berdarah', 'malaria',
@@ -27,7 +27,7 @@ export const SPECIALTY_SYMPTOM_MAP = [
             // VI
             'đau ngực', 'tức ngực', 'nhồi máu cơ tim', 'đánh trống ngực', 'tim đập nhanh',
             'hở van tim', 'hẹp van tim', 'rối loạn nhịp tim', 'suy tim', 'động mạch vành',
-            'tim mạch', 'huyết áp', 'cholesterol', 'mỡ máu',
+            'tim mạch', 'huyết áp', 'cholesterol', 'mỡ máu', 'khoa tim mạch',
             // EN
             'chest pain', 'heart attack', 'palpitation', 'heart disease', 'arrhythmia',
             'heart failure', 'coronary', 'angina', 'cardiac', 'cholesterol',
@@ -44,6 +44,7 @@ export const SPECIALTY_SYMPTOM_MAP = [
             'đau đầu', 'nhức đầu', 'đau nửa đầu', 'migraine', 'chóng mặt', 'hoa mắt',
             'tê tay', 'tê chân', 'run tay', 'đột quỵ', 'liệt', 'động kinh', 'mất trí nhớ',
             'alzheimer', 'parkinson', 'bppv', 'thần kinh tọa', 'mất ngủ', 'rối loạn giấc ngủ',
+            'thần kinh', 'khoa thần kinh',
             // EN
             'headache', 'migraine', 'dizziness', 'vertigo', 'numbness', 'stroke', 'seizure',
             'memory loss', 'tremor', 'epilepsy', 'parkinson', 'alzheimer', 'neuropathy',
@@ -59,7 +60,7 @@ export const SPECIALTY_SYMPTOM_MAP = [
             // VI
             'ngứa', 'nổi mẩn', 'mề đay', 'dị ứng da', 'phát ban', 'mụn', 'mụn trứng cá',
             'rụng tóc', 'hói đầu', 'viêm da', 'chàm', 'vẩy nến', 'nấm da', 'lang ben',
-            'da liễu', 'da khô', 'nám', 'tàn nhang',
+            'da liễu', 'da khô', 'nám', 'tàn nhang', 'khoa da liễu',
             // EN
             'itchy', 'rash', 'hives', 'urticaria', 'allergy skin', 'acne', 'pimple',
             'hair loss', 'alopecia', 'eczema', 'psoriasis', 'fungal', 'dermatitis',
@@ -75,7 +76,7 @@ export const SPECIALTY_SYMPTOM_MAP = [
             // VI
             'trẻ em', 'trẻ nhỏ', 'em bé', 'bé', 'con', 'nhi khoa', 'trẻ sốt', 'trẻ ho',
             'bé khóc', 'trẻ biếng ăn', 'trẻ chậm phát triển', 'tiêm chủng trẻ em',
-            'bé sơ sinh', 'vàng da sơ sinh',
+            'bé sơ sinh', 'vàng da sơ sinh', 'khoa nhi',
             // EN
             'child', 'baby', 'infant', 'toddler', 'kid', 'pediatric', 'child fever', 'child cough',
             'newborn', 'vaccination child',
@@ -92,6 +93,7 @@ export const SPECIALTY_SYMPTOM_MAP = [
             'mang thai', 'thai kỳ', 'sinh con', 'đau bụng kinh', 'rong kinh', 'kinh nguyệt',
             'phụ khoa', 'sản khoa', 'khí hư', 'viêm âm đạo', 'u xơ tử cung', 'buồng trứng',
             'lạc nội mạc', 'tránh thai', 'vô sinh', 'hiếm muộn', 'siêu âm thai',
+            'phụ sản', 'sản phụ khoa', 'khoa sản', 'khoa phụ sản',
             // EN
             'pregnant', 'pregnancy', 'period pain', 'menstrual', 'gynecology', 'obstetrics',
             'vaginal discharge', 'fibroids', 'ovarian', 'contraception', 'infertility',
@@ -112,6 +114,7 @@ export const SPECIALTY_SYMPTOM_MAP = [
             // EN
             'ear pain', 'tinnitus', 'otitis', 'runny nose', 'sinusitis', 'nosebleed',
             'sore throat', 'tonsil', 'hoarse', 'ent', 'nasal polyp', 'mouth ulcer',
+            'tai mũi họng', 'khoa tai mũi họng',
             // ID
             'sakit telinga', 'telinga berdenging', 'hidung meler', 'sinusitis', 'mimisan',
             'sakit tenggorokan', 'amandel', 'suara serak', 'tht',
@@ -129,6 +132,7 @@ export const SPECIALTY_SYMPTOM_MAP = [
             // EN
             'eye pain', 'red eye', 'stye', 'dry eye', 'blurry vision', 'vision loss',
             'cataract', 'glaucoma', 'myopia', 'conjunctivitis', 'ophthalmology',
+            'mắt', 'nhãn khoa', 'khoa mắt',
             // ID
             'mata merah', 'mata kering', 'pandangan kabur', 'katarak', 'glaukoma', 'rabun',
         ],
@@ -140,7 +144,7 @@ export const SPECIALTY_SYMPTOM_MAP = [
         keywords: [
             // VI
             'phẫu thuật', 'mổ', 'u bướu', 'sỏi mật', 'sỏi thận', 'viêm ruột thừa', 'thoát vị',
-            'trĩ nặng', 'bướu cổ', 'ngoại khoa', 'vết thương', 'chấn thương nặng',
+            'trĩ nặng', 'bướu cổ', 'ngoại khoa', 'vết thương', 'chấn thương nặng', 'khoa ngoại',
             // EN
             'surgery', 'operation', 'tumor', 'gallstone', 'appendicitis', 'hernia',
             'hemorrhoid surgery', 'wound', 'trauma surgery',
@@ -159,6 +163,7 @@ export const SPECIALTY_SYMPTOM_MAP = [
             // EN
             'toothache', 'cavity', 'gum disease', 'tooth extraction', 'braces',
             'wisdom tooth', 'dentistry', 'dental', 'bleeding gum',
+            'nha khoa', 'khoa răng', 'răng hàm mặt',
             // ID
             'sakit gigi', 'gigi berlubang', 'gusi berdarah', 'cabut gigi', 'behel', 'gigi bungsu',
         ],
@@ -192,6 +197,31 @@ export function checkSymptomAndGetSpecialty(text) {
 
     // Chỉ trả về nếu có ít nhất 1 từ khóa khớp
     return bestScore > 0 ? bestMatch : null;
+}
+
+/**
+ * Phân tích triệu chứng và trả về TẤT CẢ các chuyên khoa phù hợp (sắp xếp theo điểm giảm dần).
+ * Dùng cho trường hợp user mô tả nhiều triệu chứng thuộc nhiều chuyên khoa (vd: đau bụng + đau răng).
+ * @param {string} text - Tin nhắn người dùng.
+ * @returns {Array<{ specialty: string, label: object, icon: string, score: number }>} - Danh sách chuyên khoa.
+ */
+export function checkSymptomsAndGetAllSpecialties(text) {
+    const lower = text.toLowerCase();
+    let matches = [];
+
+    for (const entry of SPECIALTY_SYMPTOM_MAP) {
+        let score = 0;
+        for (const kw of entry.keywords) {
+            if (lower.includes(kw)) {
+                score += kw.length > 5 ? 2 : 1;
+            }
+        }
+        if (score > 0) {
+            matches.push({ ...entry, score });
+        }
+    }
+
+    return matches.sort((a, b) => b.score - a.score);
 }
 
 /**
