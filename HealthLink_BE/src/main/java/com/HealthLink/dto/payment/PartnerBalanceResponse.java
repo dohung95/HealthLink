@@ -35,6 +35,9 @@ public class PartnerBalanceResponse {
     /** Số dư chờ rút hiện tại (USD) */
     private BigDecimal pendingBalance;
 
+    /** Alias for the withdrawable balance; pendingBalance remains for API compatibility. */
+    private BigDecimal availableBalance;
+
     /** Tổng thu nhập tích lũy từ trước đến nay (USD) */
     private BigDecimal totalEarnings;
 
