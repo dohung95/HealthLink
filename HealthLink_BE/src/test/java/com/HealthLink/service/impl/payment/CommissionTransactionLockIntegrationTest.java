@@ -1,14 +1,22 @@
 package com.HealthLink.service.impl.payment;
 
+import com.HealthLink.entity.Appointment;
 import com.HealthLink.entity.CommissionTransaction;
 import com.HealthLink.entity.Doctor;
+import com.HealthLink.entity.Invoice;
+import com.HealthLink.entity.Patient;
 import com.HealthLink.entity.PartnerWalletEntry;
 import com.HealthLink.entity.enums.PartnerWalletEntryStatus;
 import com.HealthLink.entity.enums.PartnerWalletEntryType;
 import com.HealthLink.repository.doctor.DoctorRepository;
+import com.HealthLink.repository.payment.InvoiceRepository;
 import com.HealthLink.repository.payment.PartnerWalletEntryRepository;
 import com.HealthLink.repository.payment.PaymentCommissionTransactionRepository;
+import com.HealthLink.repository.pharmacy.PharmacyOrderRepository;
 import com.HealthLink.repository.pharmacy.PharmacyRepository;
+import com.HealthLink.repository.prescription.PrescriptionHeaderRepository;
+import com.HealthLink.service.notification.NotificationService;
+import com.HealthLink.service.payment.FeeCalculatorService;
 import com.HealthLink.service.payment.PartnerWalletLedgerService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -24,6 +32,9 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionTemplate;
 
 import java.math.BigDecimal;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
+import java.lang.reflect.Proxy;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CountDownLatch;
@@ -34,6 +45,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 @DataJpaTest
@@ -45,7 +58,7 @@ class CommissionTransactionLockIntegrationTest {
     private static final BigDecimal AMOUNT = new BigDecimal("42.50");
 
     @Autowired
-    private PaymentCommissionTransactionRepository commissionTransactionRepository;
+    private PaymentCommissionTransactionRepository databaseCommissionTransactionRepository;
 
     @Autowired
     private PartnerWalletEntryRepository entryRepository;
@@ -64,11 +77,15 @@ class CommissionTransactionLockIntegrationTest {
 
     private TransactionTemplate transactions;
     private Doctor doctor;
+    private CommissionServiceImpl commissionService;
+    private PaymentCommissionTransactionRepository commissionTransactionRepository;
+    private final AtomicReference<LockProbe> lockProbe = new AtomicReference<>();
 
     @BeforeEach
     void setUp() {
         transactions = new TransactionTemplate(transactionManager);
         transactions.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
+        commissionTransactionRepository = instrumentRepository(databaseCommissionTransactionRepository);
         doctor = Doctor.builder()
                 .doctorId("doctor-lock-test")
                 .totalEarnings(BigDecimal.ZERO)
@@ -77,13 +94,31 @@ class CommissionTransactionLockIntegrationTest {
         when(doctorRepository.findByIdForWalletUpdate("doctor-lock-test"))
                 .thenReturn(Optional.of(doctor));
         when(doctorRepository.save(doctor)).thenReturn(doctor);
+        when(doctorRepository.findById("doctor-lock-test")).thenReturn(Optional.empty());
+
+        InvoiceRepository invoiceRepository = mock(InvoiceRepository.class);
+        PharmacyOrderRepository pharmacyOrderRepository = mock(PharmacyOrderRepository.class);
+        PrescriptionHeaderRepository prescriptionHeaderRepository = mock(PrescriptionHeaderRepository.class);
+        Invoice invoice = Invoice.builder()
+                .invoiceId(700)
+                .appointment(Appointment.builder()
+                        .appointmentId(500)
+                        .patient(Patient.builder().patientId("patient-lock-test").build())
+                        .build())
+                .build();
+        when(invoiceRepository.findById(700)).thenReturn(Optional.of(invoice));
+        when(prescriptionHeaderRepository.findByAppointment_AppointmentId(500)).thenReturn(List.of());
+        when(pharmacyOrderRepository.findByPatient_PatientId(any())).thenReturn(List.of());
+        commissionService = new CommissionServiceImpl(mock(FeeCalculatorService.class), commissionTransactionRepository,
+                invoiceRepository, pharmacyOrderRepository, doctorRepository, pharmacyRepository,
+                prescriptionHeaderRepository, mock(NotificationService.class), ledgerService);
     }
 
     @Test
     void realPessimisticLockVestsThenRefundsWithoutLeavingPositiveWalletBalance() throws Exception {
         Integer transactionId = seedPendingEarning("CTX-LOCK-VEST-REFUND");
 
-        runInterleaving(transactionId, true);
+        runInterleaving(true);
 
         CommissionTransaction transaction = readTransaction(transactionId);
         assertThat(transaction.getStatus()).isEqualTo("REFUNDED");
@@ -100,7 +135,7 @@ class CommissionTransactionLockIntegrationTest {
     void realPessimisticLockRefundsThenPreventsVestAndLeavesWalletAtZero() throws Exception {
         Integer transactionId = seedPendingEarning("CTX-LOCK-REFUND-VEST");
 
-        runInterleaving(transactionId, false);
+        runInterleaving(false);
 
         CommissionTransaction transaction = readTransaction(transactionId);
         assertThat(transaction.getStatus()).isEqualTo("REFUNDED");
@@ -132,66 +167,54 @@ class CommissionTransactionLockIntegrationTest {
         });
     }
 
-    private void runInterleaving(Integer transactionId, boolean vestFirst) throws Exception {
+    private void runInterleaving(boolean vestFirst) throws Exception {
         CountDownLatch firstHasTransactionLock = new CountDownLatch(1);
+        CountDownLatch secondAttemptedTransactionLock = new CountDownLatch(1);
         CountDownLatch releaseFirstTransaction = new CountDownLatch(1);
-        CountDownLatch secondStarted = new CountDownLatch(1);
-        AtomicReference<String> secondObservedStatus = new AtomicReference<>();
+        AtomicReference<Throwable> firstFailure = new AtomicReference<>();
+        LockProbe probe = new LockProbe(firstHasTransactionLock, secondAttemptedTransactionLock,
+                releaseFirstTransaction);
+        lockProbe.set(probe);
+
         ExecutorService executor = Executors.newFixedThreadPool(2);
         try {
-            Future<?> first = executor.submit(() -> transactions.executeWithoutResult(status -> {
-                CommissionTransaction transaction = commissionTransactionRepository.findByIdForUpdate(transactionId)
-                        .orElseThrow();
-                if (vestFirst) {
-                    vest(transaction);
-                } else {
-                    refund(transaction);
+            Future<?> first = executor.submit(() -> {
+                try {
+                    transactions.executeWithoutResult(status -> {
+                        if (vestFirst) {
+                            commissionService.vestConsultationCommission(500);
+                        } else {
+                            commissionService.processRefund(700);
+                        }
+                    });
+                } catch (Throwable failure) {
+                    firstFailure.set(failure);
+                    throw failure;
                 }
-                firstHasTransactionLock.countDown();
-                await(releaseFirstTransaction);
-            }));
+            });
 
-            await(firstHasTransactionLock);
+            await(firstHasTransactionLock, firstFailure);
             Future<?> second = executor.submit(() -> {
-                secondStarted.countDown();
                 transactions.executeWithoutResult(status -> {
-                    CommissionTransaction transaction = commissionTransactionRepository.findByIdForUpdate(transactionId)
-                            .orElseThrow();
-                    secondObservedStatus.set(transaction.getStatus());
                     if (vestFirst) {
-                        refund(transaction);
+                        commissionService.processRefund(700);
                     } else {
-                        vest(transaction);
+                        commissionService.vestConsultationCommission(500);
                     }
                 });
             });
 
-            await(secondStarted);
+            await(secondAttemptedTransactionLock);
+            assertThat(second.isDone()).isFalse();
             releaseFirstTransaction.countDown();
             first.get(5, TimeUnit.SECONDS);
             second.get(5, TimeUnit.SECONDS);
         } finally {
+            lockProbe.set(null);
             executor.shutdownNow();
         }
 
-        assertThat(secondObservedStatus.get()).isEqualTo(vestFirst ? "VESTED" : "REFUNDED");
-    }
-
-    private void vest(CommissionTransaction transaction) {
-        if (!"PENDING".equals(transaction.getStatus())) {
-            return;
-        }
-        transaction.setStatus("VESTED");
-        ledgerService.vestEarning(transaction);
-    }
-
-    private void refund(CommissionTransaction transaction) {
-        if ("REFUNDED".equals(transaction.getStatus())) {
-            return;
-        }
-        String previousStatus = transaction.getStatus();
-        transaction.setStatus("REFUNDED");
-        ledgerService.recordPatientRefund(transaction, previousStatus);
+        assertThat(probe.secondObservedStatus.get()).isEqualTo(vestFirst ? "VESTED" : "REFUNDED");
     }
 
     private CommissionTransaction readTransaction(Integer transactionId) {
@@ -209,13 +232,92 @@ class CommissionTransactionLockIntegrationTest {
     }
 
     private void await(CountDownLatch latch) {
+        await(latch, null);
+    }
+
+    private void await(CountDownLatch latch, AtomicReference<Throwable> failure) {
         try {
             if (!latch.await(5, TimeUnit.SECONDS)) {
+                if (failure != null && failure.get() != null) {
+                    throw new AssertionError("Transaction worker failed before reaching the expected lock", failure.get());
+                }
                 throw new AssertionError("Timed out waiting for transaction interleaving");
             }
         } catch (InterruptedException exception) {
             Thread.currentThread().interrupt();
             throw new AssertionError("Interrupted while waiting for transaction interleaving", exception);
         }
+    }
+
+    private PaymentCommissionTransactionRepository instrumentRepository(
+            PaymentCommissionTransactionRepository databaseRepository
+    ) {
+        return (PaymentCommissionTransactionRepository) Proxy.newProxyInstance(
+                PaymentCommissionTransactionRepository.class.getClassLoader(),
+                new Class<?>[]{PaymentCommissionTransactionRepository.class},
+                (proxy, method, arguments) -> invokeInstrumentedRepository(databaseRepository, method, arguments));
+    }
+
+    private Object invokeInstrumentedRepository(
+            PaymentCommissionTransactionRepository databaseRepository,
+            Method method,
+            Object[] arguments
+    ) throws Throwable {
+        LockProbe probe = lockProbe.get();
+        if (probe != null && "findByIdForUpdate".equals(method.getName())) {
+            return probe.invoke(() -> invokeRepository(databaseRepository, method, arguments));
+        }
+        return invokeRepository(databaseRepository, method, arguments);
+    }
+
+    private Object invokeRepository(
+            PaymentCommissionTransactionRepository databaseRepository,
+            Method method,
+            Object[] arguments
+    ) throws Throwable {
+        try {
+            return method.invoke(databaseRepository, arguments);
+        } catch (InvocationTargetException exception) {
+            throw exception.getCause();
+        }
+    }
+
+    private final class LockProbe {
+        private final CountDownLatch firstHasTransactionLock;
+        private final CountDownLatch secondAttemptedTransactionLock;
+        private final CountDownLatch releaseFirstTransaction;
+        private final AtomicReference<String> firstThread = new AtomicReference<>();
+        private final AtomicReference<String> secondObservedStatus = new AtomicReference<>();
+
+        private LockProbe(
+                CountDownLatch firstHasTransactionLock,
+                CountDownLatch secondAttemptedTransactionLock,
+                CountDownLatch releaseFirstTransaction
+        ) {
+            this.firstHasTransactionLock = firstHasTransactionLock;
+            this.secondAttemptedTransactionLock = secondAttemptedTransactionLock;
+            this.releaseFirstTransaction = releaseFirstTransaction;
+        }
+
+        private Object invoke(ThrowingSupplier supplier) throws Throwable {
+            if (firstThread.compareAndSet(null, Thread.currentThread().getName())) {
+                Object locked = supplier.get();
+                firstHasTransactionLock.countDown();
+                await(secondAttemptedTransactionLock);
+                await(releaseFirstTransaction);
+                return locked;
+            }
+
+            secondAttemptedTransactionLock.countDown();
+            Object locked = supplier.get();
+            ((Optional<CommissionTransaction>) locked)
+                    .ifPresent(transaction -> secondObservedStatus.set(transaction.getStatus()));
+            return locked;
+        }
+    }
+
+    @FunctionalInterface
+    private interface ThrowingSupplier {
+        Object get() throws Throwable;
     }
 }
