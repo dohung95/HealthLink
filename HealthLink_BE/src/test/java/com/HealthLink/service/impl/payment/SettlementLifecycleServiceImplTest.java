@@ -86,7 +86,7 @@ class SettlementLifecycleServiceImplTest {
     }
 
     @Test
-    void beginWithdrawal_doesNotReserveWhenLockedBalanceWouldFallToTen() {
+    void beginWithdrawal_reservesWhenLockedBalanceFallsToTen() {
         Doctor doctor = Doctor.builder()
                 .doctorId("doctor-1")
                 .pendingSettlement(new BigDecimal("20.00"))
@@ -94,15 +94,15 @@ class SettlementLifecycleServiceImplTest {
                 .build();
         when(doctorRepository.findByIdForWalletUpdate("doctor-1")).thenReturn(Optional.of(doctor));
 
-        assertThatThrownBy(() -> lifecycleService.beginWithdrawal(
-                "DOCTOR", "doctor-1", "Doctor One", new BigDecimal("10.00"),
-                "doctor@example.com", null))
-                .isInstanceOf(BadRequestException.class)
-                .hasMessageContaining("Remaining balance");
+        when(settlementRepository.save(any(Settlement.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-        verify(settlementRepository, never()).save(any());
-        verify(walletLedgerService, never()).createWithdrawal(any());
-        verify(eventPublisher, never()).publishEvent(any());
+        Settlement settlement = lifecycleService.beginWithdrawal(
+                "DOCTOR", "doctor-1", "Doctor One", new BigDecimal("10.00"),
+                "doctor@example.com", null);
+
+        assertThat(settlement.getStatus()).isEqualTo("PROCESSING");
+        verify(settlementRepository).save(any());
+        verify(walletLedgerService).createWithdrawal(any());
     }
 
     @Test

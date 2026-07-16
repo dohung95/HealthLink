@@ -153,7 +153,7 @@ public class PartnerPaymentController {
 
         BigDecimal pending = safeBalance(doctor.getPendingSettlement());
         BigDecimal totalEarning = safeBalance(doctor.getTotalEarnings());
-        boolean eligible = pending.subtract(MIN_WITHDRAWAL_AMOUNT).compareTo(MIN_REMAINING_BALANCE) > 0;
+        boolean eligible = pending.subtract(MIN_WITHDRAWAL_AMOUNT).compareTo(MIN_REMAINING_BALANCE) >= 0;
 
         return PartnerBalanceResponse.builder()
                 .partnerId(doctorId)
@@ -164,9 +164,9 @@ public class PartnerPaymentController {
                 .totalEarnings(totalEarning)
                 .eligibleForWithdrawal(eligible)
                 .withdrawalStatus(eligible
-                        ? "Eligible for withdrawal. You must keep more than $" + MIN_REMAINING_BALANCE.toPlainString()
+                        ? "Eligible for withdrawal. You must keep at least $" + MIN_REMAINING_BALANCE.toPlainString()
                         + " after withdrawing. Current balance: $" + pending.toPlainString()
-                        : String.format("Insufficient balance. You need more than $%.2f to withdraw while keeping over $%.2f remaining. Current: $%.2f",
+                        : String.format("Insufficient balance. You need at least $%.2f to withdraw while keeping at least $%.2f remaining. Current: $%.2f",
                                 MIN_REMAINING_BALANCE.add(MIN_WITHDRAWAL_AMOUNT), MIN_REMAINING_BALANCE, pending))
                 .build();
     }
@@ -177,7 +177,7 @@ public class PartnerPaymentController {
 
         BigDecimal pending = safeBalance(pharmacy.getPendingSettlement());
         BigDecimal totalEarning = safeBalance(pharmacy.getTotalEarnings());
-        boolean eligible = pending.subtract(MIN_WITHDRAWAL_AMOUNT).compareTo(MIN_REMAINING_BALANCE) > 0;
+        boolean eligible = pending.subtract(MIN_WITHDRAWAL_AMOUNT).compareTo(MIN_REMAINING_BALANCE) >= 0;
 
         return PartnerBalanceResponse.builder()
                 .partnerId(pharmacyId)
@@ -188,9 +188,9 @@ public class PartnerPaymentController {
                 .totalEarnings(totalEarning)
                 .eligibleForWithdrawal(eligible)
                 .withdrawalStatus(eligible
-                        ? "Eligible for withdrawal. You must keep more than $" + MIN_REMAINING_BALANCE.toPlainString()
+                        ? "Eligible for withdrawal. You must keep at least $" + MIN_REMAINING_BALANCE.toPlainString()
                         + " after withdrawing. Current balance: $" + pending.toPlainString()
-                        : String.format("Insufficient balance. You need more than $%.2f to withdraw while keeping over $%.2f remaining. Current: $%.2f",
+                        : String.format("Insufficient balance. You need at least $%.2f to withdraw while keeping at least $%.2f remaining. Current: $%.2f",
                                 MIN_REMAINING_BALANCE.add(MIN_WITHDRAWAL_AMOUNT), MIN_REMAINING_BALANCE, pending))
                 .build();
     }

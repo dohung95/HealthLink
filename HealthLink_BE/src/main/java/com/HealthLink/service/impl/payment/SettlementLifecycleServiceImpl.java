@@ -178,8 +178,8 @@ public class SettlementLifecycleServiceImpl implements SettlementLifecycleServic
         if (amount.compareTo(balance) > 0) {
             throw new BadRequestException("Requested amount exceeds available balance.");
         }
-        if (balance.subtract(amount).compareTo(MIN_REMAINING_BALANCE) <= 0) {
-            throw new BadRequestException("Remaining balance after withdrawal must be greater than $10.00.");
+        if (balance.subtract(amount).compareTo(MIN_REMAINING_BALANCE) < 0) {
+            throw new BadRequestException("Remaining balance after withdrawal must be at least $10.00.");
         }
         if (registeredEmail == null || !registeredEmail.equalsIgnoreCase(requestedEmail)) {
             throw new BadRequestException("PayPal email does not match the registered PayPal email on file.");

@@ -88,22 +88,22 @@ class SettlementServiceImplTest {
     private SettlementServiceImpl settlementService;
 
     @Test
-    void withdrawDoctorEarnings_shouldRejectWhenRemainingBalanceIsTenOrLess() {
+    void withdrawDoctorEarnings_propagatesLifecycleRejectionWhenRemainingBalanceWouldFallBelowTen() {
         Doctor doctor = doctor(new BigDecimal("20.00"));
         when(userRepository.findById("doctor-1")).thenReturn(Optional.of(doctor.getUser()));
         when(doctorRepository.findById("doctor-1")).thenReturn(Optional.of(doctor));
         when(lifecycleService.beginWithdrawal(
-                eq("DOCTOR"), eq("doctor-1"), eq("Doctor One"), eq(new BigDecimal("10.00")),
+                eq("DOCTOR"), eq("doctor-1"), eq("Doctor One"), eq(new BigDecimal("11.00")),
                 eq("doctor@example.com"), isNull(), any()))
-                .thenThrow(new BadRequestException("Remaining balance after withdrawal must be greater than $10.00"));
+                .thenThrow(new BadRequestException("Remaining balance after withdrawal must be at least $10.00"));
         SettlementRequest request = SettlementRequest.builder()
-                .amount(new BigDecimal("10.00"))
+                .amount(new BigDecimal("11.00"))
                 .paypalEmail("doctor@example.com")
                 .build();
 
         assertThatThrownBy(() -> settlementService.withdrawDoctorEarnings("doctor-1", request))
                 .isInstanceOf(BadRequestException.class)
-                .hasMessageContaining("Remaining balance after withdrawal must be greater than $10.00");
+                .hasMessageContaining("Remaining balance after withdrawal must be at least $10.00");
     }
 
     @Test
