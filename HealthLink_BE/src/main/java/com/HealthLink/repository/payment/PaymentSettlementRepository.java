@@ -44,4 +44,6 @@ public interface PaymentSettlementRepository extends JpaRepository<Settlement, I
      * Lấy settlement đang trong trạng thái xử lý (PROCESSING) của một đối tác.
      */
     List<Settlement> findByRecipientIdAndStatus(String recipientId, String status);
+
+    List<Settlement> findTop100ByStatusAndPayoutBatchIdIsNotNullOrderByCreatedAtAsc(String status);
 }
