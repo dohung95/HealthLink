@@ -76,6 +76,11 @@ public class PartnerWalletLedgerServiceImpl implements PartnerWalletLedgerServic
             return;
         }
 
+        lockPartner(tx.getRecipientType(), tx.getRecipientId());
+        entry = entryRepository.findByIdempotencyKey(earningKey(tx)).orElse(null);
+        if (entry == null || entry.getStatus() != PartnerWalletEntryStatus.PENDING) {
+            return;
+        }
         entry.setStatus(PartnerWalletEntryStatus.CANCELLED);
         entryRepository.save(entry);
     }

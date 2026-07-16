@@ -16,6 +16,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.math.BigDecimal;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -67,17 +68,27 @@ class PartnerWalletLedgerServiceImplTest {
                 .pendingSettlement(new BigDecimal("5.00"))
                 .totalEarnings(new BigDecimal("25.00"))
                 .build();
-        when(entryRepository.findByIdempotencyKey("REFUND:CTX:2")).thenReturn(Optional.empty());
+        AtomicReference<PartnerWalletEntry> refund = new AtomicReference<>();
+        when(entryRepository.findByIdempotencyKey("REFUND:CTX:2"))
+                .thenAnswer(invocation -> Optional.ofNullable(refund.get()));
+        when(entryRepository.save(any(PartnerWalletEntry.class))).thenAnswer(invocation -> {
+            PartnerWalletEntry entry = invocation.getArgument(0);
+            if ("REFUND:CTX:2".equals(entry.getIdempotencyKey())) {
+                refund.set(entry);
+            }
+            return entry;
+        });
         when(pharmacyRepository.findByIdForWalletUpdate("pharmacy-1")).thenReturn(Optional.of(pharmacy));
 
         ledgerService.recordPatientRefund(tx, "VESTED");
+        ledgerService.recordPatientRefund(tx, "VESTED");
 
         assertThat(pharmacy.getPendingSettlement()).isEqualByComparingTo("-20.00");
-        verify(entryRepository).save(org.mockito.ArgumentMatchers.argThat(entry ->
+        verify(entryRepository, times(1)).save(org.mockito.ArgumentMatchers.argThat(entry ->
                 entry.getIdempotencyKey().equals("REFUND:CTX:2")
                         && entry.getAmount().compareTo(new BigDecimal("-25.00")) == 0
                         && entry.getStatus() == PartnerWalletEntryStatus.REFUNDED));
-        verify(pharmacyRepository).save(pharmacy);
+        verify(pharmacyRepository, times(1)).save(pharmacy);
     }
 
     @Test
@@ -101,13 +112,41 @@ class PartnerWalletLedgerServiceImplTest {
     void cancelsPendingPharmacyEarningWithoutChangingWalletBalance() {
         CommissionTransaction tx = transaction("PHARMACY", "pharmacy-1", 4, new BigDecimal("25.00"));
         PartnerWalletEntry earning = earning(tx, PartnerWalletEntryStatus.PENDING);
+        Pharmacy pharmacy = Pharmacy.builder()
+                .pharmacyId("pharmacy-1")
+                .pendingSettlement(new BigDecimal("5.00"))
+                .build();
         when(entryRepository.findByIdempotencyKey("EARNING:CTX:4")).thenReturn(Optional.of(earning));
+        when(pharmacyRepository.findByIdForWalletUpdate("pharmacy-1")).thenReturn(Optional.of(pharmacy));
 
         ledgerService.recordPatientRefund(tx, "PENDING");
 
         assertThat(earning.getStatus()).isEqualTo(PartnerWalletEntryStatus.CANCELLED);
+        assertThat(pharmacy.getPendingSettlement()).isEqualByComparingTo("5.00");
         verify(entryRepository).save(earning);
         verify(pharmacyRepository, times(0)).save(any());
+    }
+
+    @Test
+    void doesNotCancelEarningThatVestedWhileWaitingForPartnerLock() {
+        CommissionTransaction tx = transaction("PHARMACY", "pharmacy-1", 5, new BigDecimal("25.00"));
+        PartnerWalletEntry earning = earning(tx, PartnerWalletEntryStatus.PENDING);
+        Pharmacy pharmacy = Pharmacy.builder()
+                .pharmacyId("pharmacy-1")
+                .pendingSettlement(new BigDecimal("30.00"))
+                .build();
+        when(entryRepository.findByIdempotencyKey("EARNING:CTX:5")).thenReturn(Optional.of(earning));
+        when(pharmacyRepository.findByIdForWalletUpdate("pharmacy-1")).thenAnswer(invocation -> {
+            earning.setStatus(PartnerWalletEntryStatus.VESTED);
+            return Optional.of(pharmacy);
+        });
+
+        ledgerService.cancelPendingEarning(tx);
+
+        assertThat(earning.getStatus()).isEqualTo(PartnerWalletEntryStatus.VESTED);
+        assertThat(pharmacy.getPendingSettlement()).isEqualByComparingTo("30.00");
+        verify(pharmacyRepository).findByIdForWalletUpdate("pharmacy-1");
+        verify(entryRepository, times(0)).save(earning);
     }
 
     private CommissionTransaction transaction(String partnerType, String partnerId, int transactionId,
