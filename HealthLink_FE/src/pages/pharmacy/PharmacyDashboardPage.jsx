@@ -47,8 +47,6 @@ export default function PharmacyDashboardPage() {
   const [workItemsError, setWorkItemsError] = useState(null);
   const [workItemsLoading, setWorkItemsLoading] = useState(false);
   const [balance, setBalance] = useState(null);
-  const [transactions, setTransactions] = useState([]);
-  const [settlements, setSettlements] = useState([]);
   const [loading, setLoading] = useState(true);
   const [inventoryRefreshToken, setInventoryRefreshToken] = useState(0);
   const [workflowAttention, setWorkflowAttention] = useState(null);
@@ -104,16 +102,12 @@ export default function PharmacyDashboardPage() {
         resolvedPharmacyId ? pharmacyApi.getConsultationRequestsByPharmacy(resolvedPharmacyId) : Promise.resolve([]),
         resolvedPharmacyId ? pharmacyApi.getWorkItemsByPharmacy(resolvedPharmacyId) : Promise.resolve([]),
         resolvedPharmacyId ? paymentApi.getPartnerBalance(resolvedPharmacyId, 'PHARMACY') : Promise.resolve(null),
-        resolvedPharmacyId ? paymentApi.getPartnerTransactions(resolvedPharmacyId) : Promise.resolve([]),
-        resolvedPharmacyId ? paymentApi.getPartnerSettlements(resolvedPharmacyId) : Promise.resolve([]),
       ]);
-      const [orderResult, requestResult, workItemResult, balanceResult, transactionResult, settlementResult] = results;
+      const [orderResult, requestResult, workItemResult, balanceResult] = results;
 
       if (orderResult.status === 'fulfilled') setOrders(Array.isArray(orderResult.value) ? orderResult.value : []);
       applyWorkflowResults(requestResult, workItemResult);
       if (balanceResult.status === 'fulfilled') setBalance(balanceResult.value);
-      if (transactionResult.status === 'fulfilled') setTransactions(Array.isArray(transactionResult.value) ? transactionResult.value : []);
-      if (settlementResult.status === 'fulfilled') setSettlements(Array.isArray(settlementResult.value) ? settlementResult.value : []);
       setInventoryRefreshToken((value) => value + 1);
     } catch (error) {
       console.error('Failed to load pharmacy dashboard', error);
@@ -241,8 +235,6 @@ export default function PharmacyDashboardPage() {
     workItemsError,
     workItemsLoading,
     balance,
-    transactions,
-    settlements,
     pharmacyId,
     loading,
     reload: loadDashboardData,
