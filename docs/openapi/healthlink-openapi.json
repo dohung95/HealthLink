@@ -2088,7 +2088,8 @@
           "in" : "query",
           "required" : true,
           "schema" : {
-            "type" : "string"
+            "type" : "string",
+            "enum" : [ "DOCTOR", "PHARMACY" ]
           }
         } ],
         "requestBody" : {
@@ -2102,8 +2103,8 @@
           "required" : true
         },
         "responses" : {
-          "200" : {
-            "description" : "OK",
+          "201" : {
+            "description" : "Withdrawal reserved and submitted for PayPal processing",
             "content" : {
               "*/*" : {
                 "schema" : {
@@ -9694,10 +9695,6 @@
           },
           "notes" : {
             "type" : "string"
-          },
-          "requestId" : {
-            "type" : "string",
-            "description" : "Stable client-generated idempotency key for retrying the same withdrawal request"
           }
         }
       },
@@ -9752,9 +9749,7 @@
             "type" : "string"
           },
           "status" : {
-            "type" : "string",
-            "enum" : [ "PENDING", "PROCESSING", "COMPLETED", "FAILED", "CANCELLED" ],
-            "description" : "PROCESSING means funds are reserved in the wallet while the PayPal payout is pending or its outcome is unknown."
+            "type" : "string"
           },
           "deliveryType" : {
             "type" : "string"
@@ -9832,16 +9827,6 @@
             "format" : "date-time"
           },
           "completedAt" : {
-            "type" : "string",
-            "format" : "date-time"
-          },
-          "payoutBatchId" : {
-            "type" : "string"
-          },
-          "externalStatus" : {
-            "type" : "string"
-          },
-          "lastReconciledAt" : {
             "type" : "string",
             "format" : "date-time"
           },
@@ -13230,6 +13215,11 @@
           },
           "notes" : {
             "type" : "string"
+          },
+          "requestId" : {
+            "type" : "string",
+            "maxLength" : 100,
+            "description" : "Stable client-generated idempotency key for retrying the same withdrawal request."
           }
         }
       },
@@ -13262,7 +13252,9 @@
             "type" : "number"
           },
           "status" : {
-            "type" : "string"
+            "type" : "string",
+            "description" : "PROCESSING means funds are reserved while the PayPal payout outcome is pending or unknown.",
+            "enum" : [ "PENDING", "PROCESSING", "COMPLETED", "FAILED", "CANCELLED" ]
           },
           "paymentMethod" : {
             "type" : "string"
@@ -13283,6 +13275,16 @@
             "format" : "date-time"
           },
           "completedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "payoutBatchId" : {
+            "type" : "string"
+          },
+          "externalStatus" : {
+            "type" : "string"
+          },
+          "lastReconciledAt" : {
             "type" : "string",
             "format" : "date-time"
           },

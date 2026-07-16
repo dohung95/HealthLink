@@ -188,7 +188,7 @@ class PartnerWalletFlowIntegrationTest {
     }
 
     @Test
-    void secondWithdrawalCannotReserveTheSameAvailableBalance() {
+    void sequentialWithdrawalCannotReserveBalanceAlreadyReservedByTheFirstWithdrawal() {
         doctor.setPendingSettlement(new BigDecimal("50.00"));
         lifecycleService.beginWithdrawal("DOCTOR", "doctor-a", "Doctor A", new BigDecimal("40.00"),
                 "doctor-a@example.com", "wallet test", "withdrawal-first");
