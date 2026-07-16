@@ -9,6 +9,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.ToString;
 import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.Size;
 
 import java.math.BigDecimal;
 
@@ -52,4 +53,11 @@ public class SettlementRequest {
     @Pattern(regexp = "\\d{6}", message = "PIN must contain exactly 6 digits")
     @ToString.Exclude
     private String pin;
+
+    /**
+     * Stable client-generated idempotency key for a withdrawal retry. Legacy callers may omit it;
+     * the server then generates a key for that one request, which cannot deduplicate a later retry.
+     */
+    @Size(max = 100, message = "Request ID must not exceed 100 characters")
+    private String requestId;
 }

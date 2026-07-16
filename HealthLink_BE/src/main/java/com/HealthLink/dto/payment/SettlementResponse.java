@@ -48,6 +48,10 @@ public class SettlementResponse {
     private LocalDateTime processedAt;
     private LocalDateTime completedAt;
 
+    private String payoutBatchId;
+    private String externalStatus;
+    private LocalDateTime lastReconciledAt;
+
     /** Ghi chú hoặc lý do thất bại */
     private String notes;
 

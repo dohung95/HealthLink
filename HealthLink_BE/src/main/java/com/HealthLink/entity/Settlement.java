@@ -72,6 +72,22 @@ public class Settlement {
     @Column(length = 500)
     private String notes;
 
+    @Column(name = "payout_batch_id", unique = true, length = 255)
+    private String payoutBatchId;
+
+    @Column(name = "external_status", length = 50)
+    private String externalStatus;
+
+    @Column(name = "last_reconciled_at")
+    private LocalDateTime lastReconciledAt;
+
+    @Column(name = "client_request_id", length = 100)
+    private String clientRequestId;
+
+    /** True only for the in-memory settlement that this call reserved and may submit to PayPal. */
+    @Transient
+    private boolean payoutSubmissionRequired;
+
     @Column(name = "CreatedAt")
     @Builder.Default
     private LocalDateTime createdAt = LocalDateTime.now();

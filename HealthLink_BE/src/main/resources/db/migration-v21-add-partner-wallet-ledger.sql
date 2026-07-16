@@ -26,6 +26,36 @@ END;
 IF COL_LENGTH('dbo.commission_transactions', 'refunded_at') IS NULL
     ALTER TABLE dbo.commission_transactions ADD refunded_at DATETIME2 NULL;
 
+IF COL_LENGTH('dbo.settlements', 'payout_batch_id') IS NULL
+    ALTER TABLE dbo.settlements ADD payout_batch_id VARCHAR(255) NULL;
+
+IF COL_LENGTH('dbo.settlements', 'external_status') IS NULL
+    ALTER TABLE dbo.settlements ADD external_status VARCHAR(50) NULL;
+
+IF COL_LENGTH('dbo.settlements', 'last_reconciled_at') IS NULL
+    ALTER TABLE dbo.settlements ADD last_reconciled_at DATETIME2 NULL;
+
+IF COL_LENGTH('dbo.settlements', 'client_request_id') IS NULL
+    ALTER TABLE dbo.settlements ADD client_request_id VARCHAR(100) NULL;
+
+IF NOT EXISTS (
+    SELECT 1 FROM sys.indexes
+    WHERE object_id = OBJECT_ID('dbo.settlements')
+      AND name = 'UX_Settlements_PayoutBatchId'
+)
+    CREATE UNIQUE INDEX UX_Settlements_PayoutBatchId
+        ON dbo.settlements (payout_batch_id)
+        WHERE payout_batch_id IS NOT NULL;
+
+IF NOT EXISTS (
+    SELECT 1 FROM sys.indexes
+    WHERE object_id = OBJECT_ID('dbo.settlements')
+      AND name = 'UX_Settlements_PartnerClientRequestId'
+)
+    CREATE UNIQUE INDEX UX_Settlements_PartnerClientRequestId
+        ON dbo.settlements (recipient_type, recipient_id, client_request_id)
+        WHERE client_request_id IS NOT NULL;
+
 IF NOT EXISTS (
     SELECT 1 FROM sys.indexes
     WHERE object_id = OBJECT_ID('dbo.partner_wallet_entries')
