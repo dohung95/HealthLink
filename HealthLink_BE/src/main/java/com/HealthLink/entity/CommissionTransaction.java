@@ -60,6 +60,9 @@ public class CommissionTransaction {
     @Column(name = "VestedAt")
     private LocalDateTime vestedAt;
 
+    @Column(name = "RefundedAt")
+    private LocalDateTime refundedAt;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "SettlementId")
     @ToString.Exclude

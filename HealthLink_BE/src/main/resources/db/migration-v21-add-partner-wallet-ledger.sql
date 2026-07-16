@@ -23,6 +23,9 @@ BEGIN
     );
 END;
 
+IF COL_LENGTH('dbo.commission_transactions', 'refunded_at') IS NULL
+    ALTER TABLE dbo.commission_transactions ADD refunded_at DATETIME2 NULL;
+
 IF NOT EXISTS (
     SELECT 1 FROM sys.indexes
     WHERE object_id = OBJECT_ID('dbo.partner_wallet_entries')
@@ -90,9 +93,9 @@ SELECT
     ctx.pharmacy_order_id,
     CONCAT('REFUND:CTX:', ctx.transaction_id),
     CONCAT('Backfilled refund from commission transaction ', ctx.transaction_number),
+    COALESCE(ctx.refunded_at, ctx.created_at),
     ctx.created_at,
-    ctx.created_at,
-    ctx.created_at
+    COALESCE(ctx.refunded_at, ctx.created_at)
 FROM dbo.commission_transactions ctx
 WHERE ctx.status = 'REFUNDED'
   AND ctx.vested_at IS NOT NULL

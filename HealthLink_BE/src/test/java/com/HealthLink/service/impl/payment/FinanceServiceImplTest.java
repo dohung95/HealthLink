@@ -773,4 +773,23 @@ class FinanceServiceImplTest {
         verify(appointmentRepository, never()).save(any(Appointment.class));
         verify(paymentRepository, never()).save(any());
     }
+
+    @Test
+    void processRefund_propagatesCommissionClawbackFailure() {
+        Invoice invoice = Invoice.builder().invoiceId(77).status("PAID").build();
+        Payment payment = Payment.builder()
+                .paymentId(33)
+                .invoice(invoice)
+                .amount(new BigDecimal("42.50"))
+                .status("SUCCESS")
+                .build();
+        BadRequestException clawbackFailure = new BadRequestException("Ledger clawback failed");
+        when(paymentRepository.findById(33)).thenReturn(Optional.of(payment));
+        doThrow(clawbackFailure).when(commissionService).processRefund(77);
+
+        assertThatThrownBy(() -> financeService.processRefund(33, "Patient request"))
+                .isSameAs(clawbackFailure);
+
+        verify(commissionService).processRefund(77);
+    }
 }
