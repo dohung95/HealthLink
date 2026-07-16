@@ -52,15 +52,17 @@ export function usePartnerWallet({ partnerId, partnerType, pageSize = 10 }) {
   }), [debouncedSearchTerm, filters.dateFrom, filters.dateTo, filters.statusFilter, filters.typeFilter, page, pageSize]);
 
   const refresh = useCallback(async () => {
+    const sequence = ++requestSequenceRef.current;
     if (!partnerId || !partnerType) {
       setBalance(null);
       setEntries([]);
       setTotalElements(0);
       setTotalPages(0);
+      setLoading(false);
+      setError(null);
       return;
     }
 
-    const sequence = ++requestSequenceRef.current;
     setLoading(true);
     setError(null);
     try {

@@ -126,6 +126,16 @@ test('normalizes a ledger entry while preserving its server identity', () => {
       title: 'STL-42',
       amount: -30,
       createdAt: '2026-07-16T12:00:00',
+      status: 'PROCESSING',
+      presentation: {
+        direction: 'negative',
+        icon: 'payments',
+        badgeTone: 'error',
+        statusLabel: 'Processing',
+        amountTone: 'error',
+        strikeAmount: false,
+        kind: 'withdrawal',
+      },
       raw: {
         entryId: 42,
         entryType: 'WITHDRAWAL',

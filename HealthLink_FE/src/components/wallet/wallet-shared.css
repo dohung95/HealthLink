@@ -255,6 +255,18 @@
   box-shadow: 0 0 6px rgba(16, 185, 129, 0.3);
 }
 
+.wallet-tx-item-strip--warning {
+  background: var(--warning);
+}
+
+.wallet-tx-item-strip--success {
+  background: var(--success);
+}
+
+.wallet-tx-item-strip--error {
+  background: var(--error);
+}
+
 /* Left side: icon + info */
 .wallet-tx-item-left {
   display: flex;
@@ -290,6 +302,24 @@
   background: var(--surface-muted);
   color: var(--text-secondary);
   border-color: rgba(226, 232, 240, 0.5);
+}
+
+.wallet-tx-item-icon--warning {
+  background: rgba(245, 158, 11, 0.1);
+  color: var(--warning);
+  border-color: rgba(245, 158, 11, 0.25);
+}
+
+.wallet-tx-item-icon--success {
+  background: rgba(16, 185, 129, 0.1);
+  color: var(--success);
+  border-color: rgba(16, 185, 129, 0.25);
+}
+
+.wallet-tx-item-icon--error {
+  background: rgba(220, 38, 38, 0.08);
+  color: var(--error);
+  border-color: rgba(220, 38, 38, 0.18);
 }
 
 .wallet-tx-item-info {
@@ -346,6 +376,23 @@
   color: var(--error);
 }
 
+.wallet-tx-item-amount--warning {
+  color: var(--warning);
+}
+
+.wallet-tx-item-amount--success {
+  color: var(--success);
+}
+
+.wallet-tx-item-amount--error {
+  color: var(--error);
+}
+
+.wallet-tx-item-amount--struck {
+  opacity: 0.55;
+  text-decoration: line-through;
+}
+
 /* Status badge pill */
 .wallet-tx-item-badge {
   display: inline-block;
@@ -377,6 +424,30 @@
 }
 
 .wallet-tx-item-badge--failed {
+  background: rgba(220, 38, 38, 0.08);
+  border-color: rgba(220, 38, 38, 0.15);
+  color: var(--error);
+}
+
+.wallet-tx-item-badge--neutral {
+  background: var(--surface-muted);
+  border-color: rgba(226, 232, 240, 0.5);
+  color: var(--text-secondary);
+}
+
+.wallet-tx-item-badge--warning {
+  background: rgba(245, 158, 11, 0.1);
+  border-color: rgba(245, 158, 11, 0.25);
+  color: var(--warning);
+}
+
+.wallet-tx-item-badge--success {
+  background: rgba(16, 185, 129, 0.1);
+  border-color: rgba(16, 185, 129, 0.25);
+  color: var(--success);
+}
+
+.wallet-tx-item-badge--error {
   background: rgba(220, 38, 38, 0.08);
   border-color: rgba(220, 38, 38, 0.15);
   color: var(--error);

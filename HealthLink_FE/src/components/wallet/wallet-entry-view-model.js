@@ -75,6 +75,8 @@ export const toWalletTransactionEntry = (entry) => {
     title: titleForEntry(entry, presentation.kind),
     amount: Number(entry.amount || 0),
     createdAt: entry.effectiveAt,
+    status: entry.status,
+    presentation,
     raw: entry,
   };
 };

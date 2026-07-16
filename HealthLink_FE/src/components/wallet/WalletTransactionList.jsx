@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { formatCurrency, formatDateTime, formatStatus, getBadgeClass } from './WalletHelpers';
+import { formatCurrency, formatDateTime, formatStatus } from './WalletHelpers';
+import { getWalletEntryPresentation } from './wallet-entry-view-model';
 import './wallet-shared.css';
 
 export default function WalletTransactionList({
@@ -90,24 +91,21 @@ export default function WalletTransactionList({
       <div className="wallet-tx-list">
         {transactions.map((entry) => {
           const isExpanded = expandedEntryId === entry.id;
-          const isPositive = Number(entry.amount) >= 0;
+          const presentation = entry.presentation || getWalletEntryPresentation(entry.raw || entry);
+          const isPositive = presentation.direction === 'positive';
           const entryKind = entry.kind;
-
-          const iconName = entryKind === 'earning'
-            ? (entry.raw.sourceType === 'PHARMACY_ORDER' ? 'shopping_cart' : 'videocam')
-            : 'account_balance';
 
           return (
             <div key={entry.id} className="wallet-tx-item">
-              <div className={`wallet-tx-item-strip wallet-tx-item-strip--${isPositive ? 'positive' : 'negative'}`} />
+              <div className={`wallet-tx-item-strip wallet-tx-item-strip--${presentation.amountTone}`} />
 
               <div
                 className="wallet-tx-item-main"
                 onClick={() => setExpandedEntryId(isExpanded ? null : entry.id)}
               >
                 <div className="wallet-tx-item-left">
-                  <div className={`wallet-tx-item-icon wallet-tx-item-icon--${entryKind}`}>
-                    <span className="material-symbols-outlined">{iconName}</span>
+                  <div className={`wallet-tx-item-icon wallet-tx-item-icon--${presentation.amountTone}`}>
+                    <span aria-hidden="true" className="material-symbols-outlined">{presentation.icon}</span>
                   </div>
                   <div className="wallet-tx-item-info">
                     <span className="wallet-tx-item-title">{entry.title}</span>
@@ -117,11 +115,11 @@ export default function WalletTransactionList({
 
                 <div className="wallet-tx-item-right">
                   <div className="wallet-tx-item-amount-group">
-                    <span className={`wallet-tx-item-amount ${isPositive ? 'wallet-tx-item-amount--positive' : 'wallet-tx-item-amount--negative'}`}>
+                    <span className={`wallet-tx-item-amount wallet-tx-item-amount--${presentation.amountTone} ${presentation.strikeAmount ? 'wallet-tx-item-amount--struck' : ''}`}>
                       {isPositive ? '+' : ''}{formatCurrency(entry.amount)}
                     </span>
-                    <span className={`wallet-tx-item-badge wallet-tx-item-badge--${getBadgeClass(entry.status)}`}>
-                      {formatStatus(entry.status)}
+                    <span className={`wallet-tx-item-badge wallet-tx-item-badge--${presentation.badgeTone}`}>
+                      {presentation.statusLabel}
                     </span>
                   </div>
                   <button
