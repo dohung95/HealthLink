@@ -496,6 +496,37 @@ class _PrescriptionsScreenState extends State<PrescriptionsScreen> {
     );
   }
 
+  Future<void> _handleRefill(BuildContext context, String prescriptionId) async {
+    try {
+      final authProvider = context.read<AuthProvider>();
+      final token = authProvider.accessToken ?? '';
+      
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (c) => const Center(child: CircularProgressIndicator()),
+      );
+
+      await PatientService.requestRefill(token, prescriptionId);
+      
+      if (context.mounted) {
+        Navigator.pop(context); // close dialog
+        Navigator.pop(context); // close modal
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Refill prescription created successfully'), backgroundColor: Colors.green),
+        );
+        _fetchPrescriptions(); // refresh list
+      }
+    } catch (e) {
+      if (context.mounted) {
+        Navigator.pop(context); // close dialog
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.toString()), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
   // --- 5. Modal Chi tiết Đơn thuốc (Bottom Sheet) ---
   void _showPrescriptionDetailsModal(BuildContext context, Map<String, dynamic> prescription) {
       final status = (prescription['status']?.toString() ?? 'UNKNOWN').toUpperCase();
@@ -553,35 +584,132 @@ class _PrescriptionsScreenState extends State<PrescriptionsScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Overview box
+                      // Overview box (Consultation Info)
                       Container(
                         padding: const EdgeInsets.all(16),
                         decoration: BoxDecoration(
-                          color: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.3), // bg-surface-container
+                          color: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.3),
                           borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Theme.of(context).colorScheme.outlineVariant.withOpacity(0.5)),
                         ),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                Icon(Icons.local_hospital, color: Theme.of(context).colorScheme.primary),
-                                const SizedBox(width: 8),
-                                Expanded(child: Text(_stripHtml(prescription['diagnosis']?.toString()) == '' ? 'N/A' : _stripHtml(prescription['diagnosis']?.toString()), style: TextStyle(fontFamily: 'Inter', fontSize: 18, fontWeight: FontWeight.w600, color: Theme.of(context).colorScheme.onBackground))),
+                                Expanded(
+                                  child: Row(
+                                    children: [
+                                      Icon(Icons.local_hospital, color: Theme.of(context).colorScheme.primary),
+                                      const SizedBox(width: 8),
+                                      Expanded(child: Text(_stripHtml(prescription['diagnosis']?.toString()) == '' ? 'N/A' : _stripHtml(prescription['diagnosis']?.toString()), style: TextStyle(fontFamily: 'Inter', fontSize: 18, fontWeight: FontWeight.w600, color: Theme.of(context).colorScheme.onBackground))),
+                                    ],
+                                  ),
+                                ),
+                                if (prescription['paymentStatus'] != null)
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                    decoration: BoxDecoration(
+                                      color: prescription['paymentStatus'] == 'PAID' ? Colors.green.withOpacity(0.1) : Colors.orange.withOpacity(0.1),
+                                      borderRadius: BorderRadius.circular(16),
+                                    ),
+                                    child: Text(
+                                      '${prescription['paymentStatus']}',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.bold,
+                                        color: prescription['paymentStatus'] == 'PAID' ? Colors.green : Colors.orange,
+                                      ),
+                                    ),
+                                  ),
                               ],
                             ),
                             const SizedBox(height: 12),
-                            Text('${AppLocalizations.of(context)!.labelDoctor} ${prescription['doctorName'] ?? 'Unknown Doctor'}', style: TextStyle(fontFamily: 'Inter', fontSize: 14, color: Theme.of(context).colorScheme.onSurfaceVariant)),
+                            Text('${AppLocalizations.of(context)!.labelDoctor} ${prescription['doctorName'] ?? 'Unknown Doctor'} (${prescription['specialty'] ?? 'General'})', style: TextStyle(fontFamily: 'Inter', fontSize: 14, color: Theme.of(context).colorScheme.onSurfaceVariant)),
                             const SizedBox(height: 4),
                             Text('${AppLocalizations.of(context)!.labelDate} ${_formatDate(prescription['issueDate'], context)}', style: TextStyle(fontFamily: 'Inter', fontSize: 14, color: Theme.of(context).colorScheme.onSurfaceVariant)),
-                            if (prescription['notes'] != null && _stripHtml(prescription['notes'].toString()).isNotEmpty) ...[
-                              const SizedBox(height: 12),
-                              Text(AppLocalizations.of(context)!.prescriptionNotes(_stripHtml(prescription['notes'].toString())), style: TextStyle(fontFamily: 'Inter', fontSize: 14, color: Theme.of(context).colorScheme.onSurfaceVariant, fontStyle: FontStyle.italic)),
-                            ]
                           ],
                         ),
                       ),
                       const SizedBox(height: 16),
+                      
+                      // Patient & Vitals Section
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(
+                            child: Container(
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(color: Theme.of(context).colorScheme.outlineVariant.withOpacity(0.3)),
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text('Patient Info', style: TextStyle(fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.primary)),
+                                  const SizedBox(height: 8),
+                                  Text('${prescription['patientName'] ?? 'N/A'}', style: const TextStyle(fontWeight: FontWeight.w600)),
+                                  Text('Age: ${prescription['patientAge'] ?? 'N/A'} | ${prescription['patientGender'] ?? 'N/A'}', style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant)),
+                                  const SizedBox(height: 4),
+                                  Text('${prescription['patientPhone'] ?? ''}', style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant)),
+                                ],
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Container(
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(color: Theme.of(context).colorScheme.outlineVariant.withOpacity(0.3)),
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text('Vital Signs', style: TextStyle(fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.primary)),
+                                  const SizedBox(height: 8),
+                                  Text('BP: ${prescription['bloodPressureSystolic'] != null ? "${prescription['bloodPressureSystolic']}/${prescription['bloodPressureDiastolic']}" : "N/A"}', style: const TextStyle(fontSize: 12)),
+                                  Text('HR: ${prescription['heartRate'] ?? 'N/A'} bpm | SpO2: ${prescription['spO2'] ?? 'N/A'}%', style: const TextStyle(fontSize: 12)),
+                                  Text('Temp: ${prescription['temperature'] ?? 'N/A'} °C', style: const TextStyle(fontSize: 12)),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+
+                      // Clinical Notes
+                      if (prescription['symptoms'] != null || prescription['medicalHistory'] != null) ...[
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          width: double.infinity,
+                          decoration: BoxDecoration(
+                            border: Border.all(color: Theme.of(context).colorScheme.outlineVariant.withOpacity(0.3)),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              if (prescription['symptoms'] != null) ...[
+                                Text('Symptoms', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant)),
+                                Text('${prescription['symptoms']}', style: const TextStyle(fontSize: 14)),
+                                const SizedBox(height: 8),
+                              ],
+                              if (prescription['medicalHistory'] != null) ...[
+                                Text('Medical History', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant)),
+                                Text('${prescription['medicalHistory']}', style: const TextStyle(fontSize: 14)),
+                              ],
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                      ],
 
                       Text(AppLocalizations.of(context)!.medicationListCount(items.length), style: TextStyle(fontFamily: 'Inter', fontSize: 18, fontWeight: FontWeight.w600, color: Theme.of(context).colorScheme.onBackground)),
                       const SizedBox(height: 12),
@@ -600,6 +728,44 @@ class _PrescriptionsScreenState extends State<PrescriptionsScreen> {
                           ),
                         );
                       }).toList(),
+                      
+                      const SizedBox(height: 16),
+                      
+                      // Treatment & Follow-up Section
+                      if (prescription['treatment'] != null || prescription['notes'] != null || prescription['followUpDate'] != null)
+                        Container(
+                          padding: const EdgeInsets.all(16),
+                          width: double.infinity,
+                          decoration: BoxDecoration(
+                            color: Theme.of(context).colorScheme.primary.withOpacity(0.05),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text('Treatment & Advice', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Theme.of(context).colorScheme.primary)),
+                              const SizedBox(height: 12),
+                              if (prescription['treatment'] != null) ...[
+                                Text('Treatment Plan:', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant)),
+                                Text('${_stripHtml(prescription['treatment'])}', style: const TextStyle(fontSize: 14)),
+                                const SizedBox(height: 8),
+                              ],
+                              if (prescription['notes'] != null) ...[
+                                Text('General Advice:', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant)),
+                                Text('${_stripHtml(prescription['notes'])}', style: const TextStyle(fontSize: 14)),
+                                const SizedBox(height: 8),
+                              ],
+                              if (prescription['followUpDate'] != null) ...[
+                                const Divider(),
+                                Text('Next Visit: ${_formatDate(prescription['followUpDate'], context)}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                                if (prescription['followUpNotes'] != null)
+                                  Text('${prescription['followUpNotes']}', style: TextStyle(fontSize: 13, color: Theme.of(context).colorScheme.onSurfaceVariant)),
+                              ]
+                            ],
+                          ),
+                        ),
+                        
+                      const SizedBox(height: 24),
                     ],
                   ),
                 ),
@@ -613,26 +779,51 @@ class _PrescriptionsScreenState extends State<PrescriptionsScreen> {
                     color: Theme.of(context).colorScheme.surface,
                     border: Border(top: BorderSide(color: Theme.of(context).colorScheme.outlineVariant.withOpacity(0.3))),
                   ),
-                  child: SizedBox(
-                    width: double.infinity,
-                    height: 48,
-                    child: ElevatedButton.icon(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Theme.of(context).colorScheme.primary,
-                        foregroundColor: Theme.of(context).colorScheme.onPrimary,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                        elevation: 0,
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: SizedBox(
+                          height: 48,
+                          child: ElevatedButton.icon(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Theme.of(context).colorScheme.primary,
+                              foregroundColor: Theme.of(context).colorScheme.onPrimary,
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                              elevation: 0,
+                            ),
+                            onPressed: () {
+                              Navigator.pop(context);
+                            },
+                            icon: const Icon(Icons.alarm_add, size: 20),
+                            label: Text(
+                              AppLocalizations.of(context)!.prescriptionSetReminder,
+                              style: const TextStyle(fontFamily: 'Inter', fontSize: 13, fontWeight: FontWeight.w600),
+                            ),
+                          ),
+                        ),
                       ),
-                      onPressed: () {
-                        // Xử lý cài đặt nhắc nhở uống thuốc
-                        Navigator.pop(context);
-                      },
-                      icon: const Icon(Icons.alarm_add, size: 20),
-                      label: Text(
-                        AppLocalizations.of(context)!.prescriptionSetReminder,
-                        style: const TextStyle(fontFamily: 'Inter', fontSize: 16, fontWeight: FontWeight.w600),
-                      ),
-                    ),
+                      if (status == 'ISSUED') ...[
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: SizedBox(
+                            height: 48,
+                            child: OutlinedButton.icon(
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: Theme.of(context).colorScheme.primary,
+                                side: BorderSide(color: Theme.of(context).colorScheme.primary),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                              ),
+                              onPressed: () => _handleRefill(context, prescription['prescriptionHeaderID'].toString()),
+                              icon: const Icon(Icons.autorenew, size: 20),
+                              label: const Text(
+                                'Refill',
+                                style: TextStyle(fontFamily: 'Inter', fontSize: 14, fontWeight: FontWeight.w600),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
                   ),
                 ),
             ],
@@ -813,6 +1004,74 @@ class _PrescriptionsScreenState extends State<PrescriptionsScreen> {
               pw.Text('Condition: ${_stripHtml(prescription['diagnosis']?.toString()) == '' ? 'N/A' : _stripHtml(prescription['diagnosis']?.toString())}', style: const pw.TextStyle(fontSize: 12)),
               pw.SizedBox(height: 20),
 
+              // Patient Info & Vitals
+              pw.Row(
+                crossAxisAlignment: pw.CrossAxisAlignment.start,
+                children: [
+                  pw.Expanded(
+                    child: pw.Container(
+                      padding: const pw.EdgeInsets.all(10),
+                      decoration: pw.BoxDecoration(
+                        border: pw.Border.all(color: PdfColors.grey400),
+                        color: PdfColors.grey100,
+                      ),
+                      child: pw.Column(
+                        crossAxisAlignment: pw.CrossAxisAlignment.start,
+                        children: [
+                          pw.Text('Patient Information', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 12)),
+                          pw.SizedBox(height: 4),
+                          pw.Text('Name: ${prescription['patientName'] ?? 'N/A'}', style: const pw.TextStyle(fontSize: 10)),
+                          pw.Text('Age: ${prescription['patientAge'] ?? 'N/A'} | Gender: ${prescription['patientGender'] ?? 'N/A'}', style: const pw.TextStyle(fontSize: 10)),
+                          pw.Text('Phone: ${prescription['patientPhone'] ?? 'N/A'}', style: const pw.TextStyle(fontSize: 10)),
+                        ],
+                      ),
+                    ),
+                  ),
+                  pw.SizedBox(width: 10),
+                  pw.Expanded(
+                    child: pw.Container(
+                      padding: const pw.EdgeInsets.all(10),
+                      decoration: pw.BoxDecoration(
+                        border: pw.Border.all(color: PdfColors.grey400),
+                        color: PdfColors.grey100,
+                      ),
+                      child: pw.Column(
+                        crossAxisAlignment: pw.CrossAxisAlignment.start,
+                        children: [
+                          pw.Text('Vital Signs', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 12)),
+                          pw.SizedBox(height: 4),
+                          pw.Text('BP: ${prescription['bloodPressureSystolic'] != null ? "${prescription['bloodPressureSystolic']}/${prescription['bloodPressureDiastolic']}" : "N/A"} mmHg', style: const pw.TextStyle(fontSize: 10)),
+                          pw.Text('HR: ${prescription['heartRate'] ?? 'N/A'} bpm | SpO2: ${prescription['spO2'] ?? 'N/A'}%', style: const pw.TextStyle(fontSize: 10)),
+                          pw.Text('Weight: ${prescription['patientWeight'] ?? 'N/A'} kg | Temp: ${prescription['temperature'] ?? 'N/A'} °C', style: const pw.TextStyle(fontSize: 10)),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              pw.SizedBox(height: 10),
+
+              // Clinical Notes
+              if (prescription['symptoms'] != null || prescription['medicalHistory'] != null) ...[
+                pw.Container(
+                  width: double.infinity,
+                  padding: const pw.EdgeInsets.all(10),
+                  decoration: pw.BoxDecoration(border: pw.Border.all(color: PdfColors.grey400)),
+                  child: pw.Column(
+                    crossAxisAlignment: pw.CrossAxisAlignment.start,
+                    children: [
+                      pw.Text('Clinical Notes', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 12)),
+                      pw.SizedBox(height: 4),
+                      if (prescription['symptoms'] != null)
+                        pw.Text('Symptoms: ${prescription['symptoms']}', style: const pw.TextStyle(fontSize: 10)),
+                      if (prescription['medicalHistory'] != null)
+                        pw.Text('Medical History: ${prescription['medicalHistory']}', style: const pw.TextStyle(fontSize: 10)),
+                    ]
+                  )
+                ),
+                pw.SizedBox(height: 20),
+              ],
+
               // Medication List
               pw.Text('Medication Details', style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold)),
               pw.SizedBox(height: 10),
@@ -831,10 +1090,10 @@ class _PrescriptionsScreenState extends State<PrescriptionsScreen> {
                 ]).toList(),
               ),
 
-              // Doctor's Advice
-              if (prescription['notes'] != null && _stripHtml(prescription['notes'].toString()).isNotEmpty) ...[
+              // Treatment & Advice
+              if (prescription['treatment'] != null || prescription['notes'] != null || prescription['followUpDate'] != null) ...[
                 pw.SizedBox(height: 20),
-                pw.Text('Doctor\'s Advice', style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold)),
+                pw.Text('Treatment & Advice', style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold)),
                 pw.SizedBox(height: 8),
                 pw.Container(
                   width: double.infinity,
@@ -842,7 +1101,25 @@ class _PrescriptionsScreenState extends State<PrescriptionsScreen> {
                   decoration: pw.BoxDecoration(
                     border: pw.Border.all(color: PdfColors.black, width: 1),
                   ),
-                  child: pw.Text(_stripHtml(prescription['notes'].toString()), style: const pw.TextStyle(fontSize: 10)),
+                  child: pw.Column(
+                    crossAxisAlignment: pw.CrossAxisAlignment.start,
+                    children: [
+                      if (prescription['treatment'] != null) ...[
+                        pw.Text('Treatment Plan: ${_stripHtml(prescription['treatment'])}', style: const pw.TextStyle(fontSize: 10)),
+                        pw.SizedBox(height: 4),
+                      ],
+                      if (prescription['notes'] != null) ...[
+                        pw.Text('General Advice: ${_stripHtml(prescription['notes'])}', style: const pw.TextStyle(fontSize: 10)),
+                        pw.SizedBox(height: 4),
+                      ],
+                      if (prescription['followUpDate'] != null) ...[
+                        pw.SizedBox(height: 4),
+                        pw.Text('Next Visit: ${_formatDate(prescription['followUpDate'], context)}', style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold)),
+                        if (prescription['followUpNotes'] != null)
+                          pw.Text('Follow-up Notes: ${prescription['followUpNotes']}', style: const pw.TextStyle(fontSize: 10)),
+                      ]
+                    ]
+                  )
                 ),
               ],
 
