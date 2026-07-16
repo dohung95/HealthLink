@@ -213,7 +213,9 @@ public class CommissionServiceImpl implements CommissionService {
     public void vestConsultationCommission(Integer appointmentId) {
         List<CommissionTransaction> txs = commissionTransactionRepository
                 .findByAppointmentId(appointmentId);
-        for (CommissionTransaction tx : txs) {
+        for (CommissionTransaction candidate : txs) {
+            CommissionTransaction tx = lockForTransition(candidate);
+            if (tx == null) continue;
             if (!TX_STATUS_PENDING.equals(tx.getStatus())
                     || !RECIPIENT_DOCTOR.equals(tx.getRecipientType()))
                 continue;
@@ -233,7 +235,9 @@ public class CommissionServiceImpl implements CommissionService {
     public void vestPharmacyCommission(Integer orderId) {
         List<CommissionTransaction> txs = commissionTransactionRepository
                 .findByPharmacyOrderId(orderId);
-        for (CommissionTransaction tx : txs) {
+        for (CommissionTransaction candidate : txs) {
+            CommissionTransaction tx = lockForTransition(candidate);
+            if (tx == null) continue;
             if (!TX_STATUS_PENDING.equals(tx.getStatus())
                     || !RECIPIENT_PHARMACY.equals(tx.getRecipientType()))
                 continue;
@@ -280,7 +284,9 @@ public class CommissionServiceImpl implements CommissionService {
         // --- 1. Hoàn tiền commission cho Bác sĩ ---
         List<CommissionTransaction> doctorTxs = commissionTransactionRepository
                 .findByAppointmentId(appointment.getAppointmentId());
-        for (CommissionTransaction tx : doctorTxs) {
+        for (CommissionTransaction candidate : doctorTxs) {
+            CommissionTransaction tx = lockForTransition(candidate);
+            if (tx == null) continue;
             if (TX_STATUS_REFUNDED.equals(tx.getStatus())) continue;  // idempotency
 
             String previousStatus = tx.getStatus();
@@ -323,7 +329,9 @@ public class CommissionServiceImpl implements CommissionService {
         for (PharmacyOrder order : linkedOrders) {
             List<CommissionTransaction> pharmacyTxs = commissionTransactionRepository
                     .findByPharmacyOrderId(order.getOrderId());
-            for (CommissionTransaction tx : pharmacyTxs) {
+            for (CommissionTransaction candidate : pharmacyTxs) {
+                CommissionTransaction tx = lockForTransition(candidate);
+                if (tx == null) continue;
                 if (TX_STATUS_REFUNDED.equals(tx.getStatus())) continue;  // idempotency
 
                 String previousStatus = tx.getStatus();
@@ -360,6 +368,15 @@ public class CommissionServiceImpl implements CommissionService {
                 .format(DateTimeFormatter.ofPattern("yyyyMM"));
         long count = commissionTransactionRepository.count() + 1;
         return String.format("CTX-%s-%05d", datePart, count);
+    }
+
+    /**
+     * Locks the commission transition before the ledger acquires its partner-wallet lock.
+     * Keeping this order (commission transaction, then partner) prevents vest and refund
+     * from deciding on separate stale statuses for the same earning.
+     */
+    private CommissionTransaction lockForTransition(CommissionTransaction candidate) {
+        return commissionTransactionRepository.findByIdForUpdate(candidate.getTransactionId()).orElse(null);
     }
 
     private void notifyDoctorWalletChange(
@@ -433,7 +450,9 @@ public class CommissionServiceImpl implements CommissionService {
     private void refundPharmacyOrderCommissions(PharmacyOrder pharmacyOrder) {
         List<CommissionTransaction> pharmacyTxs = commissionTransactionRepository
                 .findByPharmacyOrderId(pharmacyOrder.getOrderId());
-        for (CommissionTransaction tx : pharmacyTxs) {
+        for (CommissionTransaction candidate : pharmacyTxs) {
+            CommissionTransaction tx = lockForTransition(candidate);
+            if (tx == null) continue;
             if (TX_STATUS_REFUNDED.equals(tx.getStatus())) continue;
             String previousStatus = tx.getStatus();
             tx.setStatus(TX_STATUS_REFUNDED);
