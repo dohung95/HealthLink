@@ -25,40 +25,74 @@ public class AdminFinancialService {
      * Gộp cả doanh thu Doctor (Appointments) và Pharmacy (PharmacyOrders):
      * Total Revenue / Platform Fees / Transactions = tổng 2 nguồn; Doctor Earnings
      * và Pharmacy Earnings tách riêng theo từng nguồn.
+     *
+     * @param year  0 = all-time (mặc định, không lọc); &gt;0 = chỉ lấy năm đó
+     * @param month 0 = cả năm (khi year&gt;0); 1-12 = chỉ lấy đúng tháng đó trong năm
      */
-    public FinancialOverviewDto getFinancialOverview() {
+    public FinancialOverviewDto getFinancialOverview(int year, int month) {
         LocalDate today = LocalDate.now();
         LocalDate startOfWeek = today.minusDays(today.getDayOfWeek().getValue() - 1);
         LocalDate startOfMonth = today.withDayOfMonth(1);
         LocalDate startOfLastMonth = startOfMonth.minusMonths(1);
 
-        // ── Doctor (Appointments) ───────────────────────────────────────────
-        BigDecimal doctorRevenue = getBigDecimalResult(
-                "SELECT COALESCE(SUM(Fee), 0) FROM Appointments WHERE LOWER(Status) = 'completed'");
+        BigDecimal totalRevenue;
+        BigDecimal platformFees;
+        BigDecimal doctorEarnings;
+        BigDecimal pharmacyEarnings;
+        long completedTransactions;
 
-        BigDecimal doctorPlatformFee = getBigDecimalResult(
-                "SELECT COALESCE(SUM(i.PlatformFee), 0) FROM Invoices i " +
-                        "WHERE i.AppointmentId IS NOT NULL AND UPPER(i.Status) = 'PAID'");
-        if (doctorPlatformFee.compareTo(BigDecimal.ZERO) == 0) {
-            // Chưa có Invoice nào khớp (dữ liệu thưa) -> ước tính 10% doanh thu doctor
-            doctorPlatformFee = doctorRevenue.multiply(new BigDecimal("0.10"));
+        if (year > 0) {
+            // Filtered mode — reuse the same range-scoped computation as the "Today/This Month"
+            // mini-chart breakdown, so Total Revenue/Platform Fees/Doctor+Pharmacy Earnings stay
+            // internally consistent whichever period is selected.
+            LocalDate from = month > 0 ? LocalDate.of(year, month, 1) : LocalDate.of(year, 1, 1);
+            LocalDate to = month > 0 ? from.plusMonths(1) : from.plusYears(1);
+            PeriodFinancials period = computePeriodFinancials(from, to);
+            totalRevenue = period.totalRevenue;
+            platformFees = period.platformFees;
+            doctorEarnings = period.doctorEarnings;
+            pharmacyEarnings = period.pharmacyEarnings;
+            completedTransactions = countCompletedTransactionsInRange(from, to);
+        } else {
+            // All-time (default / unfiltered) — same totals as before this method took year/month.
+            // ── Doctor (Appointments) ───────────────────────────────────────────
+            BigDecimal doctorRevenue = getBigDecimalResult(
+                    "SELECT COALESCE(SUM(Fee), 0) FROM Appointments WHERE LOWER(Status) = 'completed'");
+
+            // Join to Appointments and require completed status so this is scoped to the exact
+            // same set of appointments as doctorRevenue above — previously this counted PlatformFee
+            // from ANY paid invoice regardless of its appointment's status, which could disagree
+            // with doctorRevenue (e.g. a paid-in-advance appointment that was later cancelled).
+            BigDecimal doctorPlatformFee = getBigDecimalResult(
+                    "SELECT COALESCE(SUM(i.PlatformFee), 0) FROM Invoices i " +
+                            "JOIN Appointments a ON i.AppointmentId = a.AppointmentID " +
+                            "WHERE UPPER(i.Status) = 'PAID' AND LOWER(a.Status) = 'completed'");
+            if (doctorPlatformFee.compareTo(BigDecimal.ZERO) == 0) {
+                // Chưa có Invoice nào khớp (dữ liệu thưa) -> ước tính 10% doanh thu doctor
+                doctorPlatformFee = doctorRevenue.multiply(new BigDecimal("0.10"));
+            }
+            doctorEarnings = doctorRevenue.subtract(doctorPlatformFee);
+
+            // ── Pharmacy (PharmacyOrders) ───────────────────────────────────────
+            BigDecimal pharmacyRevenue = getBigDecimalResult(
+                    "SELECT COALESCE(SUM(totalAmount), 0) FROM PharmacyOrders WHERE UPPER(paymentStatus) = 'PAID'");
+
+            // platformFee/pharmacyEarning của PharmacyOrders được FeeCalculatorService tính và
+            // lưu ngay tại thời điểm capture PayPal, không phụ thuộc Invoice có tồn tại hay không.
+            BigDecimal pharmacyPlatformFee = getBigDecimalResult(
+                    "SELECT COALESCE(SUM(platformFee), 0) FROM PharmacyOrders WHERE UPPER(paymentStatus) = 'PAID'");
+            pharmacyEarnings = getBigDecimalResult(
+                    "SELECT COALESCE(SUM(pharmacyEarning), 0) FROM PharmacyOrders WHERE UPPER(paymentStatus) = 'PAID'");
+
+            // ── Tổng hợp Doctor + Pharmacy ──────────────────────────────────────
+            totalRevenue = doctorRevenue.add(pharmacyRevenue);
+            platformFees = doctorPlatformFee.add(pharmacyPlatformFee);
+
+            completedTransactions = getLongResult(
+                    "SELECT COUNT(*) FROM Appointments WHERE LOWER(Status) = 'completed'")
+                    + getLongResult(
+                    "SELECT COUNT(*) FROM PharmacyOrders WHERE UPPER(paymentStatus) = 'PAID'");
         }
-        BigDecimal doctorEarnings = doctorRevenue.subtract(doctorPlatformFee);
-
-        // ── Pharmacy (PharmacyOrders) ───────────────────────────────────────
-        BigDecimal pharmacyRevenue = getBigDecimalResult(
-                "SELECT COALESCE(SUM(totalAmount), 0) FROM PharmacyOrders WHERE UPPER(paymentStatus) = 'PAID'");
-
-        // platformFee/pharmacyEarning của PharmacyOrders được FeeCalculatorService tính và
-        // lưu ngay tại thời điểm capture PayPal, không phụ thuộc Invoice có tồn tại hay không.
-        BigDecimal pharmacyPlatformFee = getBigDecimalResult(
-                "SELECT COALESCE(SUM(platformFee), 0) FROM PharmacyOrders WHERE UPPER(paymentStatus) = 'PAID'");
-        BigDecimal pharmacyEarnings = getBigDecimalResult(
-                "SELECT COALESCE(SUM(pharmacyEarning), 0) FROM PharmacyOrders WHERE UPPER(paymentStatus) = 'PAID'");
-
-        // ── Tổng hợp Doctor + Pharmacy ──────────────────────────────────────
-        BigDecimal totalRevenue = doctorRevenue.add(pharmacyRevenue);
-        BigDecimal platformFees = doctorPlatformFee.add(pharmacyPlatformFee);
 
         // Today's revenue (doctor + pharmacy)
         BigDecimal todayRevenue = getDateFilteredSum(
@@ -111,11 +145,6 @@ public class AdminFinancialService {
                 "SELECT COUNT(*) FROM Appointments WHERE Fee IS NOT NULL AND Fee > 0")
                 + getLongResult(
                 "SELECT COUNT(*) FROM PharmacyOrders WHERE totalAmount IS NOT NULL AND totalAmount > 0");
-
-        long completedTransactions = getLongResult(
-                "SELECT COUNT(*) FROM Appointments WHERE LOWER(Status) = 'completed'")
-                + getLongResult(
-                "SELECT COUNT(*) FROM PharmacyOrders WHERE UPPER(paymentStatus) = 'PAID'");
 
         long pendingTransactions = getLongResult(
                 "SELECT COUNT(*) FROM Appointments WHERE LOWER(Status) IN ('scheduled', 'pending', 'in progress')")
@@ -178,6 +207,25 @@ public class AdminFinancialService {
         query.setParameter("to", toExclusive);
         Object result = query.getSingleResult();
         return result != null ? new BigDecimal(result.toString()) : BigDecimal.ZERO;
+    }
+
+    private long getRangeLongResult(String sql, LocalDate fromInclusive, LocalDate toExclusive) {
+        Query query = entityManager.createNativeQuery(sql);
+        query.setParameter("from", fromInclusive);
+        query.setParameter("to", toExclusive);
+        Object result = query.getSingleResult();
+        return result != null ? ((Number) result).longValue() : 0L;
+    }
+
+    private long countCompletedTransactionsInRange(LocalDate fromInclusive, LocalDate toExclusive) {
+        return getRangeLongResult(
+                "SELECT COUNT(*) FROM Appointments WHERE LOWER(Status) = 'completed' " +
+                        "AND CAST(AppointmentTime AS DATE) >= :from AND CAST(AppointmentTime AS DATE) < :to",
+                fromInclusive, toExclusive)
+                + getRangeLongResult(
+                "SELECT COUNT(*) FROM PharmacyOrders WHERE UPPER(paymentStatus) = 'PAID' " +
+                        "AND CAST(createdAt AS DATE) >= :from AND CAST(createdAt AS DATE) < :to",
+                fromInclusive, toExclusive);
     }
 
     /**

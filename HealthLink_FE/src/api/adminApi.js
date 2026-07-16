@@ -323,8 +323,12 @@ export const analyticsApi = {
     return response.data;
   },
 
-  getOverviewStats: async () => {
-    const response = await adminApi.get('/analytics/overview-stats');
+  /**
+   * @param {number} year - 0 = all-time (default); >0 = scope to that year
+   * @param {number} month - 0 = whole year (when year>0); 1-12 = scope to that month
+   */
+  getOverviewStats: async (year = 0, month = 0) => {
+    const response = await adminApi.get('/analytics/overview-stats', { params: { year, month } });
     return response.data;
   }
 };
@@ -426,8 +430,12 @@ export const commissionApi = {
 // ==================== FINANCIAL API ====================
 
 export const financialApi = {
-  getOverview: async () => {
-    const response = await adminApi.get('/financial/overview');
+  /**
+   * @param {number} year - 0 = all-time (default); >0 = scope to that year
+   * @param {number} month - 0 = whole year (when year>0); 1-12 = scope to that month
+   */
+  getOverview: async (year = 0, month = 0) => {
+    const response = await adminApi.get('/financial/overview', { params: { year, month } });
     return response.data;
   },
 

@@ -46,8 +46,7 @@ function AboutUs() {
         <div className='aboutus-hero'>
           <div className='aboutus-hero-content'>
             <div className='aboutus-hero-title'>
-              Welcome To Online Health<br />
-              Consultation Portal
+              Welcome to the HealthLink <br />smart healthcare platform
             </div>
             <div className='aboutus-hero-description'>
               Providing professional medical & health care services with modern technology

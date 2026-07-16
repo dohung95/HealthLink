@@ -1,4 +1,4 @@
-﻿-- =====================================================
+-- =====================================================
 -- HEALTHLINK DATABASE SEED DATA
 -- Sample records per table (following FK dependencies order)
 -- =====================================================
@@ -670,18 +670,8 @@ INSERT INTO ChatRooms (ChatRoomId, user1Id, user2Id, user1DisplayName, user1Phot
 ('pharm-chat-003', 'user-p03', 'user-ph04', 'William Brown', 'http://localhost:8096/uploads/avatars/patients/benhnhan_03.png', 'CVS Pharmacy - SF', 'http://localhost:8096/uploads/avatars/pharmacies/nhathuoc_04.png', 'Amlodipine stock is short today.', '2024-05-20 15:44:00', NULL, NULL),
 ('pharm-chat-004', 'user-p07', 'user-ph07', 'Daniel Miller', 'http://localhost:8096/uploads/avatars/patients/benhnhan_07.png', 'MedExpress Pharmacy', 'http://localhost:8096/uploads/avatars/pharmacies/nhathuoc_07.png', 'Quote is ready with delivery ETA.', '2024-05-20 16:05:00', NULL, NULL);
 
--- 33. MESSAGES (16 messages)
+-- 33. MESSAGES (6 messages, pharmacy chat rooms only)
 INSERT INTO ChatMessages (MessageID, ChatRoomId, SenderId, ReceiverId, content, photoURL, imageUrl, videoUrl, fileUrl, IsRead, SentAt) VALUES
-('11111111-1111-1111-1111-111111111111', 'chat-1250', 'user-d01', 'user-p01', 'Hi Michael, can you describe your headache symptoms?', 'http://localhost:8096/uploads/avatars/doctors/bacsi_01.png', NULL, NULL, NULL, 1, '2024-05-10 09:02:00'),
-('11111111-1111-1111-1111-111111111112', 'chat-1250', 'user-p01', 'user-d01', 'I have been having a dull pain on the right side of my head for 3 days', 'http://localhost:8096/uploads/avatars/patients/benhnhan_01.png', NULL, NULL, NULL, 1, '2024-05-10 09:05:00'),
-('11111111-1111-1111-1111-111111111113', 'chat-1250', 'user-d01', 'user-p01', 'Are you getting enough sleep? Any work-related stress?', 'http://localhost:8096/uploads/avatars/doctors/bacsi_01.png', NULL, NULL, NULL, 1, '2024-05-10 09:08:00'),
-('11111111-1111-1111-1111-111111111114', 'chat-1250', 'user-p01', 'user-d01', 'Actually, I have been working a lot lately and not sleeping well', 'http://localhost:8096/uploads/avatars/patients/benhnhan_01.png', NULL, NULL, NULL, 1, '2024-05-10 09:10:00'),
-('11111111-1111-1111-1111-111111111115', 'chat-1250', 'user-p01', 'user-d01', 'Thank you, doctor!', 'http://localhost:8096/uploads/avatars/patients/benhnhan_01.png', NULL, NULL, NULL, 1, '2024-05-10 09:35:00'),
-('11111111-1111-1111-1111-111111111116', 'chat-1204', 'user-d02', 'user-p02', 'How high is the fever and when did it start?', 'http://localhost:8096/uploads/avatars/doctors/bacsi_02.png', NULL, NULL, NULL, 1, '2024-05-11 10:02:00'),
-('11111111-1111-1111-1111-111111111117', 'chat-1204', 'user-p02', 'user-d02', 'The fever was 101.3F since last night, with dry cough', 'http://localhost:8096/uploads/avatars/patients/benhnhan_02.png', NULL, NULL, NULL, 1, '2024-05-11 10:05:00'),
-('11111111-1111-1111-1111-111111111118', 'chat-1204', 'user-p02', 'user-d02', 'The fever has gone down', 'http://localhost:8096/uploads/avatars/patients/benhnhan_02.png', NULL, NULL, NULL, 1, '2024-05-12 08:00:00'),
-('11111111-1111-1111-1111-111111111119', 'chat-1208', 'user-d03', 'user-p03', 'You need to get an ECG and cardiac enzyme test as soon as possible', 'http://localhost:8096/uploads/avatars/doctors/bacsi_03.png', NULL, NULL, NULL, 1, '2024-05-12 10:15:00'),
-('11111111-1111-1111-1111-11111111111a', 'chat-1208', 'user-p03', 'user-d03', 'I will get the tests done right away', 'http://localhost:8096/uploads/avatars/patients/benhnhan_03.png', NULL, NULL, NULL, 1, '2024-05-12 10:20:00'),
 ('22222222-2222-2222-2222-222222222221', 'pharm-chat-002', 'user-ph02', 'user-p02', 'Hello Emma, we are checking the child dosage now.', 'http://localhost:8096/uploads/avatars/pharmacies/nhathuoc_02.png', NULL, NULL, NULL, 1, '2024-05-20 15:20:00'),
 ('22222222-2222-2222-2222-222222222222', 'pharm-chat-002', 'user-p02', 'user-ph02', 'Thank you. Please prioritize delivery if stock is available.', 'http://localhost:8096/uploads/avatars/patients/benhnhan_02.png', NULL, NULL, NULL, 0, '2024-05-20 15:22:00'),
 ('22222222-2222-2222-2222-222222222223', 'pharm-chat-003', 'user-ph04', 'user-p03', 'Amlodipine stock is short today. We can prepare the available items first.', 'http://localhost:8096/uploads/avatars/pharmacies/nhathuoc_04.png', NULL, NULL, NULL, 1, '2024-05-20 15:40:00'),
@@ -939,12 +929,12 @@ SET IDENTITY_INSERT AdminAuditLogs OFF;
 
 -- 46. EMAIL_VERIFICATION_TOKENS (5 tokens)
 SET IDENTITY_INSERT EmailVerificationTokens ON;
-INSERT INTO EmailVerificationTokens (Id, Token, UserId, NewEmail, ExpiryDate, Used, Type, CreatedAt) VALUES
-(1, 'evt-user-p01-001', 'user-p01', 'michael.new@email.com', '2024-06-10 08:00:00', 0, 'EMAIL_VERIFICATION', '2024-05-10 08:00:00'),
-(2, 'evt-user-d01-002', 'user-d01', 'doctor01.new@healthlink.com', '2024-06-10 07:30:00', 0, 'EMAIL_VERIFICATION', '2024-05-10 07:30:00'),
-(3, 'evt-user-p02-003', 'user-p02', 'emma.updated@email.com', '2024-06-11 09:00:00', 1, 'EMAIL_VERIFICATION', '2024-05-11 09:00:00'),
-(4, 'evt-user-ph01-004', 'user-ph01', 'pharmacy01.new@example.com', '2024-06-10 06:00:00', 0, 'EMAIL_VERIFICATION', '2024-05-10 06:00:00'),
-(5, 'evt-user-p03-005', 'user-p03', 'william.alternate@email.com', '2024-06-12 08:30:00', 0, 'EMAIL_VERIFICATION', '2024-05-12 08:30:00');
+INSERT INTO EmailVerificationTokens (Id, Token, UserId, NewEmail, ExpiryDate, Used, Type, CreatedAt, FailedAttempts) VALUES
+(1, 'evt-user-p01-001', 'user-p01', 'michael.new@email.com', '2024-06-10 08:00:00', 0, 'EMAIL_VERIFICATION', '2024-05-10 08:00:00', 0),
+(2, 'evt-user-d01-002', 'user-d01', 'doctor01.new@healthlink.com', '2024-06-10 07:30:00', 0, 'EMAIL_VERIFICATION', '2024-05-10 07:30:00', 0),
+(3, 'evt-user-p02-003', 'user-p02', 'emma.updated@email.com', '2024-06-11 09:00:00', 1, 'EMAIL_VERIFICATION', '2024-05-11 09:00:00', 0),
+(4, 'evt-user-ph01-004', 'user-ph01', 'pharmacy01.new@example.com', '2024-06-10 06:00:00', 0, 'EMAIL_VERIFICATION', '2024-05-10 06:00:00', 0),
+(5, 'evt-user-p03-005', 'user-p03', 'william.alternate@email.com', '2024-06-12 08:30:00', 0, 'EMAIL_VERIFICATION', '2024-05-12 08:30:00', 0);
 SET IDENTITY_INSERT EmailVerificationTokens OFF;
 
 -- =====================================================
@@ -1462,77 +1452,7 @@ INSERT INTO Reviews (ReviewID, PatientID, DoctorID, rating, comment, reviewDate,
 (1047, N'user-pa017', N'user-d18', 4, N'Solid experience, doctor was attentive and clear.', '2024-02-25 10:00:00', NULL, 0, NULL, NULL, 1, 9, NULL, NULL),
 (1048, N'user-pa018', N'user-d18', 3, N'Average experience, explanations could have been clearer.', '2024-02-28 10:00:00', NULL, 0, NULL, NULL, 1, 0, NULL, NULL),
 (1049, N'user-pa019', N'user-d20', 5, N'Highly recommend! Clear explanations and great bedside manner.', '2024-03-02 10:00:00', NULL, 0, NULL, NULL, 1, 3, NULL, NULL),
-(1050, N'user-pa020', N'user-d20', 4, N'Very satisfied with the advice given.', '2024-03-05 10:00:00', NULL, 1, NULL, NULL, 1, 6, NULL, NULL),
-(1051, N'user-pa021', N'user-da001', 4, N'Good consultation overall, would visit again.', '2024-03-08 10:00:00', NULL, 0, NULL, NULL, 1, 9, NULL, NULL),
-(1052, N'user-pa022', N'user-da001', 4, N'Professional and helpful, slight wait time though.', '2024-03-11 10:00:00', NULL, 0, NULL, NULL, 1, 0, NULL, NULL),
-(1053, N'user-pa023', N'user-da002', 5, N'Outstanding consultation, felt very well taken care of.', '2024-03-14 10:00:00', NULL, 0, NULL, NULL, 1, 3, NULL, NULL),
-(1054, N'user-pa024', N'user-da002', 5, N'Extremely knowledgeable and attentive to my concerns.', '2024-03-17 10:00:00', NULL, 0, NULL, NULL, 1, 6, NULL, NULL),
-(1055, N'user-pa025', N'user-da003', 3, N'Decent service but wait time was long.', '2024-03-20 10:00:00', NULL, 0, NULL, NULL, 1, 9, NULL, NULL),
-(1056, N'user-pa026', N'user-da003', 4, N'Solid experience, doctor was attentive and clear.', '2024-03-23 10:00:00', NULL, 0, NULL, NULL, 1, 0, NULL, NULL),
-(1057, N'user-pa027', N'user-da004', 4, N'Very satisfied with the advice given.', '2024-03-26 10:00:00', NULL, 1, NULL, NULL, 1, 3, NULL, NULL),
-(1058, N'user-pa028', N'user-da004', 5, N'Excellent doctor, very professional and caring.', '2024-03-29 10:00:00', NULL, 0, NULL, NULL, 1, 6, NULL, NULL),
-(1059, N'user-pa029', N'user-da005', 5, N'Highly recommend! Clear explanations and great bedside manner.', '2024-04-01 10:00:00', NULL, 0, NULL, NULL, 1, 9, NULL, NULL),
-(1060, N'user-pa030', N'user-da005', 4, N'Good consultation overall, would visit again.', '2024-04-04 10:00:00', NULL, 0, NULL, NULL, 1, 0, NULL, NULL),
-(1061, N'user-pa031', N'user-da006', 4, N'Professional and helpful, slight wait time though.', '2024-04-07 10:00:00', NULL, 0, NULL, NULL, 1, 3, NULL, NULL),
-(1062, N'user-pa032', N'user-da006', 4, N'Solid experience, doctor was attentive and clear.', '2024-04-10 10:00:00', NULL, 0, NULL, NULL, 1, 6, NULL, NULL),
-(1063, N'user-pa033', N'user-da007', 5, N'Outstanding consultation, felt very well taken care of.', '2024-04-13 10:00:00', NULL, 0, NULL, NULL, 1, 9, NULL, NULL),
-(1064, N'user-pa034', N'user-da007', 5, N'Extremely knowledgeable and attentive to my concerns.', '2024-04-16 10:00:00', NULL, 1, NULL, NULL, 1, 0, NULL, NULL),
-(1065, N'user-pa035', N'user-da008', 4, N'Very satisfied with the advice given.', '2024-04-19 10:00:00', NULL, 0, NULL, NULL, 1, 3, NULL, NULL),
-(1066, N'user-pa036', N'user-da008', 3, N'It was fine, nothing special but got the job done.', '2024-04-22 10:00:00', NULL, 0, NULL, NULL, 1, 6, NULL, NULL),
-(1067, N'user-pa037', N'user-da009', 5, N'Excellent doctor, very professional and caring.', '2024-04-25 10:00:00', NULL, 0, NULL, NULL, 1, 9, NULL, NULL),
-(1068, N'user-pa038', N'user-da009', 4, N'Good consultation overall, would visit again.', '2024-04-28 10:00:00', NULL, 0, NULL, NULL, 1, 0, NULL, NULL),
-(1069, N'user-pa039', N'user-da010', 4, N'Professional and helpful, slight wait time though.', '2024-05-01 10:00:00', NULL, 0, NULL, NULL, 1, 3, NULL, NULL),
-(1070, N'user-pa040', N'user-da010', 5, N'Highly recommend! Clear explanations and great bedside manner.', '2024-05-04 10:00:00', NULL, 0, NULL, NULL, 1, 6, NULL, NULL),
-(1071, N'user-pa041', N'user-da011', 5, N'Outstanding consultation, felt very well taken care of.', '2024-05-07 10:00:00', NULL, 1, NULL, NULL, 1, 9, NULL, NULL),
-(1072, N'user-pa042', N'user-da011', 5, N'Extremely knowledgeable and attentive to my concerns.', '2024-05-10 10:00:00', NULL, 0, NULL, NULL, 1, 0, NULL, NULL),
-(1073, N'user-pa043', N'user-da012', 4, N'Solid experience, doctor was attentive and clear.', '2024-05-13 10:00:00', NULL, 0, NULL, NULL, 1, 3, NULL, NULL),
-(1074, N'user-pa044', N'user-da012', 4, N'Very satisfied with the advice given.', '2024-05-16 10:00:00', NULL, 0, NULL, NULL, 1, 6, NULL, NULL),
-(1075, N'user-pa045', N'user-da013', 3, N'Consultation was okay, but felt a bit rushed.', '2024-05-19 10:00:00', NULL, 0, NULL, NULL, 1, 9, NULL, NULL),
-(1076, N'user-pa046', N'user-da013', 5, N'Excellent doctor, very professional and caring.', '2024-05-22 10:00:00', NULL, 0, NULL, NULL, 1, 0, NULL, NULL),
-(1077, N'user-pa047', N'user-da014', 5, N'Highly recommend! Clear explanations and great bedside manner.', '2024-05-25 10:00:00', NULL, 0, NULL, NULL, 1, 3, NULL, NULL),
-(1078, N'user-pa048', N'user-da014', 4, N'Good consultation overall, would visit again.', '2024-05-28 10:00:00', NULL, 1, NULL, NULL, 1, 6, NULL, NULL),
-(1079, N'user-pa049', N'user-da015', 4, N'Professional and helpful, slight wait time though.', '2024-05-31 10:00:00', NULL, 0, NULL, NULL, 1, 9, NULL, NULL),
-(1080, N'user-pa050', N'user-da015', 5, N'Outstanding consultation, felt very well taken care of.', '2024-06-03 10:00:00', NULL, 0, NULL, NULL, 1, 0, NULL, NULL),
-(1081, N'user-pa051', N'user-da016', 5, N'Extremely knowledgeable and attentive to my concerns.', '2024-06-06 10:00:00', NULL, 0, NULL, NULL, 1, 3, NULL, NULL),
-(1082, N'user-pa052', N'user-da016', 5, N'Excellent doctor, very professional and caring.', '2024-06-09 10:00:00', NULL, 0, NULL, NULL, 1, 6, NULL, NULL),
-(1083, N'user-pa053', N'user-da017', 4, N'Solid experience, doctor was attentive and clear.', '2024-06-12 10:00:00', NULL, 0, NULL, NULL, 1, 9, NULL, NULL),
-(1084, N'user-pa054', N'user-da017', 4, N'Very satisfied with the advice given.', '2024-06-15 10:00:00', NULL, 0, NULL, NULL, 1, 0, NULL, NULL),
-(1085, N'user-pa055', N'user-da018', 4, N'Good consultation overall, would visit again.', '2024-06-18 10:00:00', NULL, 1, NULL, NULL, 1, 3, NULL, NULL),
-(1086, N'user-pa056', N'user-da018', 3, N'Average experience, explanations could have been clearer.', '2024-06-21 10:00:00', NULL, 0, NULL, NULL, 1, 6, NULL, NULL),
-(1087, N'user-pa057', N'user-da019', 5, N'Highly recommend! Clear explanations and great bedside manner.', '2024-06-24 10:00:00', NULL, 0, NULL, NULL, 1, 9, NULL, NULL),
-(1088, N'user-pa058', N'user-da019', 4, N'Professional and helpful, slight wait time though.', '2024-06-27 10:00:00', NULL, 0, NULL, NULL, 1, 0, NULL, NULL),
-(1089, N'user-pa059', N'user-da020', 4, N'Solid experience, doctor was attentive and clear.', '2024-06-30 10:00:00', NULL, 0, NULL, NULL, 1, 3, NULL, NULL),
-(1090, N'user-pa060', N'user-da020', 5, N'Outstanding consultation, felt very well taken care of.', '2024-07-03 10:00:00', NULL, 0, NULL, NULL, 1, 6, NULL, NULL),
-(1091, N'user-pa061', N'user-da021', 5, N'Extremely knowledgeable and attentive to my concerns.', '2024-07-06 10:00:00', NULL, 0, NULL, NULL, 1, 9, NULL, NULL),
-(1092, N'user-pa062', N'user-da021', 5, N'Excellent doctor, very professional and caring.', '2024-07-09 10:00:00', NULL, 1, NULL, NULL, 1, 0, NULL, NULL),
-(1093, N'user-pa063', N'user-da022', 4, N'Very satisfied with the advice given.', '2024-07-12 10:00:00', NULL, 0, NULL, NULL, 1, 3, NULL, NULL),
-(1094, N'user-pa064', N'user-da022', 4, N'Good consultation overall, would visit again.', '2024-07-15 10:00:00', NULL, 0, NULL, NULL, 1, 6, NULL, NULL),
-(1095, N'user-pa065', N'user-da023', 3, N'Decent service but wait time was long.', '2024-07-18 10:00:00', NULL, 0, NULL, NULL, 1, 9, NULL, NULL),
-(1096, N'user-pa066', N'user-da023', 5, N'Highly recommend! Clear explanations and great bedside manner.', '2024-07-21 10:00:00', NULL, 0, NULL, NULL, 1, 0, NULL, NULL),
-(1097, N'user-pa067', N'user-da024', 5, N'Outstanding consultation, felt very well taken care of.', '2024-07-24 10:00:00', NULL, 0, NULL, NULL, 1, 3, NULL, NULL),
-(1098, N'user-pa068', N'user-da024', 4, N'Professional and helpful, slight wait time though.', '2024-07-27 10:00:00', NULL, 0, NULL, NULL, 1, 6, NULL, NULL),
-(1099, N'user-pa069', N'user-da025', 4, N'Solid experience, doctor was attentive and clear.', '2024-07-30 10:00:00', NULL, 1, NULL, NULL, 1, 9, NULL, NULL),
-(1100, N'user-pa070', N'user-da025', 5, N'Extremely knowledgeable and attentive to my concerns.', '2024-08-02 10:00:00', NULL, 0, NULL, NULL, 1, 0, NULL, NULL),
-(1101, N'user-pa071', N'user-da026', 5, N'Excellent doctor, very professional and caring.', '2024-08-05 10:00:00', NULL, 0, NULL, NULL, 1, 3, NULL, NULL),
-(1102, N'user-pa072', N'user-da026', 5, N'Highly recommend! Clear explanations and great bedside manner.', '2024-08-08 10:00:00', NULL, 0, NULL, NULL, 1, 6, NULL, NULL),
-(1103, N'user-pa073', N'user-da027', 4, N'Very satisfied with the advice given.', '2024-08-11 10:00:00', NULL, 0, NULL, NULL, 1, 9, NULL, NULL),
-(1104, N'user-pa074', N'user-da027', 4, N'Good consultation overall, would visit again.', '2024-08-14 10:00:00', NULL, 0, NULL, NULL, 1, 0, NULL, NULL),
-(1105, N'user-pa075', N'user-da028', 4, N'Professional and helpful, slight wait time though.', '2024-08-17 10:00:00', NULL, 0, NULL, NULL, 1, 3, NULL, NULL),
-(1106, N'user-pa076', N'user-da028', 3, N'It was fine, nothing special but got the job done.', '2024-08-20 10:00:00', NULL, 1, NULL, NULL, 1, 6, NULL, NULL),
-(1107, N'user-pa077', N'user-da029', 5, N'Outstanding consultation, felt very well taken care of.', '2024-08-23 10:00:00', NULL, 0, NULL, NULL, 1, 9, NULL, NULL),
-(1108, N'user-pa078', N'user-da029', 4, N'Solid experience, doctor was attentive and clear.', '2024-08-26 10:00:00', NULL, 0, NULL, NULL, 1, 0, NULL, NULL),
-(1109, N'user-pa079', N'user-da030', 4, N'Very satisfied with the advice given.', '2024-08-29 10:00:00', NULL, 0, NULL, NULL, 1, 3, NULL, NULL),
-(1110, N'user-pa080', N'user-da030', 5, N'Extremely knowledgeable and attentive to my concerns.', '2024-09-01 10:00:00', NULL, 0, NULL, NULL, 1, 6, NULL, NULL),
-(1111, N'user-pa081', N'user-da031', 5, N'Excellent doctor, very professional and caring.', '2024-09-04 10:00:00', NULL, 0, NULL, NULL, 1, 9, NULL, NULL),
-(1112, N'user-pa082', N'user-da031', 5, N'Highly recommend! Clear explanations and great bedside manner.', '2024-09-07 10:00:00', NULL, 0, NULL, NULL, 1, 0, NULL, NULL),
-(1113, N'user-pa083', N'user-da032', 4, N'Good consultation overall, would visit again.', '2024-09-10 10:00:00', NULL, 1, NULL, NULL, 1, 3, NULL, NULL),
-(1114, N'user-pa084', N'user-da032', 4, N'Professional and helpful, slight wait time though.', '2024-09-13 10:00:00', NULL, 0, NULL, NULL, 1, 6, NULL, NULL),
-(1115, N'user-pa085', N'user-da033', 3, N'Consultation was okay, but felt a bit rushed.', '2024-09-16 10:00:00', NULL, 0, NULL, NULL, 1, 9, NULL, NULL),
-(1116, N'user-pa086', N'user-da033', 4, N'Solid experience, doctor was attentive and clear.', '2024-09-19 10:00:00', NULL, 0, NULL, NULL, 1, 0, NULL, NULL),
-(1117, N'user-pa087', N'user-da034', 5, N'Outstanding consultation, felt very well taken care of.', '2024-09-22 10:00:00', NULL, 0, NULL, NULL, 1, 3, NULL, NULL),
-(1118, N'user-pa088', N'user-da034', 4, N'Very satisfied with the advice given.', '2024-09-25 10:00:00', NULL, 0, NULL, NULL, 1, 6, NULL, NULL),
-(1119, N'user-pa089', N'user-da035', 4, N'Good consultation overall, would visit again.', '2024-09-28 10:00:00', NULL, 0, NULL, NULL, 1, 9, NULL, NULL),
-(1120, N'user-pa090', N'user-da035', 5, N'Extremely knowledgeable and attentive to my concerns.', '2024-10-01 10:00:00', NULL, 1, NULL, NULL, 1, 0, NULL, NULL);
+(1050, N'user-pa020', N'user-d20', 4, N'Very satisfied with the advice given.', '2024-03-05 10:00:00', NULL, 1, NULL, NULL, 1, 6, NULL, NULL);
 SET IDENTITY_INSERT Reviews OFF;
 GO
 
@@ -1854,17 +1774,8 @@ INSERT INTO ChatRooms (ChatRoomId, user1Id, user2Id, user1DisplayName, user1Phot
 ('chat-1239', N'user-p09', N'user-d10', N'Alexander Johnson', N'http://localhost:8096/uploads/avatars/patients/benhnhan_09.png', N'Dr. Jennifer Martinez', N'http://localhost:8096/uploads/avatars/doctors/bacsi_10.png', N'Understood, I will bring them. Thank you!', '2026-07-12 11:15:00', NULL, 1239);
 GO
 
--- 55. MESSAGES (120, 3 per chat room)
+-- 55. MESSAGES (111, 3 per chat room)
 INSERT INTO ChatMessages (MessageID, ChatRoomId, SenderId, ReceiverId, content, photoURL, imageUrl, videoUrl, fileUrl, IsRead, SentAt) VALUES
-('1db9070d-e384-474e-92e3-49d985eb3ff7', N'chat-1250', N'user-d01', N'user-p01', N'Before we start, can you tell me more about: persistent cough and mild fever for 4 days?', N'http://localhost:8096/uploads/avatars/doctors/bacsi_01.png', NULL, NULL, NULL, 1, '2026-01-05 06:40:00'),
-('ccb9f9b1-54d4-47f1-ab59-4babe149b35c', N'chat-1250', N'user-p01', N'user-d01', N'Persistent cough and mild fever for 4 days. It has been bothering me for a few days.', N'http://localhost:8096/uploads/avatars/patients/benhnhan_01.png', NULL, NULL, NULL, 1, '2026-01-05 06:45:00'),
-('693d08d2-20b7-443c-a161-1f4d189e5900', N'chat-1250', N'user-p01', N'user-d01', N'Thank you doctor, I understand the treatment plan.', N'http://localhost:8096/uploads/avatars/patients/benhnhan_01.png', NULL, NULL, NULL, 1, '2026-01-05 07:35:00'),
-('e5418dc4-e38c-43a5-8eac-38fc609d0710', N'chat-1243', N'user-d01', N'user-p04', N'Before we start, can you tell me more about: follow-up on ongoing chronic condition?', N'http://localhost:8096/uploads/avatars/doctors/bacsi_01.png', NULL, NULL, NULL, 1, '2026-04-01 14:10:00'),
-('d51990e7-cab1-4360-90ed-69c34103b7cb', N'chat-1243', N'user-p04', N'user-d01', N'Follow-up on ongoing chronic condition. It has been bothering me for a few days.', N'http://localhost:8096/uploads/avatars/patients/benhnhan_04.png', NULL, NULL, NULL, 1, '2026-04-01 14:15:00'),
-('9558c75c-a78f-48e3-a7e9-badf5a6361d7', N'chat-1243', N'user-p04', N'user-d01', N'Thank you doctor, I understand the treatment plan.', N'http://localhost:8096/uploads/avatars/patients/benhnhan_04.png', NULL, NULL, NULL, 1, '2026-04-01 15:05:00'),
-('080d0969-d9a9-4fa7-ba38-dee1a34e6a7e', N'chat-1246', N'user-p07', N'user-d01', N'Hi doctor, I would like to confirm my upcoming appointment on 2026-07-06.', N'http://localhost:8096/uploads/avatars/patients/benhnhan_07.png', NULL, NULL, NULL, 1, '2026-07-03 10:00:00'),
-('0d7b0952-d728-45d3-b97a-50f7f5fad8dd', N'chat-1246', N'user-d01', N'user-p07', N'Hi Daniel Miller, yes I have you booked for 2026-07-06 at 08:00. See you then.', N'http://localhost:8096/uploads/avatars/doctors/bacsi_01.png', NULL, NULL, NULL, 1, '2026-07-03 11:00:00'),
-('70512cff-5c12-4c77-9ce4-83e1da0d641e', N'chat-1246', N'user-p07', N'user-d01', N'Great, thank you! I will be there.', N'http://localhost:8096/uploads/avatars/patients/benhnhan_07.png', NULL, NULL, NULL, 1, '2026-07-03 11:10:00'),
 ('d7651747-59e8-45e0-8e32-e3d3a7f2ff49', N'chat-1203', N'user-p10', N'user-d01', N'Hello doctor, just checking in ahead of my appointment on 2026-08-05.', N'http://localhost:8096/uploads/avatars/patients/benhnhan_10.png', NULL, NULL, NULL, 1, '2026-07-05 09:00:00'),
 ('69e44f70-57c2-41bf-8f70-bc71c7f20ee7', N'chat-1203', N'user-d01', N'user-p10', N'Your appointment on 2026-08-05 at 14:00 is confirmed. Please prepare your recent test results if any.', N'http://localhost:8096/uploads/avatars/doctors/bacsi_01.png', NULL, NULL, NULL, 1, '2026-07-05 11:00:00'),
 ('43bcddb2-e99b-428a-8f6a-628417a1a96d', N'chat-1203', N'user-p10', N'user-d01', N'Understood, I will bring them. Thank you!', N'http://localhost:8096/uploads/avatars/patients/benhnhan_10.png', NULL, NULL, NULL, 1, '2026-07-05 11:15:00'),
@@ -2232,6 +2143,83 @@ INSERT INTO Doctors (DoctorID, FullName, qualifications, specialty, yearsOfExper
 (N'user-da033', N'Dr. Todd Jennings', N'MD - Analytics Seed Profile', N'Pediatrics', 5, N'English', N'San Francisco', N'http://localhost:8096/uploads/avatars/doctors/bacsi_03.png', N'Analytics seed doctor profile used to populate registration charts.', 50.00, 37.7749, -122.4194, N'San Francisco Analytics Clinic', N'100 Analytics Avenue, San Francisco', 3.5, 2, 1, 3, 0.00, 0.00, NULL, N'APPROVED', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, N'STANDARD'),
 (N'user-da034', N'Dr. Uma Keller', N'MD - Analytics Seed Profile', N'Obstetrics & Gynecology', 5, N'English', N'Chicago', N'http://localhost:8096/uploads/avatars/doctors/bacsi_04.png', N'Analytics seed doctor profile used to populate registration charts.', 50.00, 41.8781, -87.6298, N'Chicago Analytics Clinic', N'100 Analytics Avenue, Chicago', 4.5, 2, 1, 4, 0.00, 0.00, NULL, N'APPROVED', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, N'STANDARD'),
 (N'user-da035', N'Dr. Victor Lambert', N'MD - Analytics Seed Profile', N'Dermatology', 5, N'English', N'Seattle', N'http://localhost:8096/uploads/avatars/doctors/bacsi_05.png', N'Analytics seed doctor profile used to populate registration charts.', 50.00, 47.6062, -122.3321, N'Seattle Analytics Clinic', N'100 Analytics Avenue, Seattle', 4.5, 2, 1, 5, 0.00, 0.00, NULL, N'APPROVED', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, N'STANDARD');
+GO
+
+-- 58d. Reviews for analytics-only doctors (da001-035) - moved here (from section 50b)
+-- so the DoctorID FK is satisfied; these doctors are created just above in 58a/58b.
+SET IDENTITY_INSERT Reviews ON;
+INSERT INTO Reviews (ReviewID, PatientID, DoctorID, rating, comment, reviewDate, AppointmentId, Anonymous, doctorReply, doctorReplyDate, Visible, HelpfulCount, AdminReply, AdminReplyDate) VALUES
+(1051, N'user-pa021', N'user-da001', 4, N'Good consultation overall, would visit again.', '2024-03-08 10:00:00', NULL, 0, NULL, NULL, 1, 9, NULL, NULL),
+(1052, N'user-pa022', N'user-da001', 4, N'Professional and helpful, slight wait time though.', '2024-03-11 10:00:00', NULL, 0, NULL, NULL, 1, 0, NULL, NULL),
+(1053, N'user-pa023', N'user-da002', 5, N'Outstanding consultation, felt very well taken care of.', '2024-03-14 10:00:00', NULL, 0, NULL, NULL, 1, 3, NULL, NULL),
+(1054, N'user-pa024', N'user-da002', 5, N'Extremely knowledgeable and attentive to my concerns.', '2024-03-17 10:00:00', NULL, 0, NULL, NULL, 1, 6, NULL, NULL),
+(1055, N'user-pa025', N'user-da003', 3, N'Decent service but wait time was long.', '2024-03-20 10:00:00', NULL, 0, NULL, NULL, 1, 9, NULL, NULL),
+(1056, N'user-pa026', N'user-da003', 4, N'Solid experience, doctor was attentive and clear.', '2024-03-23 10:00:00', NULL, 0, NULL, NULL, 1, 0, NULL, NULL),
+(1057, N'user-pa027', N'user-da004', 4, N'Very satisfied with the advice given.', '2024-03-26 10:00:00', NULL, 1, NULL, NULL, 1, 3, NULL, NULL),
+(1058, N'user-pa028', N'user-da004', 5, N'Excellent doctor, very professional and caring.', '2024-03-29 10:00:00', NULL, 0, NULL, NULL, 1, 6, NULL, NULL),
+(1059, N'user-pa029', N'user-da005', 5, N'Highly recommend! Clear explanations and great bedside manner.', '2024-04-01 10:00:00', NULL, 0, NULL, NULL, 1, 9, NULL, NULL),
+(1060, N'user-pa030', N'user-da005', 4, N'Good consultation overall, would visit again.', '2024-04-04 10:00:00', NULL, 0, NULL, NULL, 1, 0, NULL, NULL),
+(1061, N'user-pa031', N'user-da006', 4, N'Professional and helpful, slight wait time though.', '2024-04-07 10:00:00', NULL, 0, NULL, NULL, 1, 3, NULL, NULL),
+(1062, N'user-pa032', N'user-da006', 4, N'Solid experience, doctor was attentive and clear.', '2024-04-10 10:00:00', NULL, 0, NULL, NULL, 1, 6, NULL, NULL),
+(1063, N'user-pa033', N'user-da007', 5, N'Outstanding consultation, felt very well taken care of.', '2024-04-13 10:00:00', NULL, 0, NULL, NULL, 1, 9, NULL, NULL),
+(1064, N'user-pa034', N'user-da007', 5, N'Extremely knowledgeable and attentive to my concerns.', '2024-04-16 10:00:00', NULL, 1, NULL, NULL, 1, 0, NULL, NULL),
+(1065, N'user-pa035', N'user-da008', 4, N'Very satisfied with the advice given.', '2024-04-19 10:00:00', NULL, 0, NULL, NULL, 1, 3, NULL, NULL),
+(1066, N'user-pa036', N'user-da008', 3, N'It was fine, nothing special but got the job done.', '2024-04-22 10:00:00', NULL, 0, NULL, NULL, 1, 6, NULL, NULL),
+(1067, N'user-pa037', N'user-da009', 5, N'Excellent doctor, very professional and caring.', '2024-04-25 10:00:00', NULL, 0, NULL, NULL, 1, 9, NULL, NULL),
+(1068, N'user-pa038', N'user-da009', 4, N'Good consultation overall, would visit again.', '2024-04-28 10:00:00', NULL, 0, NULL, NULL, 1, 0, NULL, NULL),
+(1069, N'user-pa039', N'user-da010', 4, N'Professional and helpful, slight wait time though.', '2024-05-01 10:00:00', NULL, 0, NULL, NULL, 1, 3, NULL, NULL),
+(1070, N'user-pa040', N'user-da010', 5, N'Highly recommend! Clear explanations and great bedside manner.', '2024-05-04 10:00:00', NULL, 0, NULL, NULL, 1, 6, NULL, NULL),
+(1071, N'user-pa041', N'user-da011', 5, N'Outstanding consultation, felt very well taken care of.', '2024-05-07 10:00:00', NULL, 1, NULL, NULL, 1, 9, NULL, NULL),
+(1072, N'user-pa042', N'user-da011', 5, N'Extremely knowledgeable and attentive to my concerns.', '2024-05-10 10:00:00', NULL, 0, NULL, NULL, 1, 0, NULL, NULL),
+(1073, N'user-pa043', N'user-da012', 4, N'Solid experience, doctor was attentive and clear.', '2024-05-13 10:00:00', NULL, 0, NULL, NULL, 1, 3, NULL, NULL),
+(1074, N'user-pa044', N'user-da012', 4, N'Very satisfied with the advice given.', '2024-05-16 10:00:00', NULL, 0, NULL, NULL, 1, 6, NULL, NULL),
+(1075, N'user-pa045', N'user-da013', 3, N'Consultation was okay, but felt a bit rushed.', '2024-05-19 10:00:00', NULL, 0, NULL, NULL, 1, 9, NULL, NULL),
+(1076, N'user-pa046', N'user-da013', 5, N'Excellent doctor, very professional and caring.', '2024-05-22 10:00:00', NULL, 0, NULL, NULL, 1, 0, NULL, NULL),
+(1077, N'user-pa047', N'user-da014', 5, N'Highly recommend! Clear explanations and great bedside manner.', '2024-05-25 10:00:00', NULL, 0, NULL, NULL, 1, 3, NULL, NULL),
+(1078, N'user-pa048', N'user-da014', 4, N'Good consultation overall, would visit again.', '2024-05-28 10:00:00', NULL, 1, NULL, NULL, 1, 6, NULL, NULL),
+(1079, N'user-pa049', N'user-da015', 4, N'Professional and helpful, slight wait time though.', '2024-05-31 10:00:00', NULL, 0, NULL, NULL, 1, 9, NULL, NULL),
+(1080, N'user-pa050', N'user-da015', 5, N'Outstanding consultation, felt very well taken care of.', '2024-06-03 10:00:00', NULL, 0, NULL, NULL, 1, 0, NULL, NULL),
+(1081, N'user-pa051', N'user-da016', 5, N'Extremely knowledgeable and attentive to my concerns.', '2024-06-06 10:00:00', NULL, 0, NULL, NULL, 1, 3, NULL, NULL),
+(1082, N'user-pa052', N'user-da016', 5, N'Excellent doctor, very professional and caring.', '2024-06-09 10:00:00', NULL, 0, NULL, NULL, 1, 6, NULL, NULL),
+(1083, N'user-pa053', N'user-da017', 4, N'Solid experience, doctor was attentive and clear.', '2024-06-12 10:00:00', NULL, 0, NULL, NULL, 1, 9, NULL, NULL),
+(1084, N'user-pa054', N'user-da017', 4, N'Very satisfied with the advice given.', '2024-06-15 10:00:00', NULL, 0, NULL, NULL, 1, 0, NULL, NULL),
+(1085, N'user-pa055', N'user-da018', 4, N'Good consultation overall, would visit again.', '2024-06-18 10:00:00', NULL, 1, NULL, NULL, 1, 3, NULL, NULL),
+(1086, N'user-pa056', N'user-da018', 3, N'Average experience, explanations could have been clearer.', '2024-06-21 10:00:00', NULL, 0, NULL, NULL, 1, 6, NULL, NULL),
+(1087, N'user-pa057', N'user-da019', 5, N'Highly recommend! Clear explanations and great bedside manner.', '2024-06-24 10:00:00', NULL, 0, NULL, NULL, 1, 9, NULL, NULL),
+(1088, N'user-pa058', N'user-da019', 4, N'Professional and helpful, slight wait time though.', '2024-06-27 10:00:00', NULL, 0, NULL, NULL, 1, 0, NULL, NULL),
+(1089, N'user-pa059', N'user-da020', 4, N'Solid experience, doctor was attentive and clear.', '2024-06-30 10:00:00', NULL, 0, NULL, NULL, 1, 3, NULL, NULL),
+(1090, N'user-pa060', N'user-da020', 5, N'Outstanding consultation, felt very well taken care of.', '2024-07-03 10:00:00', NULL, 0, NULL, NULL, 1, 6, NULL, NULL),
+(1091, N'user-pa061', N'user-da021', 5, N'Extremely knowledgeable and attentive to my concerns.', '2024-07-06 10:00:00', NULL, 0, NULL, NULL, 1, 9, NULL, NULL),
+(1092, N'user-pa062', N'user-da021', 5, N'Excellent doctor, very professional and caring.', '2024-07-09 10:00:00', NULL, 1, NULL, NULL, 1, 0, NULL, NULL),
+(1093, N'user-pa063', N'user-da022', 4, N'Very satisfied with the advice given.', '2024-07-12 10:00:00', NULL, 0, NULL, NULL, 1, 3, NULL, NULL),
+(1094, N'user-pa064', N'user-da022', 4, N'Good consultation overall, would visit again.', '2024-07-15 10:00:00', NULL, 0, NULL, NULL, 1, 6, NULL, NULL),
+(1095, N'user-pa065', N'user-da023', 3, N'Decent service but wait time was long.', '2024-07-18 10:00:00', NULL, 0, NULL, NULL, 1, 9, NULL, NULL),
+(1096, N'user-pa066', N'user-da023', 5, N'Highly recommend! Clear explanations and great bedside manner.', '2024-07-21 10:00:00', NULL, 0, NULL, NULL, 1, 0, NULL, NULL),
+(1097, N'user-pa067', N'user-da024', 5, N'Outstanding consultation, felt very well taken care of.', '2024-07-24 10:00:00', NULL, 0, NULL, NULL, 1, 3, NULL, NULL),
+(1098, N'user-pa068', N'user-da024', 4, N'Professional and helpful, slight wait time though.', '2024-07-27 10:00:00', NULL, 0, NULL, NULL, 1, 6, NULL, NULL),
+(1099, N'user-pa069', N'user-da025', 4, N'Solid experience, doctor was attentive and clear.', '2024-07-30 10:00:00', NULL, 1, NULL, NULL, 1, 9, NULL, NULL),
+(1100, N'user-pa070', N'user-da025', 5, N'Extremely knowledgeable and attentive to my concerns.', '2024-08-02 10:00:00', NULL, 0, NULL, NULL, 1, 0, NULL, NULL),
+(1101, N'user-pa071', N'user-da026', 5, N'Excellent doctor, very professional and caring.', '2024-08-05 10:00:00', NULL, 0, NULL, NULL, 1, 3, NULL, NULL),
+(1102, N'user-pa072', N'user-da026', 5, N'Highly recommend! Clear explanations and great bedside manner.', '2024-08-08 10:00:00', NULL, 0, NULL, NULL, 1, 6, NULL, NULL),
+(1103, N'user-pa073', N'user-da027', 4, N'Very satisfied with the advice given.', '2024-08-11 10:00:00', NULL, 0, NULL, NULL, 1, 9, NULL, NULL),
+(1104, N'user-pa074', N'user-da027', 4, N'Good consultation overall, would visit again.', '2024-08-14 10:00:00', NULL, 0, NULL, NULL, 1, 0, NULL, NULL),
+(1105, N'user-pa075', N'user-da028', 4, N'Professional and helpful, slight wait time though.', '2024-08-17 10:00:00', NULL, 0, NULL, NULL, 1, 3, NULL, NULL),
+(1106, N'user-pa076', N'user-da028', 3, N'It was fine, nothing special but got the job done.', '2024-08-20 10:00:00', NULL, 1, NULL, NULL, 1, 6, NULL, NULL),
+(1107, N'user-pa077', N'user-da029', 5, N'Outstanding consultation, felt very well taken care of.', '2024-08-23 10:00:00', NULL, 0, NULL, NULL, 1, 9, NULL, NULL),
+(1108, N'user-pa078', N'user-da029', 4, N'Solid experience, doctor was attentive and clear.', '2024-08-26 10:00:00', NULL, 0, NULL, NULL, 1, 0, NULL, NULL),
+(1109, N'user-pa079', N'user-da030', 4, N'Very satisfied with the advice given.', '2024-08-29 10:00:00', NULL, 0, NULL, NULL, 1, 3, NULL, NULL),
+(1110, N'user-pa080', N'user-da030', 5, N'Extremely knowledgeable and attentive to my concerns.', '2024-09-01 10:00:00', NULL, 0, NULL, NULL, 1, 6, NULL, NULL),
+(1111, N'user-pa081', N'user-da031', 5, N'Excellent doctor, very professional and caring.', '2024-09-04 10:00:00', NULL, 0, NULL, NULL, 1, 9, NULL, NULL),
+(1112, N'user-pa082', N'user-da031', 5, N'Highly recommend! Clear explanations and great bedside manner.', '2024-09-07 10:00:00', NULL, 0, NULL, NULL, 1, 0, NULL, NULL),
+(1113, N'user-pa083', N'user-da032', 4, N'Good consultation overall, would visit again.', '2024-09-10 10:00:00', NULL, 1, NULL, NULL, 1, 3, NULL, NULL),
+(1114, N'user-pa084', N'user-da032', 4, N'Professional and helpful, slight wait time though.', '2024-09-13 10:00:00', NULL, 0, NULL, NULL, 1, 6, NULL, NULL),
+(1115, N'user-pa085', N'user-da033', 3, N'Consultation was okay, but felt a bit rushed.', '2024-09-16 10:00:00', NULL, 0, NULL, NULL, 1, 9, NULL, NULL),
+(1116, N'user-pa086', N'user-da033', 4, N'Solid experience, doctor was attentive and clear.', '2024-09-19 10:00:00', NULL, 0, NULL, NULL, 1, 0, NULL, NULL),
+(1117, N'user-pa087', N'user-da034', 5, N'Outstanding consultation, felt very well taken care of.', '2024-09-22 10:00:00', NULL, 0, NULL, NULL, 1, 3, NULL, NULL),
+(1118, N'user-pa088', N'user-da034', 4, N'Very satisfied with the advice given.', '2024-09-25 10:00:00', NULL, 0, NULL, NULL, 1, 6, NULL, NULL),
+(1119, N'user-pa089', N'user-da035', 4, N'Good consultation overall, would visit again.', '2024-09-28 10:00:00', NULL, 0, NULL, NULL, 1, 9, NULL, NULL),
+(1120, N'user-pa090', N'user-da035', 5, N'Extremely knowledgeable and attentive to my concerns.', '2024-10-01 10:00:00', NULL, 1, NULL, NULL, 1, 0, NULL, NULL);
+SET IDENTITY_INSERT Reviews OFF;
 GO
 
 -- 58c. Analytics pharmacy users (24 users, varied count per month across 2024)
