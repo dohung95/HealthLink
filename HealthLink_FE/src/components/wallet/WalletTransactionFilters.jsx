@@ -33,19 +33,23 @@ export default function WalletTransactionFilters({
           </div>
         </div>
         <div className="wallet-tx-filter-col wallet-tx-filter-col--date">
-          <label className="wallet-tx-filter-label">From</label>
+          <label className="wallet-tx-filter-label" htmlFor="wallet-transaction-date-from">From</label>
           <WalletDatePicker
             selected={dateFrom}
             onChange={(date) => setDateFrom(date)}
             placeholderText="From date"
+            inputId="wallet-transaction-date-from"
+            ariaLabel="From date"
           />
         </div>
         <div className="wallet-tx-filter-col wallet-tx-filter-col--date">
-          <label className="wallet-tx-filter-label">To</label>
+          <label className="wallet-tx-filter-label" htmlFor="wallet-transaction-date-to">To</label>
           <WalletDatePicker
             selected={dateTo}
             onChange={(date) => setDateTo(date)}
             placeholderText="To date"
+            inputId="wallet-transaction-date-to"
+            ariaLabel="To date"
           />
         </div>
         <div className="wallet-tx-filter-col wallet-tx-filter-col--select">

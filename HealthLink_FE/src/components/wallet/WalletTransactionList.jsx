@@ -50,7 +50,7 @@ export default function WalletTransactionList({
         </div>
         <div className="wallet-tx-empty">
           <div className="wallet-tx-empty-icon">
-            <span className="material-symbols-outlined">{filtersActive ? 'search_off' : 'receipt_long'}</span>
+            <span aria-hidden="true" className="material-symbols-outlined">{filtersActive ? 'search_off' : 'receipt_long'}</span>
           </div>
           <p className="wallet-tx-empty-title">
             {filtersActive ? 'No matching transactions found.' : 'No wallet transactions yet.'}
