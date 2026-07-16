@@ -14,7 +14,9 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.util.ArrayList;
 import java.math.BigDecimal;
+import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -135,8 +137,13 @@ class PartnerWalletLedgerServiceImplTest {
                 .pharmacyId("pharmacy-1")
                 .pendingSettlement(new BigDecimal("30.00"))
                 .build();
-        when(entryRepository.findByIdempotencyKey("EARNING:CTX:5")).thenReturn(Optional.of(earning));
+        List<String> callOrder = new ArrayList<>();
+        when(entryRepository.findByIdempotencyKey("EARNING:CTX:5")).thenAnswer(invocation -> {
+            callOrder.add("entry");
+            return Optional.of(earning);
+        });
         when(pharmacyRepository.findByIdForWalletUpdate("pharmacy-1")).thenAnswer(invocation -> {
+            callOrder.add("lock");
             earning.setStatus(PartnerWalletEntryStatus.VESTED);
             return Optional.of(pharmacy);
         });
@@ -145,7 +152,7 @@ class PartnerWalletLedgerServiceImplTest {
 
         assertThat(earning.getStatus()).isEqualTo(PartnerWalletEntryStatus.VESTED);
         assertThat(pharmacy.getPendingSettlement()).isEqualByComparingTo("30.00");
-        verify(pharmacyRepository).findByIdForWalletUpdate("pharmacy-1");
+        assertThat(callOrder).containsExactly("lock", "entry");
         verify(entryRepository, times(0)).save(earning);
     }
 
