@@ -618,9 +618,30 @@
 .audit-modal-footer {
   display: flex;
   justify-content: flex-end;
+  gap: 10px;
   padding: 14px 20px;
   background: #f8fafc;
   border-top: 1px solid #e2e8f0;
+}
+
+.audit-export-format-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  cursor: pointer;
+  flex: 1;
+}
+
+.audit-export-format-option.selected {
+  border-color: #00a08b;
+  background: rgba(0, 160, 139, 0.06);
+}
+
+.audit-export-format-option input {
+  margin: 0;
 }
 
 .audit-modal-btn {

@@ -93,7 +93,8 @@ public class AdminAuditLogService {
             String registrationType,
             Long requestId,
             String applicantName,
-            String applicantEmail
+            String applicantEmail,
+            String createdEntityId
     ) {
         User adminUser = findAdminUser(adminUserIdentifier);
         if (adminUser == null) {
@@ -113,11 +114,17 @@ public class AdminAuditLogService {
         String description = String.format("Approved %s registration for '%s'",
                 registrationType.toLowerCase(), applicantName);
 
+        // Use the newly created Doctor/Pharmacy id (shares its PK with the User created
+        // during approval) as targetId so this log can later be found by "filter by doctor".
+        // requestId alone isn't enough — the entity doesn't exist yet when the request is
+        // pending, so a requestId can never match a real doctorId/pharmacyId.
+        String targetId = createdEntityId != null ? createdEntityId : String.valueOf(requestId);
+
         AdminAuditLog auditLog = AdminAuditLog.builder()
                 .category(AdminAuditLog.CATEGORY_REGISTRATION)
                 .actionType(AdminAuditLog.ACTION_REGISTRATION_APPROVED)
                 .targetType(targetType)
-                .targetId(String.valueOf(requestId))
+                .targetId(targetId)
                 .targetName(applicantName)
                 .adminUser(adminUser)
                 .description(description)
@@ -127,7 +134,7 @@ public class AdminAuditLogService {
                 .build();
 
         auditLogRepository.save(auditLog);
-        log.info("Audit log created: {} - {} - requestId:{}", adminUserIdentifier, AdminAuditLog.ACTION_REGISTRATION_APPROVED, requestId);
+        log.info("Audit log created: {} - {} - requestId:{} - targetId:{}", adminUserIdentifier, AdminAuditLog.ACTION_REGISTRATION_APPROVED, requestId, targetId);
     }
 
     /**
@@ -499,6 +506,18 @@ public class AdminAuditLogService {
                 .totalElements(page.getTotalElements())
                 .totalPages(page.getTotalPages())
                 .build();
+    }
+
+    /**
+     * Get every admin audit log matching the given filters, unpaginated — used for export.
+     */
+    @Transactional(readOnly = true)
+    public java.util.List<AdminAuditLogDto> getAllLogsForExport(
+            String category, String actionType, String targetType, String targetId,
+            LocalDateTime startTime, LocalDateTime endTime) {
+        Page<AdminAuditLog> page = auditLogRepository.findWithFilters(
+                category, actionType, targetType, targetId, null, startTime, endTime, Pageable.unpaged());
+        return page.getContent().stream().map(this::toDto).collect(Collectors.toList());
     }
 
     /**

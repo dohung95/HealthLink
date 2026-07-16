@@ -8,6 +8,24 @@ import "bootstrap-icons/font/bootstrap-icons.css";
 import "../Css/Admin.css";
 import "../Css/AuditLog.css";
 
+const SOURCE_LABELS = { all: 'All Logs', schedule: 'Schedule', admin: 'Admin Actions' };
+
+// Flat value -> label map covering every action type across all categories/sources,
+// used to describe the applied filters (e.g. in the Export summary) regardless of
+// which tab is currently active.
+const ACTION_TYPE_LABELS = {
+  CANCEL_APPOINTMENT: 'Cancel Appointment',
+  REASSIGN_APPOINTMENT: 'Reassign Appointment',
+  USER_STATUS_CHANGED: 'Status Changed',
+  PAYPAL_EMAIL_CHANGED: 'PayPal Email Changed',
+  REGISTRATION_APPROVED: 'Approved',
+  REGISTRATION_REJECTED: 'Rejected',
+  AI_REJECTED: 'AI Rejected',
+  COMMISSION_CONFIG_CHANGED: 'Config Changed',
+  COMMISSION_PARTNER_CHANGED: 'Partner Rate Changed',
+  COMMISSION_PARTNER_RESET: 'Partner Rate Reset'
+};
+
 export default function ScheduleAuditLog() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const { toast, showToast, hideToast } = useToast();
@@ -22,14 +40,19 @@ export default function ScheduleAuditLog() {
     totalElements: 0
   });
 
-  // Filter state
-  const [filters, setFilters] = useState({
+  // Filter state (draft values bound to the filter inputs)
+  const emptyFilters = {
     category: '',
     doctorId: '',
     actionType: '',
     startDate: '',
     endDate: ''
-  });
+  };
+  const [filters, setFilters] = useState(emptyFilters);
+
+  // Filters actually applied to the query — only changes on Apply/Reset/tab switch,
+  // so the fetch effect always sees a consistent snapshot instead of a stale closure.
+  const [appliedFilters, setAppliedFilters] = useState(emptyFilters);
 
   // Active tab for log source
   const [activeSource, setActiveSource] = useState('all'); // 'all', 'schedule', 'admin'
@@ -40,6 +63,11 @@ export default function ScheduleAuditLog() {
   // Detail modal state
   const [selectedLog, setSelectedLog] = useState(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
+
+  // Export modal state
+  const [showExportModal, setShowExportModal] = useState(false);
+  const [exportFormat, setExportFormat] = useState('CSV');
+  const [exporting, setExporting] = useState(false);
 
   // Categories
   const categories = [
@@ -57,12 +85,14 @@ export default function ScheduleAuditLog() {
     ];
 
     const userActions = [
-      { value: 'USER_STATUS_CHANGED', label: 'Status Changed' }
+      { value: 'USER_STATUS_CHANGED', label: 'Status Changed' },
+      { value: 'PAYPAL_EMAIL_CHANGED', label: 'PayPal Email Changed' }
     ];
 
     const registrationActions = [
       { value: 'REGISTRATION_APPROVED', label: 'Approved' },
-      { value: 'REGISTRATION_REJECTED', label: 'Rejected' }
+      { value: 'REGISTRATION_REJECTED', label: 'Rejected' },
+      { value: 'AI_REJECTED', label: 'AI Rejected' }
     ];
 
     const commissionActions = [
@@ -102,10 +132,11 @@ export default function ScheduleAuditLog() {
     fetchDoctors();
   }, []);
 
-  // Fetch audit logs
+  // Fetch audit logs — re-runs whenever pagination, source or the *applied* filters change.
   useEffect(() => {
     fetchAuditLogs();
-  }, [pagination.pageNumber, pagination.pageSize, activeSource]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pagination.pageNumber, pagination.pageSize, activeSource, appliedFilters]);
 
   const fetchAuditLogs = async () => {
     try {
@@ -116,10 +147,10 @@ export default function ScheduleAuditLog() {
         const params = {
           pageNumber: pagination.pageNumber,
           pageSize: pagination.pageSize,
-          doctorId: filters.doctorId || undefined,
-          actionType: filters.actionType || undefined,
-          startTime: filters.startDate ? `${filters.startDate}T00:00:00` : undefined,
-          endTime: filters.endDate ? `${filters.endDate}T23:59:59` : undefined
+          doctorId: appliedFilters.doctorId || undefined,
+          actionType: appliedFilters.actionType || undefined,
+          startTime: appliedFilters.startDate ? `${appliedFilters.startDate}T00:00:00` : undefined,
+          endTime: appliedFilters.endDate ? `${appliedFilters.endDate}T23:59:59` : undefined
         };
 
         const response = await scheduleApi.getAuditLogs(params);
@@ -135,10 +166,10 @@ export default function ScheduleAuditLog() {
         const params = {
           pageNumber: pagination.pageNumber,
           pageSize: pagination.pageSize,
-          category: filters.category || undefined,
-          actionType: filters.actionType || undefined,
-          startTime: filters.startDate ? `${filters.startDate}T00:00:00` : undefined,
-          endTime: filters.endDate ? `${filters.endDate}T23:59:59` : undefined
+          category: appliedFilters.category || undefined,
+          actionType: appliedFilters.actionType || undefined,
+          startTime: appliedFilters.startDate ? `${appliedFilters.startDate}T00:00:00` : undefined,
+          endTime: appliedFilters.endDate ? `${appliedFilters.endDate}T23:59:59` : undefined
         };
 
         try {
@@ -157,33 +188,56 @@ export default function ScheduleAuditLog() {
           setPagination(prev => ({ ...prev, totalPages: 0, totalElements: 0 }));
         }
       } else {
-        // Fetch both and merge (for 'all' tab)
+        // Fetch both and merge (for 'all' tab).
+        // The two sources are paginated independently by the backend, so we can't
+        // just ask each for "page N" — page N of the merged, date-sorted result
+        // doesn't line up with page N of either source individually. Instead we
+        // fetch the top-K newest rows (K = pageNumber * pageSize) from BOTH
+        // sources, merge + sort them, then slice out the exact window for the
+        // requested page. This guarantees the merged page is correct regardless
+        // of how the matching rows are distributed between the two sources.
+        const topK = pagination.pageNumber * pagination.pageSize;
+        const emptySourceResult = { logs: [], totalElements: 0, totalPages: 0 };
+
+        // Schedule logs (cancel/reassign appointment) don't belong to any Category —
+        // so if a Category filter is active, they can never match it and must be
+        // excluded entirely, not merged in unfiltered.
+        const categoryFilterActive = !!appliedFilters.category;
+
         const scheduleParams = {
-          pageNumber: pagination.pageNumber,
-          pageSize: pagination.pageSize,
-          doctorId: filters.doctorId || undefined,
-          actionType: filters.actionType || undefined,
-          startTime: filters.startDate ? `${filters.startDate}T00:00:00` : undefined,
-          endTime: filters.endDate ? `${filters.endDate}T23:59:59` : undefined
+          pageNumber: 1,
+          pageSize: topK,
+          doctorId: appliedFilters.doctorId || undefined,
+          actionType: appliedFilters.actionType || undefined,
+          startTime: appliedFilters.startDate ? `${appliedFilters.startDate}T00:00:00` : undefined,
+          endTime: appliedFilters.endDate ? `${appliedFilters.endDate}T23:59:59` : undefined
         };
 
         const adminParams = {
-          pageNumber: pagination.pageNumber,
-          pageSize: pagination.pageSize,
-          category: filters.category || undefined,
-          actionType: filters.actionType || undefined,
-          startTime: filters.startDate ? `${filters.startDate}T00:00:00` : undefined,
-          endTime: filters.endDate ? `${filters.endDate}T23:59:59` : undefined
+          pageNumber: 1,
+          pageSize: topK,
+          category: appliedFilters.category || undefined,
+          actionType: appliedFilters.actionType || undefined,
+          // Admin logs have no dedicated "doctorId" field, but registration/status-change
+          // logs about a doctor do store the doctor's real id as a generic target
+          // (targetType=DOCTOR, targetId=<doctorId>) — reuse that to make the Doctor
+          // filter also surface those logs instead of only schedule-domain ones.
+          targetType: appliedFilters.doctorId ? 'DOCTOR' : undefined,
+          targetId: appliedFilters.doctorId || undefined,
+          startTime: appliedFilters.startDate ? `${appliedFilters.startDate}T00:00:00` : undefined,
+          endTime: appliedFilters.endDate ? `${appliedFilters.endDate}T23:59:59` : undefined
         };
 
         const [scheduleResponse, adminResponse] = await Promise.all([
-          scheduleApi.getAuditLogs(scheduleParams).catch(err => {
-            console.error('Schedule audit error:', err);
-            return { logs: [], totalElements: 0, totalPages: 0 };
-          }),
+          categoryFilterActive
+            ? Promise.resolve(emptySourceResult)
+            : scheduleApi.getAuditLogs(scheduleParams).catch(err => {
+                console.error('Schedule audit error:', err);
+                return emptySourceResult;
+              }),
           auditApi.getLogs(adminParams).catch(err => {
             console.error('Admin audit error:', err);
-            return { logs: [], totalElements: 0, totalPages: 0 };
+            return emptySourceResult;
           })
         ]);
 
@@ -193,18 +247,20 @@ export default function ScheduleAuditLog() {
         const scheduleLogs = (scheduleResponse.logs || []).map(log => ({ ...log, source: 'schedule' }));
         const adminLogs = (adminResponse.logs || []).map(log => ({ ...log, source: 'admin' }));
 
-        // Merge and sort by createdAt descending
-        const allLogs = [...scheduleLogs, ...adminLogs].sort((a, b) =>
+        // Merge and sort by createdAt descending, then slice out this page's window
+        const mergedTopK = [...scheduleLogs, ...adminLogs].sort((a, b) =>
           new Date(b.createdAt) - new Date(a.createdAt)
         );
+        const pageStart = (pagination.pageNumber - 1) * pagination.pageSize;
+        const pageLogs = mergedTopK.slice(pageStart, pageStart + pagination.pageSize);
 
-        setLogs(allLogs);
+        setLogs(pageLogs);
         const totalElements = (scheduleResponse.totalElements || 0) + (adminResponse.totalElements || 0);
-        const maxPages = Math.max(scheduleResponse.totalPages || 0, adminResponse.totalPages || 0);
+        const totalPages = Math.ceil(totalElements / pagination.pageSize) || 0;
         setPagination(prev => ({
           ...prev,
-          totalPages: maxPages,
-          totalElements: totalElements
+          totalPages,
+          totalElements
         }));
       }
     } catch (err) {
@@ -217,35 +273,39 @@ export default function ScheduleAuditLog() {
 
   const handleFilterChange = (e) => {
     const { name, value } = e.target;
-    setFilters(prev => ({ ...prev, [name]: value }));
+    setFilters(prev => {
+      // Changing category invalidates any previously selected action type
+      // that doesn't belong to the new category — reset it so Apply can't
+      // send a category/actionType combo that can never match any row.
+      if (name === 'category') {
+        return { ...prev, category: value, actionType: '' };
+      }
+      return { ...prev, [name]: value };
+    });
   };
 
   const handleApplyFilters = () => {
+    setAppliedFilters(filters);
     setPagination(prev => ({ ...prev, pageNumber: 1 }));
-    fetchAuditLogs();
   };
 
   const handleClearFilters = () => {
-    setFilters({
-      category: '',
-      doctorId: '',
-      actionType: '',
-      startDate: '',
-      endDate: ''
-    });
+    setFilters(emptyFilters);
+    setAppliedFilters(emptyFilters);
     setPagination(prev => ({ ...prev, pageNumber: 1 }));
-    setTimeout(fetchAuditLogs, 0);
   };
 
   const handleSourceChange = (source) => {
     setActiveSource(source);
-    setFilters({
+    const resetFilters = {
       category: '',
       doctorId: '',
       actionType: '',
       startDate: filters.startDate,
       endDate: filters.endDate
-    });
+    };
+    setFilters(resetFilters);
+    setAppliedFilters(resetFilters);
     setPagination(prev => ({ ...prev, pageNumber: 1 }));
   };
 
@@ -265,6 +325,35 @@ export default function ScheduleAuditLog() {
     setSelectedLog(null);
   };
 
+  const getDoctorName = (doctorId) => {
+    const doc = doctors.find(d => d.doctorId === doctorId);
+    return doc ? doc.fullName : doctorId;
+  };
+
+  const getCategoryLabel = (value) => categories.find(c => c.value === value)?.label || value;
+
+  const handleExport = async () => {
+    try {
+      setExporting(true);
+      await auditApi.exportLogs({
+        source: activeSource.toUpperCase(),
+        category: appliedFilters.category,
+        doctorId: appliedFilters.doctorId,
+        actionType: appliedFilters.actionType,
+        startTime: appliedFilters.startDate ? `${appliedFilters.startDate}T00:00:00` : undefined,
+        endTime: appliedFilters.endDate ? `${appliedFilters.endDate}T23:59:59` : undefined,
+        format: exportFormat
+      });
+      setShowExportModal(false);
+      showToast({ title: 'Success', message: 'Audit log exported successfully', type: 'success' });
+    } catch (err) {
+      console.error('Export error:', err);
+      showToast({ title: 'Error', message: 'Could not export audit log', type: 'error' });
+    } finally {
+      setExporting(false);
+    }
+  };
+
   const getActionBadgeClass = (actionType) => {
     switch (actionType) {
       // Schedule actions
@@ -272,9 +361,11 @@ export default function ScheduleAuditLog() {
       case 'REASSIGN_APPOINTMENT': return 'reassign';
       // User actions
       case 'USER_STATUS_CHANGED': return 'user-status';
+      case 'PAYPAL_EMAIL_CHANGED': return 'user-status';
       // Registration actions
       case 'REGISTRATION_APPROVED': return 'approved';
       case 'REGISTRATION_REJECTED': return 'rejected';
+      case 'AI_REJECTED': return 'rejected';
       // Commission actions
       case 'COMMISSION_CONFIG_CHANGED': return 'commission-config';
       case 'COMMISSION_PARTNER_CHANGED': return 'commission-partner';
@@ -385,6 +476,9 @@ export default function ScheduleAuditLog() {
                   <i className="bi bi-database me-1"></i>
                   {pagination.totalElements.toLocaleString()} records
                 </span>
+                <button className="audit-btn outline" onClick={() => setShowExportModal(true)}>
+                  <i className="bi bi-download"></i> Export
+                </button>
               </div>
             </div>
           </div>
@@ -446,7 +540,7 @@ export default function ScheduleAuditLog() {
                   >
                     <option value="">All Doctors</option>
                     {doctors.map(doc => (
-                      <option key={doc.doctorID} value={doc.doctorID}>
+                      <option key={doc.doctorId} value={doc.doctorId}>
                         {doc.fullName}
                       </option>
                     ))}
@@ -799,6 +893,119 @@ export default function ScheduleAuditLog() {
             <div className="audit-modal-footer">
               <button className="audit-modal-btn" onClick={handleCloseDetailModal}>
                 Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Export Modal */}
+      {showExportModal && (
+        <div className="audit-modal-overlay">
+          <div className="audit-modal">
+            <div className="audit-modal-header">
+              <h5 className="audit-modal-title">
+                <i className="bi bi-download"></i>
+                Export Audit Log
+              </h5>
+              <button className="audit-modal-close" onClick={() => setShowExportModal(false)} disabled={exporting}>
+                <i className="bi bi-x-lg"></i>
+              </button>
+            </div>
+            <div className="audit-modal-body">
+              <div className="d-flex align-items-center justify-content-between mb-3">
+                <p className="text-muted mb-0">
+                  The export will include every record matching the filters currently applied:
+                </p>
+                <span className="audit-count-badge">
+                  <i className="bi bi-database me-1"></i>
+                  {pagination.totalElements.toLocaleString()} records
+                </span>
+              </div>
+              <div className="audit-detail-grid">
+                <div className="audit-detail-item">
+                  <div className="audit-detail-label">Source</div>
+                  <div className="audit-detail-value">{SOURCE_LABELS[activeSource]}</div>
+                </div>
+                <div className="audit-detail-item">
+                  <div className="audit-detail-label">Category</div>
+                  <div className="audit-detail-value">
+                    {appliedFilters.category ? getCategoryLabel(appliedFilters.category) : 'All Categories'}
+                  </div>
+                </div>
+                <div className="audit-detail-item">
+                  <div className="audit-detail-label">Doctor</div>
+                  <div className="audit-detail-value">
+                    {appliedFilters.doctorId ? getDoctorName(appliedFilters.doctorId) : 'All Doctors'}
+                  </div>
+                </div>
+                <div className="audit-detail-item">
+                  <div className="audit-detail-label">Action</div>
+                  <div className="audit-detail-value">
+                    {appliedFilters.actionType
+                      ? (ACTION_TYPE_LABELS[appliedFilters.actionType] || appliedFilters.actionType)
+                      : 'All Actions'}
+                  </div>
+                </div>
+                <div className="audit-detail-item full">
+                  <div className="audit-detail-label">Date Range</div>
+                  <div className="audit-detail-value">
+                    {appliedFilters.startDate || appliedFilters.endDate
+                      ? `${appliedFilters.startDate || '…'} → ${appliedFilters.endDate || '…'}`
+                      : 'All time'}
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-4">
+                <label className="audit-filter-label d-block mb-2">
+                  <i className="bi bi-file-earmark-spreadsheet me-1"></i>File format
+                </label>
+                <div className="d-flex gap-2">
+                  <label className={`audit-export-format-option ${exportFormat === 'CSV' ? 'selected' : ''}`}>
+                    <input
+                      type="radio"
+                      name="exportFormat"
+                      value="CSV"
+                      checked={exportFormat === 'CSV'}
+                      onChange={() => setExportFormat('CSV')}
+                    />
+                    <div>
+                      <div className="fw-semibold">CSV</div>
+                      <small className="text-muted">Plain data, opens in any spreadsheet app</small>
+                    </div>
+                  </label>
+                  <label className={`audit-export-format-option ${exportFormat === 'XLSX' ? 'selected' : ''}`}>
+                    <input
+                      type="radio"
+                      name="exportFormat"
+                      value="XLSX"
+                      checked={exportFormat === 'XLSX'}
+                      onChange={() => setExportFormat('XLSX')}
+                    />
+                    <div>
+                      <div className="fw-semibold">Excel (.xlsx)</div>
+                      <small className="text-muted">Bold headers, auto-sized columns</small>
+                    </div>
+                  </label>
+                </div>
+              </div>
+            </div>
+            <div className="audit-modal-footer">
+              <button className="audit-modal-btn" onClick={() => setShowExportModal(false)} disabled={exporting}>
+                Cancel
+              </button>
+              <button className="audit-btn primary" onClick={handleExport} disabled={exporting}>
+                {exporting ? (
+                  <>
+                    <span className="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
+                    Exporting...
+                  </>
+                ) : (
+                  <>
+                    <i className="bi bi-download"></i> Confirm Export
+                  </>
+                )}
               </button>
             </div>
           </div>

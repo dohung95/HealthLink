@@ -317,7 +317,8 @@ public class RegistrationServiceImpl implements RegistrationService {
                     request.getRegistrationType(),
                     request.getRequestId(),
                     recipientName,
-                    request.getEmail()
+                    request.getEmail(),
+                    userId
             );
         } catch (Exception e) {
             System.err.println("Failed to create audit log: " + e.getMessage());

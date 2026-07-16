@@ -539,6 +539,47 @@ export const auditApi = {
   getLogDetail: async (id) => {
     const response = await adminApi.get(`/audit-logs/${id}`);
     return response.data;
+  },
+
+  /**
+   * Export the merged Audit Log (schedule + admin) matching the given filters.
+   * @param {object} params - { source: 'ALL'|'SCHEDULE'|'ADMIN', category?, doctorId?, actionType?, startTime?, endTime?, format: 'CSV'|'XLSX' }
+   */
+  exportLogs: async (params = {}) => {
+    const {
+      source = 'ALL',
+      category,
+      doctorId,
+      actionType,
+      startTime,
+      endTime,
+      format = 'CSV'
+    } = params;
+
+    const queryParams = { source, format };
+    if (category) queryParams.category = category;
+    if (doctorId) queryParams.doctorId = doctorId;
+    if (actionType) queryParams.actionType = actionType;
+    if (startTime) queryParams.startTime = startTime;
+    if (endTime) queryParams.endTime = endTime;
+
+    const response = await adminApi.get('/audit-log/export', {
+      params: queryParams,
+      responseType: 'blob'
+    });
+
+    const isXlsx = format === 'XLSX';
+    const mimeType = isXlsx
+      ? 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+      : 'text/csv';
+    const dateStr = new Date().toISOString().slice(0, 10);
+
+    const url = URL.createObjectURL(new Blob([response.data], { type: mimeType }));
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `audit-log-${dateStr}.${isXlsx ? 'xlsx' : 'csv'}`;
+    link.click();
+    URL.revokeObjectURL(url);
   }
 };
 
