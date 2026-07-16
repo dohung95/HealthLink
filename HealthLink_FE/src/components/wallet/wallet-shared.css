@@ -489,6 +489,12 @@
   color: var(--text);
 }
 
+.wallet-tx-item-expand:focus-visible,
+.wallet-tx-header-refresh:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
 .wallet-tx-item-expand .material-symbols-outlined {
   font-size: 1.125rem;
   transition: transform 0.15s ease;
@@ -539,6 +545,7 @@
   font-size: 0.8125rem;
   font-weight: 600;
   color: var(--text);
+  min-width: 0;
 }
 
 .wallet-tx-details-value--positive {
@@ -549,6 +556,12 @@
   color: var(--error);
 }
 
+.wallet-tx-details-value--reference,
+.wallet-tx-details-value--email {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
 @media (min-width: 768px) {
   .wallet-tx-details-item--right {
     justify-items: start;
@@ -557,6 +570,33 @@
   .wallet-tx-details-item--right .wallet-tx-details-label {
     text-align: left;
     width: 100%;
+  }
+}
+
+@media (max-width: 767px) {
+  .wallet-tx-header {
+    padding: 1rem;
+  }
+
+  .wallet-tx-item-main {
+    align-items: flex-start;
+    padding: 0.875rem 0.75rem 0.875rem 1.25rem;
+  }
+
+  .wallet-tx-item-right {
+    gap: 0.375rem;
+  }
+
+  .wallet-tx-item-amount-group {
+    min-width: 0;
+  }
+
+  .wallet-tx-details {
+    padding: 0.5rem 1rem 0.75rem 1.25rem;
+  }
+
+  .wallet-tx-details-item {
+    grid-template-columns: minmax(5.75rem, 0.7fr) minmax(0, 1.3fr);
   }
 }
 

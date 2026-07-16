@@ -125,6 +125,17 @@ test('maps a patient refund to a negative refunded entry', () => {
   );
 });
 
+test('uses the ledger signed amount for the displayed direction', () => {
+  assert.equal(
+    getWalletEntryPresentation({ entryType: 'EARNING', status: 'VESTED', amount: -50 }).direction,
+    'negative',
+  );
+  assert.equal(
+    getWalletEntryPresentation({ entryType: 'WITHDRAWAL', status: 'COMPLETED', amount: 50 }).direction,
+    'positive',
+  );
+});
+
 test('normalizes a ledger entry while preserving its server identity', () => {
   assert.deepEqual(
     toWalletTransactionEntry({
