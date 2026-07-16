@@ -267,6 +267,10 @@
   background: var(--error);
 }
 
+.wallet-tx-item-strip--neutral {
+  background: var(--text-muted);
+}
+
 /* Left side: icon + info */
 .wallet-tx-item-left {
   display: flex;
@@ -320,6 +324,12 @@
   background: rgba(220, 38, 38, 0.08);
   color: var(--error);
   border-color: rgba(220, 38, 38, 0.18);
+}
+
+.wallet-tx-item-icon--neutral {
+  background: var(--surface-muted);
+  color: var(--text-secondary);
+  border-color: rgba(226, 232, 240, 0.5);
 }
 
 .wallet-tx-item-info {
@@ -386,6 +396,10 @@
 
 .wallet-tx-item-amount--error {
   color: var(--error);
+}
+
+.wallet-tx-item-amount--neutral {
+  color: var(--text-secondary);
 }
 
 .wallet-tx-item-amount--struck {

@@ -35,6 +35,21 @@ test('maps a vested earning to a successful incoming entry', () => {
   );
 });
 
+test('maps a cancelled earning to a neutral non-vested entry', () => {
+  assert.deepEqual(
+    getWalletEntryPresentation({ entryType: 'EARNING', status: 'CANCELLED', amount: 50 }),
+    {
+      direction: 'positive',
+      icon: 'cancel',
+      badgeTone: 'neutral',
+      statusLabel: 'Cancelled',
+      amountTone: 'neutral',
+      strikeAmount: true,
+      kind: 'earning',
+    },
+  );
+});
+
 test('maps a processing withdrawal to a red outgoing entry', () => {
   assert.deepEqual(
     getWalletEntryPresentation({ entryType: 'WITHDRAWAL', status: 'PROCESSING', amount: -50 }),

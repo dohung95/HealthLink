@@ -33,6 +33,13 @@ export const getWalletEntryPresentation = (entry = {}) => {
     };
   }
 
+  if (entryType === 'EARNING' && status === 'CANCELLED') {
+    return {
+      direction: 'positive', icon: 'cancel', badgeTone: 'neutral', statusLabel: 'Cancelled',
+      amountTone: 'neutral', strikeAmount: true, kind,
+    };
+  }
+
   if (entryType === 'WITHDRAWAL') {
     return {
       direction: 'negative',
