@@ -44,17 +44,23 @@ public interface AdminAppointmentRepository extends JpaRepository<Appointment, I
         @Param("statuses") List<String> statuses,
         @Param("consultationTypes") List<String> consultationTypes);
 
-    // Sum completed fee by doctor, grouped by year+month, split online vs offline —
-    // used for Commission Management yearly/monthly breakdown
-    // (rows: [year, month, onlineFee, offlineFee, count])
+    // Sum completed fee AND actual recorded platform fee (from the linked Invoice, if any) by
+    // doctor, grouped by year+month, split online vs offline — used for Commission Management
+    // yearly/monthly breakdown. Reads the real Invoice.platformFee captured at payment time
+    // instead of recomputing gross * currentRate, so this stays historically accurate even
+    // after a doctor's commission rate changes, and agrees with Financial Reports' numbers.
+    // (rows: [year, month, onlineFee, offlineFee, onlinePlatformFee, offlinePlatformFee, count])
     @Query("SELECT YEAR(a.appointmentTime), MONTH(a.appointmentTime), " +
            "COALESCE(SUM(CASE WHEN UPPER(a.consultationType) IN :onlineTypes THEN a.fee ELSE 0 END), 0), " +
            "COALESCE(SUM(CASE WHEN UPPER(a.consultationType) IN :offlineTypes THEN a.fee ELSE 0 END), 0), " +
+           "COALESCE(SUM(CASE WHEN UPPER(a.consultationType) IN :onlineTypes AND UPPER(i.status) = 'PAID' THEN i.platformFee ELSE 0 END), 0), " +
+           "COALESCE(SUM(CASE WHEN UPPER(a.consultationType) IN :offlineTypes AND UPPER(i.status) = 'PAID' THEN i.platformFee ELSE 0 END), 0), " +
            "COUNT(a) " +
-           "FROM Appointment a WHERE a.doctor.doctorId = :doctorId AND a.status = 'COMPLETED' " +
+           "FROM Appointment a LEFT JOIN a.invoice i " +
+           "WHERE a.doctor.doctorId = :doctorId AND a.status = 'COMPLETED' " +
            "GROUP BY YEAR(a.appointmentTime), MONTH(a.appointmentTime) " +
            "ORDER BY YEAR(a.appointmentTime), MONTH(a.appointmentTime)")
-    List<Object[]> sumCompletedFeeByDoctorGroupedByYearMonth(
+    List<Object[]> sumCompletedFeeAndPlatformFeeByDoctorGroupedByYearMonth(
         @Param("doctorId") String doctorId,
         @Param("onlineTypes") List<String> onlineTypes,
         @Param("offlineTypes") List<String> offlineTypes);

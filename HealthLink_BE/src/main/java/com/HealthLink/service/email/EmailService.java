@@ -161,14 +161,19 @@ public class EmailService {
     private String buildApprovalEmailContent(String recipientName, String registrationType, String email, String password) {
         String roleDisplay = "DOCTOR".equals(registrationType) ? "Doctor" : "Pharmacy Partner";
 
-        String doctorScheduleReminder = "DOCTOR".equals(registrationType)
+        String roleReminder = "DOCTOR".equals(registrationType)
                 ? """
                     <div class="warning-box">
                         <span>&#128197;</span>
-                        <span><strong>Set up your work schedule now:</strong> your account has no schedule yet, so patients cannot find or book you (Online or Home Visit) until you add one. Please log in and go to <strong>Schedule</strong> to set your working hours right away.</span>
+                        <span><strong>Set up your work schedule now:</strong> your account has no schedule yet, so patients cannot find or book you (Online or Home Visit) until you add one. Please log in and go to <strong>Schedule</strong> and set <strong>at least 80 working hours per month</strong> &mdash; this is the minimum required for your account to become active and eligible to receive bookings.</span>
                     </div>
                     """
-                : "";
+                : """
+                    <div class="warning-box">
+                        <span>&#128138;</span>
+                        <span><strong>Update your inventory now:</strong> your pharmacy has no medicines listed yet, so patients cannot find or order from you until you add stock. Please log in and go to <strong>Inventory</strong> to add your available medicines right away.</span>
+                    </div>
+                    """;
 
         // Note: Use %% to escape % in CSS (linear-gradient percentages)
         return """
@@ -195,7 +200,7 @@ public class EmailService {
                     .credential-value { color: #1e293b; font-weight: 600; font-family: monospace; font-size: 15px; }
                     .warning-box { background: #fef3c7; border: 1px solid #fcd34d; border-radius: 8px; padding: 15px; margin: 20px 0; display: flex; align-items: flex-start; gap: 10px; }
                     .warning-box span { color: #92400e; font-size: 14px; }
-                    .cta-button { display: block; width: fit-content; margin: 25px auto; padding: 14px 35px; background: linear-gradient(135deg, #00b09a 0%%, #007a6a 100%%); color: white; text-decoration: none; border-radius: 8px; font-weight: 600; text-align: center; }
+                    .cta-button { display: block; width: fit-content; margin: 25px auto; padding: 14px 35px; background: linear-gradient(135deg, #00b09a 0%%, #007a6a 100%%); background-color: #007a6a; color: #ffffff !important; text-decoration: none !important; border-radius: 8px; font-weight: 600; text-align: center; }
                     .footer { background: #f8fafc; padding: 20px; text-align: center; color: #64748b; font-size: 13px; border-top: 1px solid #e2e8f0; }
                     .footer a { color: #00b09a; text-decoration: none; }
                 </style>
@@ -231,7 +236,7 @@ public class EmailService {
                             <span><strong>Important:</strong> For security reasons, please change your password immediately after your first login.</span>
                         </div>
                         %s
-                        <a href="%s/login" class="cta-button">Login to Your Account</a>
+                        <a href="%s/login" class="cta-button" style="display:block; width:fit-content; margin:25px auto; padding:14px 35px; background-color:#007a6a; color:#ffffff !important; text-decoration:none !important; border-radius:8px; font-weight:600;">Login to Your Account</a>
                     </div>
                     <div class="footer">
                         <p>This is an automated message from %s.</p>
@@ -241,7 +246,7 @@ public class EmailService {
                 </div>
             </body>
             </html>
-            """.formatted(appName, recipientName, roleDisplay, email, password, doctorScheduleReminder, frontendUrl, appName, appName);
+            """.formatted(appName, recipientName, roleDisplay, email, password, roleReminder, frontendUrl, appName, appName);
     }
 
     // build email khi bị từ chối
@@ -270,7 +275,7 @@ public class EmailService {
                     .reason-text { color: #7f1d1d; background: white; padding: 15px; border-radius: 8px; border-left: 4px solid #ef4444; margin-top: 10px; }
                     .info-box { background: #eff6ff; border: 1px solid #93c5fd; border-radius: 8px; padding: 15px; margin: 20px 0; display: flex; align-items: flex-start; gap: 10px; }
                     .info-box span { color: #1e40af; font-size: 14px; }
-                    .cta-button { display: block; width: fit-content; margin: 25px auto; padding: 14px 35px; background: linear-gradient(135deg, #6366f1 0%%, #4f46e5 100%%); color: white; text-decoration: none; border-radius: 8px; font-weight: 600; text-align: center; }
+                    .cta-button { display: block; width: fit-content; margin: 25px auto; padding: 14px 35px; background: linear-gradient(135deg, #6366f1 0%%, #4f46e5 100%%); background-color: #4f46e5; color: #ffffff !important; text-decoration: none !important; border-radius: 8px; font-weight: 600; text-align: center; }
                     .footer { background: #f8fafc; padding: 20px; text-align: center; color: #64748b; font-size: 13px; border-top: 1px solid #e2e8f0; }
                     .footer a { color: #00b09a; text-decoration: none; }
                 </style>
@@ -300,7 +305,7 @@ public class EmailService {
                             <span>&#128161;</span>
                             <span>You are welcome to submit a new registration application after addressing the issues mentioned above. We encourage you to review and update your documentation accordingly.</span>
                         </div>
-                        <a href="%s/register-as" class="cta-button">Submit New Application</a>
+                        <a href="%s/register-as" class="cta-button" style="display:block; width:fit-content; margin:25px auto; padding:14px 35px; background-color:#4f46e5; color:#ffffff !important; text-decoration:none !important; border-radius:8px; font-weight:600;">Submit New Application</a>
                     </div>
                     <div class="footer">
                         <p>This is an automated message from %s.</p>

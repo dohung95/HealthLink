@@ -26,8 +26,10 @@ public class AdminFinancialController {
      * GET /api/admin/financial/overview
      */
     @GetMapping("/overview")
-    public ResponseEntity<FinancialOverviewDto> getFinancialOverview() {
-        return ResponseEntity.ok(financialService.getFinancialOverview());
+    public ResponseEntity<FinancialOverviewDto> getFinancialOverview(
+            @RequestParam(defaultValue = "0") int year,
+            @RequestParam(defaultValue = "0") int month) {
+        return ResponseEntity.ok(financialService.getFinancialOverview(year, month));
     }
 
     /**

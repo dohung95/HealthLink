@@ -3,7 +3,7 @@ import NavbarAdmin from "./NavbarAdmin";
 import { financialApi, analyticsApi } from "../../../api/adminApi";
 import {
   Area, BarChart, Bar, Line, ComposedChart, Cell,
-  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
+  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LabelList
 } from "recharts";
 import "bootstrap/dist/css/bootstrap.min.css";
 import "bootstrap-icons/font/bootstrap-icons.css";
@@ -14,6 +14,19 @@ import "../Css/FinancialReports.css";
 const AXIS_MARGIN = { top: 24, right: 16, left: 8, bottom: 34 };
 const AXIS_LABEL_STYLE = { fontSize: "12px", fill: "#6b7280" };
 const Y_AXIS_LABEL_STYLE = { ...AXIS_LABEL_STYLE, textAnchor: "start" };
+
+const compactCurrency = (value) => (value ? `$${value >= 1000 ? (value / 1000).toFixed(1) + "k" : value}` : "");
+
+// Dark, high-contrast label style with a white halo so numbers stay readable regardless
+// of which colored bar/area fill they land on.
+const DATA_LABEL_STYLE = {
+  fontSize: 11,
+  fontWeight: 700,
+  fill: "#1f2937",
+  stroke: "#fff",
+  strokeWidth: 3,
+  paintOrder: "stroke"
+};
 
 export default function FinancialReports() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -33,6 +46,10 @@ export default function FinancialReports() {
   const currentMonth = new Date().getMonth() + 1;
   const [selectedYear, setSelectedYear] = useState(currentYear);
   const [selectedMonth, setSelectedMonth] = useState(currentMonth);
+  // Tracks whether the admin has touched the Year/Month/tab filter yet. The overview stat rows
+  // (Total Revenue/Platform Fees/Doctor Earnings/Pharmacy Earnings/Transactions) show all-time
+  // totals until then, and only start following the selected period once a filter is used.
+  const [hasFilterChanged, setHasFilterChanged] = useState(false);
 
   // Year options
   const yearOptions = [];
@@ -57,7 +74,6 @@ export default function FinancialReports() {
   ];
 
   useEffect(() => {
-    fetchOverview();
     fetchRevenueByMonth(selectedYear);
   }, [selectedYear]);
 
@@ -67,10 +83,21 @@ export default function FinancialReports() {
     }
   }, [activeTab, selectedYear, selectedMonth]);
 
-  const fetchOverview = async () => {
+  // Overview stat rows (Total Revenue/Platform Fees/Doctor+Pharmacy Earnings/Transactions):
+  // all-time until the admin touches the filter, then scoped to the selected year (Monthly tab)
+  // or year+month (Weekly tab) — mirrors whichever period the chart below is currently showing.
+  useEffect(() => {
+    if (!hasFilterChanged) {
+      fetchOverview(0, 0);
+      return;
+    }
+    fetchOverview(selectedYear, activeTab === "weekly" ? selectedMonth : 0);
+  }, [hasFilterChanged, activeTab, selectedYear, selectedMonth]);
+
+  const fetchOverview = async (year = 0, month = 0) => {
     try {
       setLoading(true);
-      const data = await financialApi.getOverview();
+      const data = await financialApi.getOverview(year, month);
       setOverview(data);
     } catch (error) {
       console.error("Error fetching overview:", error);
@@ -302,6 +329,7 @@ export default function FinancialReports() {
                         {miniChartData.map((entry, index) => (
                           <Cell key={`cell-${index}`} fill={entry.color} />
                         ))}
+                        <LabelList dataKey="value" position="top" formatter={compactCurrency} style={{ ...DATA_LABEL_STYLE, fontSize: 11 }} />
                       </Bar>
                     </BarChart>
                   </ResponsiveContainer>
@@ -342,14 +370,14 @@ export default function FinancialReports() {
               <div className="financial-tabs-inline">
                 <button
                   className={`tab-btn ${activeTab === "overview" ? "active" : ""}`}
-                  onClick={() => setActiveTab("overview")}
+                  onClick={() => { setActiveTab("overview"); setHasFilterChanged(true); }}
                 >
                   <i className="bi bi-graph-up"></i>
                   Monthly
                 </button>
                 <button
                   className={`tab-btn ${activeTab === "weekly" ? "active" : ""}`}
-                  onClick={() => setActiveTab("weekly")}
+                  onClick={() => { setActiveTab("weekly"); setHasFilterChanged(true); }}
                 >
                   <i className="bi bi-calendar-week"></i>
                   Weekly
@@ -360,7 +388,7 @@ export default function FinancialReports() {
                 <select
                   className="form-select form-select-sm month-select"
                   value={selectedMonth}
-                  onChange={(e) => setSelectedMonth(parseInt(e.target.value))}
+                  onChange={(e) => { setSelectedMonth(parseInt(e.target.value)); setHasFilterChanged(true); }}
                 >
                   {monthOptions.map((month) => (
                     <option key={month.value} value={month.value}>
@@ -374,7 +402,7 @@ export default function FinancialReports() {
               <select
                 className="form-select form-select-sm"
                 value={selectedYear}
-                onChange={(e) => setSelectedYear(parseInt(e.target.value))}
+                onChange={(e) => { setSelectedYear(parseInt(e.target.value)); setHasFilterChanged(true); }}
                 style={{ width: "100px" }}
               >
                 {yearOptions.map((year) => (
@@ -386,7 +414,7 @@ export default function FinancialReports() {
               {selectedYear !== currentYear && (
                 <button
                   className="btn btn-outline-primary btn-sm"
-                  onClick={() => setSelectedYear(currentYear)}
+                  onClick={() => { setSelectedYear(currentYear); setHasFilterChanged(true); }}
                   title="Back to current year"
                 >
                   <i className="bi bi-arrow-counterclockwise"></i>
@@ -446,7 +474,9 @@ export default function FinancialReports() {
                     fill="url(#revenueGradient)"
                     dot={{ fill: "#fff", stroke: "#059669", strokeWidth: 3, r: 6 }}
                     activeDot={{ r: 8, fill: "#059669", stroke: "#fff", strokeWidth: 3 }}
-                  />
+                  >
+                    <LabelList dataKey="count" position="top" formatter={compactCurrency} style={{ ...DATA_LABEL_STYLE, fontSize: 11 }} />
+                  </Area>
                 </ComposedChart>
               </ResponsiveContainer>
             ) : (
@@ -495,7 +525,9 @@ export default function FinancialReports() {
                     fill="url(#weeklyRevenueGradient)"
                     radius={[6, 6, 0, 0]}
                     maxBarSize={70}
-                  />
+                  >
+                    <LabelList dataKey="revenue" position="top" formatter={compactCurrency} style={{ ...DATA_LABEL_STYLE, fontSize: 11 }} />
+                  </Bar>
                 </BarChart>
               </ResponsiveContainer>
             )}

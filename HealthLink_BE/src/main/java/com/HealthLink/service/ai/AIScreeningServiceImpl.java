@@ -289,7 +289,7 @@ public class AIScreeningServiceImpl implements AIScreeningService {
         try {
             String recipientName = request.getFullName() != null ? request.getFullName() : request.getPharmacyName();
             String registrationType = request.getRegistrationType();
-            String rejectionReason = "AI Auto-Screening: " + result.buildRejectionReason();
+            String rejectionReason = buildFriendlyRejectionReasonHtml(result);
 
             emailService.sendRejectionEmail(
                     request.getEmail(),
@@ -301,6 +301,65 @@ public class AIScreeningServiceImpl implements AIScreeningService {
         } catch (Exception e) {
             log.error("Failed to send AI rejection email to {}: {}", request.getEmail(), e.getMessage());
         }
+    }
+
+    /**
+     * Turns the raw, technical issue strings collected during screening into a plain-language
+     * bulleted list for the applicant email. Phrased as "we noticed" rather than referencing
+     * the AI screening process, and never leaks raw model labels (e.g. moderation class names).
+     */
+    private String buildFriendlyRejectionReasonHtml(ScreeningResult result) {
+        List<String> friendlyReasons = new ArrayList<>();
+        List<String> issues = result.getAllIssues();
+        if (issues != null) {
+            for (String issue : issues) {
+                String friendly = humanizeIssue(issue);
+                if (friendly != null && !friendlyReasons.contains(friendly)) {
+                    friendlyReasons.add(friendly);
+                }
+            }
+        }
+        if (friendlyReasons.isEmpty()) {
+            friendlyReasons.add("Your application did not meet our verification requirements.");
+        }
+
+        StringBuilder html = new StringBuilder();
+        html.append("<p style=\"margin:0 0 10px;\">We reviewed your submitted documents and noticed the following:</p>");
+        html.append("<ul style=\"margin:0; padding-left:20px;\">");
+        for (String reason : friendlyReasons) {
+            html.append("<li style=\"margin-bottom:6px;\">").append(reason).append("</li>");
+        }
+        html.append("</ul>");
+        return html.toString();
+    }
+
+    private String humanizeIssue(String issue) {
+        if (issue == null || issue.isBlank()) {
+            return null;
+        }
+        String lower = issue.toLowerCase();
+
+        if (lower.contains("critical") || lower.contains("inappropriate") || lower.contains("nsfw")
+                || lower.contains("violence") || lower.contains("hate")) {
+            return "One of your uploaded files contained content that isn't suitable for a healthcare platform.";
+        }
+        if (lower.contains("no face detected")) {
+            return "We couldn't detect a clear face in your profile photo. Please upload a photo that clearly shows your face.";
+        }
+        if (lower.contains("multiple faces")) {
+            return "Your profile photo appears to show more than one person. Please upload a photo of yourself only.";
+        }
+        if (lower.contains("too small") || lower.contains("could be larger")) {
+            return "The face in your profile photo is too small or unclear. Please upload a closer, well-lit photo.";
+        }
+        if (lower.contains("not readable") || lower.contains("could not extract")) {
+            return "One of your documents was too blurry or unclear for us to read. Please re-upload a clearer scan or photo.";
+        }
+        if (lower.contains("does not appear to be a valid") || lower.contains("unknown document type")
+                || lower.contains("required keywords")) {
+            return "One of your documents doesn't match the type we expected. Please double-check you uploaded the correct document.";
+        }
+        return "We found an issue with one of your submitted documents. Please review your submission and try again.";
     }
 
     /**

@@ -5,7 +5,7 @@ import Toast from "./Toast";
 import useToast from "../useToast";
 import {
   Bar, BarChart, Line, ComposedChart,
-  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
+  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LabelList
 } from "recharts";
 import "bootstrap/dist/css/bootstrap.min.css";
 import "bootstrap-icons/font/bootstrap-icons.css";
@@ -22,6 +22,18 @@ const SERVICE_TYPE_LABELS = {
 const AXIS_MARGIN = { top: 24, right: 16, left: 8, bottom: 34 };
 const AXIS_LABEL_STYLE = { fontSize: "12px", fill: "#6b7280" };
 const Y_AXIS_LABEL_STYLE = { ...AXIS_LABEL_STYLE, textAnchor: "start" };
+const compactCurrency = (value) => (value ? `$${value >= 1000 ? (value / 1000).toFixed(1) + "k" : value}` : "");
+
+// Dark, high-contrast label style with a white halo so numbers stay readable regardless
+// of which colored bar/line they land on.
+const DATA_LABEL_STYLE = {
+  fontSize: 10,
+  fontWeight: 700,
+  fill: "#1f2937",
+  stroke: "#fff",
+  strokeWidth: 3,
+  paintOrder: "stroke"
+};
 
 export default function CommissionManagement() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -759,8 +771,12 @@ export default function CommissionManagement() {
                           contentStyle={{ backgroundColor: "#fff", border: "none", borderRadius: "12px", boxShadow: "0 10px 40px rgba(0,0,0,0.15)", padding: "12px 16px" }}
                           formatter={(value, name) => [formatAmount(value), name]}
                         />
-                        <Bar dataKey="grossAmount" name="Gross Revenue" fill="#10b981" radius={[4, 4, 0, 0]} maxBarSize={40} />
-                        <Line type="monotone" dataKey="commissionAmount" name="Platform Commission" stroke="#f59e0b" strokeWidth={2} dot={{ r: 3 }} />
+                        <Bar dataKey="grossAmount" name="Gross Revenue" fill="#10b981" radius={[4, 4, 0, 0]} maxBarSize={40}>
+                          <LabelList dataKey="grossAmount" position="top" formatter={compactCurrency} style={{ ...DATA_LABEL_STYLE, fontSize: 10 }} />
+                        </Bar>
+                        <Line type="monotone" dataKey="commissionAmount" name="Platform Commission" stroke="#f59e0b" strokeWidth={2} dot={{ r: 3 }}>
+                          <LabelList dataKey="commissionAmount" position="bottom" formatter={compactCurrency} style={{ ...DATA_LABEL_STYLE, fontSize: 10 }} />
+                        </Line>
                       </ComposedChart>
                     </ResponsiveContainer>
                   )}
@@ -1155,7 +1171,9 @@ export default function CommissionManagement() {
                                                           contentStyle={{ backgroundColor: "#fff", border: "none", borderRadius: "10px", boxShadow: "0 10px 40px rgba(0,0,0,0.15)", padding: "8px 12px" }}
                                                           formatter={(value, name) => [formatAmount(value), name]}
                                                         />
-                                                        <Bar dataKey="netAmount" name="Net Earnings" fill="#0ea5e9" radius={[4, 4, 0, 0]} maxBarSize={30} />
+                                                        <Bar dataKey="netAmount" name="Net Earnings" fill="#0ea5e9" radius={[4, 4, 0, 0]} maxBarSize={30}>
+                                                          <LabelList dataKey="netAmount" position="top" formatter={compactCurrency} style={{ ...DATA_LABEL_STYLE, fontSize: 10 }} />
+                                                        </Bar>
                                                       </BarChart>
                                                     </ResponsiveContainer>
                                                   )}

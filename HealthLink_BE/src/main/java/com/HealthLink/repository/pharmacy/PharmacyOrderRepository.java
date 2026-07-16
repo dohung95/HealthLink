@@ -83,15 +83,25 @@ public interface PharmacyOrderRepository extends JpaRepository<PharmacyOrder, In
         @Param("pharmacyId") String pharmacyId,
         @Param("statuses") List<String> statuses);
 
-    // Sum total amount by pharmacy, grouped by year+month — used for Commission Management
-    // yearly/monthly breakdown (rows: [year, month, totalAmount, count])
-    @Query("SELECT YEAR(o.createdAt), MONTH(o.createdAt), COALESCE(SUM(o.totalAmount), 0), COUNT(o) " +
+    // Sum total amount AND actual recorded platform fee by pharmacy, grouped by year+month —
+    // used for Commission Management yearly/monthly breakdown. Scoped to paymentStatus='PAID'
+    // (not the order fulfillment status) to match how Financial Reports defines "completed"
+    // revenue, and reads the real platformFee captured by FeeCalculatorService at payment time
+    // instead of recomputing totalAmount * currentRate.
+    // (rows: [year, month, totalAmount, platformFee, count])
+    @Query("SELECT YEAR(o.createdAt), MONTH(o.createdAt), COALESCE(SUM(o.totalAmount), 0), " +
+           "COALESCE(SUM(o.platformFee), 0), COUNT(o) " +
            "FROM PharmacyOrder o WHERE o.pharmacy.pharmacyId = :pharmacyId " +
-           "AND UPPER(o.status) IN :statuses " +
+           "AND UPPER(o.paymentStatus) = 'PAID' " +
            "GROUP BY YEAR(o.createdAt), MONTH(o.createdAt) " +
            "ORDER BY YEAR(o.createdAt), MONTH(o.createdAt)")
-    List<Object[]> sumTotalAmountByPharmacyGroupedByYearMonth(
-        @Param("pharmacyId") String pharmacyId,
-        @Param("statuses") List<String> statuses);
+    List<Object[]> sumCompletedAmountAndPlatformFeeByPharmacyGroupedByYearMonth(
+        @Param("pharmacyId") String pharmacyId);
+
+    // Count paid orders by pharmacy — scoped to paymentStatus='PAID' like the query above, so
+    // Commission Management's transaction count agrees with Financial Reports' completedTransactions.
+    @Query("SELECT COUNT(o) FROM PharmacyOrder o WHERE o.pharmacy.pharmacyId = :pharmacyId " +
+           "AND UPPER(o.paymentStatus) = 'PAID'")
+    Integer countPaidByPharmacy(@Param("pharmacyId") String pharmacyId);
 
     }

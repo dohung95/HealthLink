@@ -362,8 +362,6 @@ public class AdminCommissionServiceImpl implements AdminCommissionService {
 
     @Override
     public AdminCommissionDashboardDto getDashboard() {
-        LocalDateTime now = LocalDateTime.now();
-
         BigDecimal doctorGross = BigDecimal.ZERO;
         BigDecimal doctorCommission = BigDecimal.ZERO;
         BigDecimal pharmacyGross = BigDecimal.ZERO;
@@ -376,10 +374,8 @@ public class AdminCommissionServiceImpl implements AdminCommissionService {
 
         for (Doctor doctor : doctorRepo.findAll()) {
             String doctorId = doctor.getDoctorId();
-            BigDecimal onlineRate = resolveEffectiveDoctorRate(doctor, "CONSULTATION_ONLINE", now);
-            BigDecimal offlineRate = resolveEffectiveDoctorRate(doctor, "CONSULTATION_HOME_VISIT", now);
 
-            PartnerFinancials fin = computeDoctorFinancials(doctorId, onlineRate, offlineRate);
+            PartnerFinancials fin = computeDoctorFinancials(doctorId);
             doctorGross = doctorGross.add(fin.grossRevenue);
             doctorCommission = doctorCommission.add(fin.commissionAmount);
             totalPending = totalPending.add(fin.pendingSettlement);
@@ -395,19 +391,19 @@ public class AdminCommissionServiceImpl implements AdminCommissionService {
             }
 
             accumulateYearlyBuckets(yearlyMap,
-                adminAppointmentRepo.sumCompletedFeeByDoctorGroupedByYearMonth(doctorId, ONLINE_TYPES, OFFLINE_TYPES),
-                onlineRate, offlineRate, true);
+                adminAppointmentRepo.sumCompletedFeeAndPlatformFeeByDoctorGroupedByYearMonth(doctorId, ONLINE_TYPES, OFFLINE_TYPES),
+                true);
         }
 
         for (Pharmacy pharmacy : pharmacyRepo.findAll()) {
             String pharmacyId = pharmacy.getPharmacyId();
-            BigDecimal rate = resolveEffectivePharmacyRate(pharmacy, now);
 
-            PartnerFinancials fin = computePharmacyFinancials(pharmacyId, rate);
+            PartnerFinancials fin = computePharmacyFinancials(pharmacyId);
             pharmacyGross = pharmacyGross.add(fin.grossRevenue);
             pharmacyCommission = pharmacyCommission.add(fin.commissionAmount);
             totalPending = totalPending.add(fin.pendingSettlement);
-            totalTransactions += pharmacyOrderRepo.countByPharmacyAndStatuses(pharmacyId, PHARMACY_COMPLETED_STATUSES);
+            Integer paidCount = pharmacyOrderRepo.countPaidByPharmacy(pharmacyId);
+            totalTransactions += paidCount != null ? paidCount : 0;
 
             if (fin.pendingSettlement.compareTo(BigDecimal.ZERO) > 0) {
                 pharmacyPending.add(AdminRecipientSummaryDto.builder()
@@ -418,8 +414,8 @@ public class AdminCommissionServiceImpl implements AdminCommissionService {
             }
 
             accumulateYearlyBuckets(yearlyMap,
-                pharmacyOrderRepo.sumTotalAmountByPharmacyGroupedByYearMonth(pharmacyId, PHARMACY_COMPLETED_STATUSES),
-                rate, null, false);
+                pharmacyOrderRepo.sumCompletedAmountAndPlatformFeeByPharmacyGroupedByYearMonth(pharmacyId),
+                false);
         }
 
         doctorPending.sort((a, b) -> b.getPendingAmount().compareTo(a.getPendingAmount()));
@@ -450,7 +446,6 @@ public class AdminCommissionServiceImpl implements AdminCommissionService {
         if (year <= 0) {
             year = LocalDate.now().getYear();
         }
-        LocalDateTime now = LocalDateTime.now();
         Map<Integer, AdminMonthlyCommissionDto> monthMap = new LinkedHashMap<>();
         for (int m = 1; m <= 12; m++) {
             monthMap.put(m, AdminMonthlyCommissionDto.builder()
@@ -459,22 +454,19 @@ public class AdminCommissionServiceImpl implements AdminCommissionService {
         }
 
         for (Doctor doctor : doctorRepo.findAll()) {
-            BigDecimal onlineRate = resolveEffectiveDoctorRate(doctor, "CONSULTATION_ONLINE", now);
-            BigDecimal offlineRate = resolveEffectiveDoctorRate(doctor, "CONSULTATION_HOME_VISIT", now);
-            for (Object[] row : adminAppointmentRepo.sumCompletedFeeByDoctorGroupedByYearMonth(doctor.getDoctorId(), ONLINE_TYPES, OFFLINE_TYPES)) {
+            for (Object[] row : adminAppointmentRepo.sumCompletedFeeAndPlatformFeeByDoctorGroupedByYearMonth(doctor.getDoctorId(), ONLINE_TYPES, OFFLINE_TYPES)) {
                 if (((Number) row[0]).intValue() != year) {
                     continue;
                 }
-                mergeMonthRow(monthMap, row, onlineRate, offlineRate, true);
+                mergeMonthRow(monthMap, row, true);
             }
         }
         for (Pharmacy pharmacy : pharmacyRepo.findAll()) {
-            BigDecimal rate = resolveEffectivePharmacyRate(pharmacy, now);
-            for (Object[] row : pharmacyOrderRepo.sumTotalAmountByPharmacyGroupedByYearMonth(pharmacy.getPharmacyId(), PHARMACY_COMPLETED_STATUSES)) {
+            for (Object[] row : pharmacyOrderRepo.sumCompletedAmountAndPlatformFeeByPharmacyGroupedByYearMonth(pharmacy.getPharmacyId())) {
                 if (((Number) row[0]).intValue() != year) {
                     continue;
                 }
-                mergeMonthRow(monthMap, row, rate, null, false);
+                mergeMonthRow(monthMap, row, false);
             }
         }
 
@@ -486,13 +478,10 @@ public class AdminCommissionServiceImpl implements AdminCommissionService {
         if (limit <= 0) {
             limit = 10;
         }
-        LocalDateTime now = LocalDateTime.now();
         List<AdminRecipientSummaryDto> summaries = new ArrayList<>();
         if ("DOCTOR".equalsIgnoreCase(type)) {
             for (Doctor doctor : doctorRepo.findAll()) {
-                BigDecimal onlineRate = resolveEffectiveDoctorRate(doctor, "CONSULTATION_ONLINE", now);
-                BigDecimal offlineRate = resolveEffectiveDoctorRate(doctor, "CONSULTATION_HOME_VISIT", now);
-                PartnerFinancials fin = computeDoctorFinancials(doctor.getDoctorId(), onlineRate, offlineRate);
+                PartnerFinancials fin = computeDoctorFinancials(doctor.getDoctorId());
                 summaries.add(AdminRecipientSummaryDto.builder()
                     .recipientId(doctor.getDoctorId()).recipientName(doctor.getFullName()).recipientType("DOCTOR")
                     .totalGross(fin.grossRevenue).totalCommission(fin.commissionAmount).totalNet(fin.netEarnings)
@@ -501,8 +490,7 @@ public class AdminCommissionServiceImpl implements AdminCommissionService {
             }
         } else if ("PHARMACY".equalsIgnoreCase(type)) {
             for (Pharmacy pharmacy : pharmacyRepo.findAll()) {
-                BigDecimal rate = resolveEffectivePharmacyRate(pharmacy, now);
-                PartnerFinancials fin = computePharmacyFinancials(pharmacy.getPharmacyId(), rate);
+                PartnerFinancials fin = computePharmacyFinancials(pharmacy.getPharmacyId());
                 summaries.add(AdminRecipientSummaryDto.builder()
                     .recipientId(pharmacy.getPharmacyId()).recipientName(pharmacy.getName()).recipientType("PHARMACY")
                     .totalGross(fin.grossRevenue).totalCommission(fin.commissionAmount).totalNet(fin.netEarnings)
@@ -516,28 +504,24 @@ public class AdminCommissionServiceImpl implements AdminCommissionService {
 
     @Override
     public AdminPartnerCommissionHistoryDto getPartnerCommissionHistory(String partnerType, String partnerId) {
-        LocalDateTime now = LocalDateTime.now();
         Map<Integer, AdminYearlyCommissionDto> yearlyMap = new TreeMap<>();
         Map<String, AdminMonthlyCommissionDto> monthMap = new LinkedHashMap<>();
 
         if ("DOCTOR".equalsIgnoreCase(partnerType)) {
-            Doctor doctor = doctorRepo.findById(partnerId)
+            doctorRepo.findById(partnerId)
                 .orElseThrow(() -> new RuntimeException("Doctor not found: " + partnerId));
-            BigDecimal onlineRate = resolveEffectiveDoctorRate(doctor, "CONSULTATION_ONLINE", now);
-            BigDecimal offlineRate = resolveEffectiveDoctorRate(doctor, "CONSULTATION_HOME_VISIT", now);
-            List<Object[]> rows = adminAppointmentRepo.sumCompletedFeeByDoctorGroupedByYearMonth(partnerId, ONLINE_TYPES, OFFLINE_TYPES);
-            accumulateYearlyBuckets(yearlyMap, rows, onlineRate, offlineRate, true);
+            List<Object[]> rows = adminAppointmentRepo.sumCompletedFeeAndPlatformFeeByDoctorGroupedByYearMonth(partnerId, ONLINE_TYPES, OFFLINE_TYPES);
+            accumulateYearlyBuckets(yearlyMap, rows, true);
             for (Object[] row : rows) {
-                putMonthRow(monthMap, row, onlineRate, offlineRate, true);
+                putMonthRow(monthMap, row, true);
             }
         } else if ("PHARMACY".equalsIgnoreCase(partnerType)) {
-            Pharmacy pharmacy = pharmacyRepo.findById(partnerId)
+            pharmacyRepo.findById(partnerId)
                 .orElseThrow(() -> new RuntimeException("Pharmacy not found: " + partnerId));
-            BigDecimal rate = resolveEffectivePharmacyRate(pharmacy, now);
-            List<Object[]> rows = pharmacyOrderRepo.sumTotalAmountByPharmacyGroupedByYearMonth(partnerId, PHARMACY_COMPLETED_STATUSES);
-            accumulateYearlyBuckets(yearlyMap, rows, rate, null, false);
+            List<Object[]> rows = pharmacyOrderRepo.sumCompletedAmountAndPlatformFeeByPharmacyGroupedByYearMonth(partnerId);
+            accumulateYearlyBuckets(yearlyMap, rows, false);
             for (Object[] row : rows) {
-                putMonthRow(monthMap, row, rate, null, false);
+                putMonthRow(monthMap, row, false);
             }
         } else {
             throw new RuntimeException("Invalid partner type: " + partnerType);
@@ -681,13 +665,20 @@ public class AdminCommissionServiceImpl implements AdminCommissionService {
             .orElse(new BigDecimal("0.10"));
     }
 
-    private PartnerFinancials computeDoctorFinancials(String doctorId, BigDecimal onlineRate, BigDecimal offlineRate) {
-        BigDecimal onlineCompleted = nz(adminAppointmentRepo.sumFeeByDoctorAndStatusAndType(doctorId, COMPLETED_STATUSES, ONLINE_TYPES));
-        BigDecimal offlineCompleted = nz(adminAppointmentRepo.sumFeeByDoctorAndStatusAndType(doctorId, COMPLETED_STATUSES, OFFLINE_TYPES));
-
-        BigDecimal gross = onlineCompleted.add(offlineCompleted);
-        BigDecimal commission = onlineCompleted.multiply(onlineRate).setScale(2, RoundingMode.HALF_UP)
-            .add(offlineCompleted.multiply(offlineRate).setScale(2, RoundingMode.HALF_UP));
+    /**
+     * Sums the doctor's actual recorded gross/commission across every month they have activity,
+     * using the same real-Invoice-data source as {@link #accumulateYearlyBuckets} /
+     * {@link #mergeMonthRow} so the all-time total here always agrees with the monthly/yearly
+     * breakdown charts.
+     */
+    private PartnerFinancials computeDoctorFinancials(String doctorId) {
+        BigDecimal gross = BigDecimal.ZERO;
+        BigDecimal commission = BigDecimal.ZERO;
+        for (Object[] row : adminAppointmentRepo.sumCompletedFeeAndPlatformFeeByDoctorGroupedByYearMonth(doctorId, ONLINE_TYPES, OFFLINE_TYPES)) {
+            MonthlyRowValues v = parseMonthlyRow(row, true);
+            gross = gross.add(v.gross);
+            commission = commission.add(v.commission);
+        }
         BigDecimal net = gross.subtract(commission);
         BigDecimal completedSettlements = nz(settlementRepo.getTotalCompletedNetAmountByRecipient("DOCTOR", doctorId));
         BigDecimal pending = net.subtract(completedSettlements);
@@ -695,118 +686,122 @@ public class AdminCommissionServiceImpl implements AdminCommissionService {
         return new PartnerFinancials(gross, commission, net, pending);
     }
 
-    private PartnerFinancials computePharmacyFinancials(String pharmacyId, BigDecimal rate) {
-        BigDecimal completed = nz(pharmacyOrderRepo.sumTotalAmountByPharmacyAndStatuses(pharmacyId, PHARMACY_COMPLETED_STATUSES));
-
-        BigDecimal commission = completed.multiply(rate).setScale(2, RoundingMode.HALF_UP);
-        BigDecimal net = completed.subtract(commission);
+    private PartnerFinancials computePharmacyFinancials(String pharmacyId) {
+        BigDecimal gross = BigDecimal.ZERO;
+        BigDecimal commission = BigDecimal.ZERO;
+        for (Object[] row : pharmacyOrderRepo.sumCompletedAmountAndPlatformFeeByPharmacyGroupedByYearMonth(pharmacyId)) {
+            MonthlyRowValues v = parseMonthlyRow(row, false);
+            gross = gross.add(v.gross);
+            commission = commission.add(v.commission);
+        }
+        BigDecimal net = gross.subtract(commission);
         BigDecimal completedSettlements = nz(settlementRepo.getTotalCompletedNetAmountByRecipient("PHARMACY", pharmacyId));
         BigDecimal pending = net.subtract(completedSettlements);
 
-        return new PartnerFinancials(completed, commission, net, pending);
+        return new PartnerFinancials(gross, commission, net, pending);
     }
 
     private BigDecimal nz(BigDecimal value) {
         return value != null ? value : BigDecimal.ZERO;
     }
 
+    private static class MonthlyRowValues {
+        final BigDecimal gross;
+        final BigDecimal commission;
+        final long count;
+
+        MonthlyRowValues(BigDecimal gross, BigDecimal commission, long count) {
+            this.gross = gross;
+            this.commission = commission;
+            this.count = count;
+        }
+    }
+
+    /**
+     * Parses one grouped-by-year-month row into gross/commission/count. Doctor rows are
+     * [year, month, onlineFee, offlineFee, onlinePlatformFee, offlinePlatformFee, count];
+     * pharmacy rows are [year, month, totalAmount, platformFee, count]. Commission uses the
+     * ACTUAL platformFee recorded on the Invoice/PharmacyOrder at payment time — not gross times
+     * today's configured rate — so this agrees with Financial Reports and stays historically
+     * accurate even after a partner's commission rate changes later.
+     */
+    private MonthlyRowValues parseMonthlyRow(Object[] row, boolean isDoctorRows) {
+        if (isDoctorRows) {
+            BigDecimal onlineFee = toBigDecimal(row[2]);
+            BigDecimal offlineFee = toBigDecimal(row[3]);
+            BigDecimal onlineCommission = actualOrFallbackCommission(toBigDecimal(row[4]), onlineFee);
+            BigDecimal offlineCommission = actualOrFallbackCommission(toBigDecimal(row[5]), offlineFee);
+            long count = ((Number) row[6]).longValue();
+            return new MonthlyRowValues(onlineFee.add(offlineFee), onlineCommission.add(offlineCommission), count);
+        }
+        BigDecimal amount = toBigDecimal(row[2]);
+        BigDecimal commission = actualOrFallbackCommission(toBigDecimal(row[3]), amount);
+        long count = ((Number) row[4]).longValue();
+        return new MonthlyRowValues(amount, commission, count);
+    }
+
+    /**
+     * Mirrors AdminFinancialService's fallback: if no Invoice/PharmacyOrder platformFee was ever
+     * recorded for this bucket (sparse demo/test data) but there was revenue, estimate 10% — the
+     * same rule Financial Reports uses, so the two screens still agree in that edge case too.
+     */
+    private BigDecimal actualOrFallbackCommission(BigDecimal actualCommission, BigDecimal gross) {
+        if (actualCommission.compareTo(BigDecimal.ZERO) == 0 && gross.compareTo(BigDecimal.ZERO) > 0) {
+            return gross.multiply(new BigDecimal("0.10")).setScale(2, RoundingMode.HALF_UP);
+        }
+        return actualCommission;
+    }
+
     /**
      * Merge grouped-by-year-month rows into a running year-bucket map. Rows are either
-     * doctor shape [year, month, onlineFee, offlineFee, count] (isDoctorRows=true, rateB=offlineRate)
-     * or pharmacy shape [year, month, totalAmount, count] (isDoctorRows=false, rateB unused).
+     * doctor shape (isDoctorRows=true) or pharmacy shape (isDoctorRows=false) — see
+     * {@link #parseMonthlyRow} for the exact column layout of each.
      */
     private void accumulateYearlyBuckets(Map<Integer, AdminYearlyCommissionDto> yearlyMap, List<Object[]> rows,
-                                          BigDecimal rateA, BigDecimal rateB, boolean isDoctorRows) {
+                                          boolean isDoctorRows) {
         for (Object[] row : rows) {
             int year = ((Number) row[0]).intValue();
-            BigDecimal gross;
-            BigDecimal commission;
-            long count;
-            if (isDoctorRows) {
-                BigDecimal onlineFee = toBigDecimal(row[2]);
-                BigDecimal offlineFee = toBigDecimal(row[3]);
-                gross = onlineFee.add(offlineFee);
-                commission = onlineFee.multiply(rateA).setScale(2, RoundingMode.HALF_UP)
-                    .add(offlineFee.multiply(rateB).setScale(2, RoundingMode.HALF_UP));
-                count = ((Number) row[4]).longValue();
-            } else {
-                BigDecimal amount = toBigDecimal(row[2]);
-                gross = amount;
-                commission = amount.multiply(rateA).setScale(2, RoundingMode.HALF_UP);
-                count = ((Number) row[3]).longValue();
-            }
+            MonthlyRowValues v = parseMonthlyRow(row, isDoctorRows);
 
             AdminYearlyCommissionDto bucket = yearlyMap.computeIfAbsent(year, y -> AdminYearlyCommissionDto.builder()
                 .year(y).grossAmount(BigDecimal.ZERO).commissionAmount(BigDecimal.ZERO)
                 .netAmount(BigDecimal.ZERO).transactionCount(0L).build());
-            bucket.setGrossAmount(bucket.getGrossAmount().add(gross));
-            bucket.setCommissionAmount(bucket.getCommissionAmount().add(commission));
-            bucket.setNetAmount(bucket.getNetAmount().add(gross.subtract(commission)));
-            bucket.setTransactionCount(bucket.getTransactionCount() + count);
+            bucket.setGrossAmount(bucket.getGrossAmount().add(v.gross));
+            bucket.setCommissionAmount(bucket.getCommissionAmount().add(v.commission));
+            bucket.setNetAmount(bucket.getNetAmount().add(v.gross.subtract(v.commission)));
+            bucket.setTransactionCount(bucket.getTransactionCount() + v.count);
         }
     }
 
     /** Same row shapes as accumulateYearlyBuckets, merged into a pre-initialized (1..12) month map for one year. */
-    private void mergeMonthRow(Map<Integer, AdminMonthlyCommissionDto> monthMap, Object[] row,
-                                BigDecimal rateA, BigDecimal rateB, boolean isDoctorRows) {
+    private void mergeMonthRow(Map<Integer, AdminMonthlyCommissionDto> monthMap, Object[] row, boolean isDoctorRows) {
         int month = ((Number) row[1]).intValue();
-        BigDecimal gross;
-        BigDecimal commission;
-        long count;
-        if (isDoctorRows) {
-            BigDecimal onlineFee = toBigDecimal(row[2]);
-            BigDecimal offlineFee = toBigDecimal(row[3]);
-            gross = onlineFee.add(offlineFee);
-            commission = onlineFee.multiply(rateA).setScale(2, RoundingMode.HALF_UP)
-                .add(offlineFee.multiply(rateB).setScale(2, RoundingMode.HALF_UP));
-            count = ((Number) row[4]).longValue();
-        } else {
-            BigDecimal amount = toBigDecimal(row[2]);
-            gross = amount;
-            commission = amount.multiply(rateA).setScale(2, RoundingMode.HALF_UP);
-            count = ((Number) row[3]).longValue();
-        }
+        MonthlyRowValues v = parseMonthlyRow(row, isDoctorRows);
 
         AdminMonthlyCommissionDto bucket = monthMap.get(month);
         if (bucket == null) {
             return;
         }
-        bucket.setGrossAmount(bucket.getGrossAmount().add(gross));
-        bucket.setCommissionAmount(bucket.getCommissionAmount().add(commission));
-        bucket.setNetAmount(bucket.getNetAmount().add(gross.subtract(commission)));
-        bucket.setTransactionCount(bucket.getTransactionCount() + count);
+        bucket.setGrossAmount(bucket.getGrossAmount().add(v.gross));
+        bucket.setCommissionAmount(bucket.getCommissionAmount().add(v.commission));
+        bucket.setNetAmount(bucket.getNetAmount().add(v.gross.subtract(v.commission)));
+        bucket.setTransactionCount(bucket.getTransactionCount() + v.count);
     }
 
     /** Same row shapes, keyed by "year-month" into a growing (not pre-initialized) map spanning all years. */
-    private void putMonthRow(Map<String, AdminMonthlyCommissionDto> monthMap, Object[] row,
-                              BigDecimal rateA, BigDecimal rateB, boolean isDoctorRows) {
+    private void putMonthRow(Map<String, AdminMonthlyCommissionDto> monthMap, Object[] row, boolean isDoctorRows) {
         int year = ((Number) row[0]).intValue();
         int month = ((Number) row[1]).intValue();
-        BigDecimal gross;
-        BigDecimal commission;
-        long count;
-        if (isDoctorRows) {
-            BigDecimal onlineFee = toBigDecimal(row[2]);
-            BigDecimal offlineFee = toBigDecimal(row[3]);
-            gross = onlineFee.add(offlineFee);
-            commission = onlineFee.multiply(rateA).setScale(2, RoundingMode.HALF_UP)
-                .add(offlineFee.multiply(rateB).setScale(2, RoundingMode.HALF_UP));
-            count = ((Number) row[4]).longValue();
-        } else {
-            BigDecimal amount = toBigDecimal(row[2]);
-            gross = amount;
-            commission = amount.multiply(rateA).setScale(2, RoundingMode.HALF_UP);
-            count = ((Number) row[3]).longValue();
-        }
+        MonthlyRowValues v = parseMonthlyRow(row, isDoctorRows);
 
         String key = year + "-" + month;
         AdminMonthlyCommissionDto bucket = monthMap.computeIfAbsent(key, k -> AdminMonthlyCommissionDto.builder()
             .year(year).month(month).grossAmount(BigDecimal.ZERO).commissionAmount(BigDecimal.ZERO)
             .netAmount(BigDecimal.ZERO).transactionCount(0L).build());
-        bucket.setGrossAmount(bucket.getGrossAmount().add(gross));
-        bucket.setCommissionAmount(bucket.getCommissionAmount().add(commission));
-        bucket.setNetAmount(bucket.getNetAmount().add(gross.subtract(commission)));
-        bucket.setTransactionCount(bucket.getTransactionCount() + count);
+        bucket.setGrossAmount(bucket.getGrossAmount().add(v.gross));
+        bucket.setCommissionAmount(bucket.getCommissionAmount().add(v.commission));
+        bucket.setNetAmount(bucket.getNetAmount().add(v.gross.subtract(v.commission)));
+        bucket.setTransactionCount(bucket.getTransactionCount() + v.count);
     }
 
     private BigDecimal toBigDecimal(Object value) {
@@ -1062,7 +1057,7 @@ public class AdminCommissionServiceImpl implements AdminCommissionService {
 
         // Financial summary — computed live from real Appointments (not the CommissionTransactions
         // ledger, which nothing populates outside seed data; see AdminCommissionServiceImpl history).
-        PartnerFinancials financials = computeDoctorFinancials(doctorId, effectiveOnlineRate, effectiveOfflineRate);
+        PartnerFinancials financials = computeDoctorFinancials(doctorId);
 
         // Online appointment statistics
         Integer onlinePendingCount = adminAppointmentRepo.countByDoctorAndStatusAndType(doctorId, PENDING_STATUSES, ONLINE_TYPES);
@@ -1142,7 +1137,7 @@ public class AdminCommissionServiceImpl implements AdminCommissionService {
 
         // Financial summary — computed live from real PharmacyOrders (not the CommissionTransactions
         // ledger, which nothing populates outside seed data; see AdminCommissionServiceImpl history).
-        PartnerFinancials financials = computePharmacyFinancials(pharmacyId, effectiveRate);
+        PartnerFinancials financials = computePharmacyFinancials(pharmacyId);
 
         // Pharmacy order statistics
         Integer pharmacyPendingCount = pharmacyOrderRepo.countByPharmacyAndStatuses(pharmacyId, PHARMACY_PENDING_STATUSES);
