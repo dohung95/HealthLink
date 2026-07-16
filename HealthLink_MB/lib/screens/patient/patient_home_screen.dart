@@ -16,6 +16,7 @@ import '../../services/notification/notification_realtime_service.dart';
 import 'notifications/notification_center_sheet.dart';
 import '../../l10n/app_localizations.dart';
 import 'medicine_reminder/medicine_reminder_screen.dart';
+import '../../utils/notification_helper.dart';
 
 class PatientHomeScreen extends StatefulWidget {
   const PatientHomeScreen({
@@ -149,54 +150,20 @@ class _PatientHomeScreenState extends State<PatientHomeScreen> {
   }
 
   void _showRealtimeNotificationSnack(NotificationItem notification) {
-    final colors = Theme.of(context).colorScheme;
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        behavior: SnackBarBehavior.floating,
-        backgroundColor: colors.primary,
-        duration: const Duration(seconds: 4),
-        content: Row(
-          children: [
-            Icon(
-              Icons.notifications_active_outlined,
-              color: colors.onPrimary,
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    notification.title,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: colors.onPrimary,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    notification.message,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: colors.onPrimary.withOpacity(0.9),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-        action: SnackBarAction(
-          label: 'View',
-          textColor: colors.onPrimary,
-          onPressed: _openNotificationCenter,
-        ),
-      ),
+    if (!mounted) return;
+    
+    NotificationHelper.showTopNotification(
+      Overlay.of(context),
+      title: notification.title,
+      message: notification.message,
+      icon: Icons.event_available_outlined,
+      backgroundColor: Theme.of(context).colorScheme.surface,
+      iconColor: Theme.of(context).colorScheme.primary,
+      textColor: Theme.of(context).colorScheme.onSurface,
+      subtitleColor: Theme.of(context).colorScheme.onSurfaceVariant,
+      duration: const Duration(seconds: 4),
+      onTap: _openNotificationCenter,
+      playSound: true,
     );
   }
 
