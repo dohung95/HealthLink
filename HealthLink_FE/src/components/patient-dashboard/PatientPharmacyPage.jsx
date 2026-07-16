@@ -2,8 +2,6 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { toast } from 'sonner';
 import { useAuth } from '../../context/AuthContext';
-import { useNotifications } from '../../context/NotificationContext';
-import { useChat } from '../../context/ChatContext';
 import pharmacyApi from '../../api/pharmacyApi';
 import { getProfile } from '../../api/account';
 import { paymentApi } from '../../api/paymentApi';
@@ -26,6 +24,7 @@ import FulfillmentMapPicker from './pharmacy-store/FulfillmentMapPicker';
 import { applyMapPin } from './pharmacy-store/mapPinPolicy';
 import { applyManualGeocodeResult } from './pharmacy-store/manualAddressPolicy';
 import { resolvePharmacyRevalidation } from './pharmacy-store/pharmacySelectionPolicy';
+import { buildPrescriptionPharmacyRequestPayload } from './pharmacy-order-request';
 import './PatientPharmacy.css';
 
 function isPrescriptionBasedOrder(order) {
@@ -106,14 +105,10 @@ export default function PatientPharmacyPage() {
 }
 
 function PharmacyWizard({ userId, navigate, location }) {
-  const { latestRealtimeNotification } = useNotifications();
   const autoSelectId = location?.state?.autoSelectPrescriptionId;
-  const [flowType, setFlowType] = useState('ORDER_REQUEST');
   const [step, setStep] = useState(autoSelectId ? 'fulfillment' : 'prescription');
   const [prescriptionHeaderId, setPrescriptionHeaderId] = useState(autoSelectId || null);
   const [prescriptions, setPrescriptions] = useState([]);
-  const [selectedPharmacy, setSelectedPharmacy] = useState(null);
-  const [request, setRequest] = useState(null);
   const [geolocation, setGeolocation] = useState(null);
   const [geoTried, setGeoTried] = useState(false);
   const [patientProfile, setPatientProfile] = useState(null);
@@ -125,7 +120,7 @@ function PharmacyWizard({ userId, navigate, location }) {
     longitude: null,
     source: 'MANUAL',
   });
-  const steps = flowType === 'CONSULTATION' ? ['prescription', 'fulfillment', 'pharmacy', 'connect'] : ['prescription', 'fulfillment', 'pharmacy', 'submitted'];
+  const steps = ['prescription', 'fulfillment', 'pharmacy', 'submitted'];
   const stepIndex = steps.indexOf(step);
 
   useEffect(() => {
@@ -149,57 +144,35 @@ function PharmacyWizard({ userId, navigate, location }) {
   }, []);
 
   const handleSelectPrescription = (id) => {
-    setFlowType('ORDER_REQUEST');
     setPrescriptionHeaderId(id);
     setStep('fulfillment');
   };
 
-  const handleSkipPrescription = () => {
-    setFlowType('CONSULTATION');
-    setPrescriptionHeaderId(null);
-    setStep('fulfillment');
-  };
-
   const handleSelectPharmacy = async (pharmacy) => {
-    setSelectedPharmacy(pharmacy);
-
     try {
-      const isOrderRequest = flowType === 'ORDER_REQUEST';
-      const payload = {
+      const payload = buildPrescriptionPharmacyRequestPayload({
         patientId: userId,
         pharmacyId: pharmacy.pharmacyId,
-        requestType: flowType,
-        preferredDeliveryType: fulfillmentType,
-        deliveryType: fulfillmentType,
-        deliveryAddress: deliveryContact?.deliveryAddress,
-        deliveryLatitude: deliveryContact?.deliveryLatitude,
-        deliveryLongitude: deliveryContact?.deliveryLongitude,
-        deliveryPhoneNumber: deliveryContact?.deliveryPhoneNumber,
-        deliveryAddressSource: deliveryContact?.deliveryAddressSource,
-        ...(isOrderRequest && { prescriptionHeaderIds: [prescriptionHeaderId] }),
-        ...(!isOrderRequest && { prescriptionHeaderIds: [] }),
-      };
+        prescriptionHeaderId,
+        fulfillmentType,
+        deliveryContact,
+      });
       const created = await pharmacyApi.createConsultationRequest(payload);
 
-      if (isOrderRequest) {
-        if (created.pharmacyOrderId) {
-          if (fulfillmentType === 'Delivery') {
-            toast.success('Order placed. Waiting for pharmacy to confirm delivery.');
-          } else {
-            toast.success('Order confirmed. Ready for pickup at the pharmacy.');
-          }
-          navigate(`/patient-dashboard/pharmacy/orders/${created.pharmacyOrderId}`);
+      if (created.pharmacyOrderId) {
+        if (fulfillmentType === 'Delivery') {
+          toast.success('Order placed. Waiting for pharmacy to confirm delivery.');
         } else {
-          toast.success('Request sent for pharmacy review.');
-          navigate('/patient-dashboard/pharmacy/requests');
+          toast.success('Order confirmed. Ready for pickup at the pharmacy.');
         }
+        navigate(`/patient-dashboard/pharmacy/orders/${created.pharmacyOrderId}`);
         return;
       }
 
-      setRequest(created);
-      setStep('connect');
+      toast.success('Request sent for pharmacy review.');
+      navigate('/patient-dashboard/pharmacy/requests');
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Failed to create consultation request.');
+      toast.error(err.response?.data?.message || err.message || 'Failed to create pharmacy order request.');
       setStep('pharmacy');
     }
   };
@@ -208,29 +181,6 @@ function PharmacyWizard({ userId, navigate, location }) {
     const idx = steps.indexOf(step);
     if (idx > 0) setStep(steps[idx - 1]);
   };
-
-  const handleRequestUpdated = (updatedRequest, { source } = {}) => {
-    setRequest(updatedRequest);
-    if (source === 'poll' && updatedRequest.status === 'ORDER_CREATED' && updatedRequest.pharmacyOrderId) {
-      toast.info('Pharmacy order created', {
-        id: getWorkflowToastId({ type: 'NEW_ORDER', relatedId: updatedRequest.pharmacyOrderId }),
-        description: 'Your pharmacy has prepared an order for review.',
-        action: {
-          label: 'Open',
-          onClick: () => navigate(`/patient-dashboard/pharmacy/orders/${updatedRequest.pharmacyOrderId}`),
-        },
-      });
-    }
-  };
-
-  useEffect(() => {
-    if (request?.status !== 'IN_REVIEW' || String(latestRealtimeNotification?.type || '').toUpperCase() !== 'NEW_ORDER') {
-      return;
-    }
-    pharmacyApi.getConsultationRequestById(request.requestId)
-      .then((updated) => handleRequestUpdated(updated, { source: 'realtime' }))
-      .catch(() => undefined);
-  }, [latestRealtimeNotification, request?.requestId, request?.status]);
 
   if (stepIndex === -1) return null;
 
@@ -253,10 +203,8 @@ function PharmacyWizard({ userId, navigate, location }) {
 
       {step === 'prescription' && (
         <PrescriptionStep
-          mode={flowType}
           userId={userId}
           onSelect={handleSelectPrescription}
-          onSkip={handleSkipPrescription}
           prescriptions={prescriptions}
           setPrescriptions={setPrescriptions}
         />
@@ -290,22 +238,11 @@ function PharmacyWizard({ userId, navigate, location }) {
           onBack={handleGoBack}
         />
       )}
-
-      {step === 'connect' && (
-        <ConnectStep
-          request={request}
-          pharmacy={selectedPharmacy}
-          geolocation={geolocation}
-          userId={userId}
-          onRequestUpdated={handleRequestUpdated}
-          onBack={handleGoBack}
-        />
-      )}
     </div>
   );
 }
 
-function PrescriptionStep({ mode, userId, onSelect, onSkip, prescriptions, setPrescriptions }) {
+function PrescriptionStep({ userId, onSelect, prescriptions, setPrescriptions }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -320,8 +257,8 @@ function PrescriptionStep({ mode, userId, onSelect, onSkip, prescriptions, setPr
 
   return (
     <div>
-      <h5 className="fw-semibold mb-1">Do you have a prescription?</h5>
-      <p className="text-muted small mb-3">Select an existing prescription or skip to browse pharmacies without one.</p>
+      <h5 className="fw-semibold mb-1">Select a prescription</h5>
+      <p className="text-muted small mb-3">A valid prescription is required before sending a request to a pharmacy.</p>
 
       {loading ? (
         <div className="text-center py-4">
@@ -345,13 +282,10 @@ function PrescriptionStep({ mode, userId, onSelect, onSkip, prescriptions, setPr
       ) : (
         <div className="text-center py-4 text-muted">
           <i className="bi bi-prescription2" style={{ fontSize: '2rem' }}></i>
-          <p className="mt-2">No prescriptions found.</p>
+          <p className="mt-2 mb-1">No prescriptions found.</p>
+          <small>You need a prescription before requesting medication from a pharmacy.</small>
         </div>
       )}
-
-      <button className="btn btn-outline-secondary" onClick={onSkip}>
-        <i className="bi bi-skip-forward me-1"></i>Skip, I don't have a prescription
-      </button>
     </div>
   );
 }
@@ -734,167 +668,6 @@ function FulfillmentStep({ profile, geolocation, geoTried, fulfillmentType, setF
   );
 }
 
-function ConnectStep({ request, pharmacy, geolocation, userId, onRequestUpdated, onBack }) {
-  const { openChatWith } = useChat();
-  const [polling, setPolling] = useState(null);
-  const startTime = useRef(Date.now());
-
-  useEffect(() => {
-    if (!request || !['PENDING', 'IN_REVIEW'].includes(request.status)) return;
-
-    const poll = setInterval(async () => {
-      try {
-        const updated = await pharmacyApi.getConsultationRequestById(request.requestId);
-        if (updated.status !== request.status || updated.pharmacyOrderId !== request.pharmacyOrderId) {
-          onRequestUpdated(updated, { source: 'poll' });
-        }
-        if (['ORDER_CREATED', 'CANCELLED'].includes(updated.status)) {
-          setPolling(null);
-          clearInterval(poll);
-        }
-      } catch { }
-    }, 5000);
-
-    setPolling(poll);
-    return () => { if (poll) clearInterval(poll); };
-  }, [request?.pharmacyOrderId, request?.requestId, request?.status, onRequestUpdated]);
-
-  useEffect(() => {
-    return () => { if (polling) clearInterval(polling); };
-  }, [polling]);
-
-  const [elapsed, setElapsed] = useState('00:00');
-  useEffect(() => {
-    if (request?.status !== 'PENDING') return;
-    const timer = setInterval(() => {
-      const diff = Math.floor((Date.now() - startTime.current) / 1000);
-      const m = String(Math.floor(diff / 60)).padStart(2, '0');
-      const s = String(diff % 60).padStart(2, '0');
-      setElapsed(`${m}:${s}`);
-    }, 1000);
-    return () => clearInterval(timer);
-  }, [request?.status]);
-
-  if (!request) return null;
-
-  const isPending = request.status === 'PENDING';
-  const isConnected = request.status === 'IN_REVIEW';
-  const isOrderCreated = request.status === 'ORDER_CREATED';
-  const isCancelled = request.status === 'CANCELLED';
-
-  const handleRefreshOrder = async () => {
-    try {
-      const updated = await pharmacyApi.getConsultationRequestById(request.requestId);
-      onRequestUpdated(updated);
-    } catch { }
-  };
-
-  return (
-    <div className="text-center py-4">
-      {/* Pharmacy card */}
-      <div className="card shadow-sm mx-auto mb-4" style={{ maxWidth: 400 }}>
-        <div className="card-body">
-          <div className="rounded-circle bg-light d-flex align-items-center justify-content-center mx-auto mb-2"
-            style={{ width: 64, height: 64 }}>
-            <i className="bi bi-shop fs-2 text-success"></i>
-          </div>
-          <h5 className="fw-semibold mb-1">{pharmacy?.name || 'Pharmacy'}</h5>
-          <p className="small text-muted mb-0">{pharmacy?.address}</p>
-          {pharmacy?.distanceLabel && (
-            <span className="small text-primary"><i className="bi bi-geo-alt me-1"></i>{pharmacy.distanceLabel}</span>
-          )}
-        </div>
-      </div>
-
-      {/* Timeline */}
-      <div className="d-flex justify-content-center gap-4 mb-4">
-        <div className="text-center">
-          <div className={`rounded-circle d-flex align-items-center justify-content-center mx-auto mb-1 ${isPending || isConnected || isOrderCreated ? 'bg-success text-white' : 'bg-light text-muted'}`}
-            style={{ width: 36, height: 36 }}>
-            <i className="bi bi-check-lg"></i>
-          </div>
-          <small className="text-muted">Request sent</small>
-        </div>
-        <div className="align-self-center border-top flex-grow-1" style={{ maxWidth: 60 }} />
-        <div className="text-center">
-          <div className={`rounded-circle d-flex align-items-center justify-content-center mx-auto mb-1 ${isPending ? 'bg-warning pulse-animation' : isConnected || isOrderCreated ? 'bg-success text-white' : 'bg-light text-muted'}`}
-            style={{ width: 36, height: 36 }}>
-            {isPending ? <span className="spinner-grow spinner-grow-sm"></span> : <i className="bi bi-check-lg"></i>}
-          </div>
-          <small className="text-muted">Waiting</small>
-        </div>
-        <div className="align-self-center border-top flex-grow-1" style={{ maxWidth: 60 }} />
-        <div className="text-center">
-          <div className={`rounded-circle d-flex align-items-center justify-content-center mx-auto mb-1 ${isConnected || isOrderCreated ? 'bg-success text-white' : 'bg-light text-muted'}`}
-            style={{ width: 36, height: 36 }}>
-            <i className="bi bi-plug"></i>
-          </div>
-          <small className="text-muted">Connected</small>
-        </div>
-      </div>
-
-      {isPending && (
-        <>
-          <div className="mb-3">
-            <div className="spinner-border text-primary mb-2" role="status" />
-            <p className="fw-medium mb-1">Waiting for pharmacy to accept...</p>
-            <p className="small text-muted">Elapsed: {elapsed}</p>
-          </div>
-          <button className="btn btn-sm btn-outline-secondary" onClick={() => {
-            pharmacyApi.getConsultationRequestById(request.requestId).then(onRequestUpdated).catch(() => { });
-          }}>
-            <i className="bi bi-arrow-clockwise me-1"></i>Refresh
-          </button>
-        </>
-      )}
-
-      {isConnected && (
-        <div>
-          <div className="alert alert-success mb-3">
-            <i className="bi bi-check-circle-fill me-2"></i>
-            Pharmacy has accepted your request! You are now connected.
-          </div>
-          <div className="d-flex justify-content-center gap-2">
-            <button className="btn btn-primary" onClick={() => {
-              if (openChatWith) openChatWith({ uid: request.patientId, displayName: request.patientName ? request.patientName : `Patient #${request.patientId}` });
-            }}>
-              <i className="bi bi-chat-dots-fill me-1"></i>Chat
-            </button>
-            <button className="btn btn-outline-primary" onClick={handleRefreshOrder}>
-              <i className="bi bi-arrow-clockwise me-1"></i>Check for order
-            </button>
-          </div>
-        </div>
-      )}
-
-      {isOrderCreated && request.pharmacyOrderId && (
-        <div>
-          <div className="alert alert-info mb-3">
-            <i className="bi bi-file-text me-2"></i>
-            Pharmacy has created an order for you!
-          </div>
-          <Link className="btn btn-primary" to={`/patient-dashboard/pharmacy/orders/${request.pharmacyOrderId}`}>
-            <i className="bi bi-eye me-1"></i>View Order & Confirm
-          </Link>
-        </div>
-      )}
-
-      {isCancelled && (
-        <div className="alert alert-danger">
-          <i className="bi bi-x-circle-fill me-2"></i>
-          Request was cancelled.
-        </div>
-      )}
-
-      {isPending && (
-        <button className="btn btn-sm btn-outline-danger mt-3" onClick={onBack}>
-          <i className="bi bi-arrow-left me-1"></i>Back to pharmacy list
-        </button>
-      )}
-    </div>
-  );
-}
-
 function RequestsView({ userId }) {
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -1034,7 +807,8 @@ function PharmacyPayPalButton({ order, onPaid, onCancel, onError, onFail }) {
   const [processing, setProcessing] = useState(false);
 
   useEffect(() => {
-    if (!order?.orderId || !buttonRef.current || order.paymentStatus === 'PAID') return;
+    const buttonContainer = buttonRef.current;
+    if (!order?.orderId || !buttonContainer || order.paymentStatus === 'PAID') return;
 
     const clientId = import.meta.env.VITE_PAYPAL_CLIENT_ID;
     if (!clientId) {
@@ -1043,12 +817,12 @@ function PharmacyPayPalButton({ order, onPaid, onCancel, onError, onFail }) {
     }
 
     let cancelled = false;
-    buttonRef.current.innerHTML = '';
+    buttonContainer.innerHTML = '';
     setLoadingSdk(true);
 
     loadPayPalSdk(clientId, 'USD')
       .then((paypal) => {
-        if (cancelled || !paypal || !buttonRef.current) return;
+        if (cancelled || !paypal) return;
 
         paypal.Buttons({
           style: {
@@ -1104,7 +878,7 @@ function PharmacyPayPalButton({ order, onPaid, onCancel, onError, onFail }) {
             toast.error('PayPal could not process this payment.');
             onError?.();
           },
-        }).render(buttonRef.current);
+        }).render(buttonContainer);
       })
       .catch((error) => {
         console.error('Could not load PayPal SDK', error);
@@ -1116,9 +890,7 @@ function PharmacyPayPalButton({ order, onPaid, onCancel, onError, onFail }) {
 
     return () => {
       cancelled = true;
-      if (buttonRef.current) {
-        buttonRef.current.innerHTML = '';
-      }
+      buttonContainer.innerHTML = '';
     };
   }, [order?.orderId, order?.paymentStatus, onPaid, onCancel, onError, onFail]);
 

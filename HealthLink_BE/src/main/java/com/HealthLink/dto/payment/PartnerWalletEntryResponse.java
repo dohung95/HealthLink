@@ -21,6 +21,8 @@ public class PartnerWalletEntryResponse {
     private String description;
     private Integer appointmentId;
     private Integer pharmacyOrderId;
+    private BigDecimal grossAmount;
+    private BigDecimal commissionAmount;
     private Integer settlementId;
     private String settlementNumber;
     private String paypalEmail;

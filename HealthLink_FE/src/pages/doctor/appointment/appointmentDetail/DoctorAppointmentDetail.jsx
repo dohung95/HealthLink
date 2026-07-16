@@ -8,8 +8,13 @@ import {
   toLocalDateValue, buildFollowUpDateTime,
 } from '@utils/doctor/tabHelpers';
 import { useAppointmentDetail } from '@hooks/doctor/useAppointmentDetail';
+import {
+  DOCTOR_WORKSPACE_TABS,
+  shouldSaveConsultationNotesOnTabChange,
+} from '@utils/doctor/doctorWorkspaceModel';
 import NotesTab from './tabs/NotesTab';
 import HistoryTab from './tabs/HistoryTab';
+import PrescriptionTab from './tabs/PrescriptionTab';
 import SharedRecordsTab from './tabs/SharedRecordsTab';
 import FollowUpTab from './tabs/FollowUpTab';
 import ClinicalResultsTab from './tabs/ClinicalResultsTab';
@@ -20,16 +25,15 @@ import PatientSummarySidebar from '@components/doctor/PatientSummarySidebar';
 import DoctorVitalsGate from '@components/doctor/DoctorVitalsGate';
 import ConsultationTimerStrip from '@components/doctor/ConsultationTimerStrip';
 
-const TABS = [
-  { id: 'notes', label: 'Consultation Notes', icon: 'bi-journal-text' },
-  { id: 'history', label: 'Medical History', icon: 'bi-clock-history' },
-  { id: 'shared', label: 'Shared Records', icon: 'bi-folder2-open' },
-  { id: 'clinical-results', label: 'Clinical Results', icon: 'bi-clipboard2-pulse' },
-  { id: 'followup', label: 'Follow-up', icon: 'bi-calendar-check' },
-];
-
 const DoctorAppointmentDetail = memo(({ appointment, patient, doctorId, activeMiniChatAppt, setActiveMiniChatAppt, onBack, onOpenAppointmentById }) => {
   const ctx = useAppointmentDetail({ appointment, patient, doctorId, activeMiniChatAppt, setActiveMiniChatAppt, onBack, onOpenAppointmentById });
+
+  const handleTabChange = (nextTab) => {
+    if (shouldSaveConsultationNotesOnTabChange(ctx.activeTab, nextTab, ctx.notesDirty)) {
+      void ctx.handleSaveNotes();
+    }
+    ctx.setActiveTab(nextTab);
+  };
 
   const getRowTimings = (row) => {
     const source = Array.isArray(row?.timings) && row.timings.length > 0
@@ -148,11 +152,11 @@ const DoctorAppointmentDetail = memo(({ appointment, patient, doctorId, activeMi
                 </div>
 
                 <div className="doctor-detail-tabs" role="tablist" aria-label="Appointment detail tabs">
-                  {TABS.map((tab) => (
+                  {DOCTOR_WORKSPACE_TABS.map((tab) => (
                     <button
                       key={tab.id}
                       className={`doctor-detail-tab ${ctx.activeTab === tab.id ? 'doctor-detail-tab--active' : ''}`}
-                      onClick={() => ctx.setActiveTab(tab.id)}
+                      onClick={() => handleTabChange(tab.id)}
                       type="button"
                       title={tab.label}
                       aria-label={tab.label}
@@ -164,7 +168,7 @@ const DoctorAppointmentDetail = memo(({ appointment, patient, doctorId, activeMi
                 </div>
 
                 <div className="doctor-detail-tab-panel doctor-detail-tab-panel--workspace">
-                  {ctx.activeTab === 'notes' ? (
+                  <div hidden={ctx.activeTab !== 'notes'}>
                     <NotesTab
                       loadingAppointment={ctx.loadingAppointment}
                       canEditClinical={ctx.canEditClinical}
@@ -172,7 +176,7 @@ const DoctorAppointmentDetail = memo(({ appointment, patient, doctorId, activeMi
                       onNotesChange={ctx.handleNotesDraftChange}
                       onSaveNotes={ctx.handleSaveNotes}
                     />
-                  ) : null}
+                  </div>
                   {ctx.activeTab === 'history' ? (
                     <HistoryTab
                       loadingHistory={ctx.loadingHistory}
@@ -195,6 +199,20 @@ const DoctorAppointmentDetail = memo(({ appointment, patient, doctorId, activeMi
                       patientId={ctx.patientId}
                       canManageClinicalResults={ctx.canManageClinicalResults}
                       isCancelledAppointment={ctx.isCancelledAppointment}
+                    />
+                  ) : null}
+
+                  {ctx.activeTab === 'prescription' ? (
+                    <PrescriptionTab
+                      appointment={ctx.currentAppointment}
+                      patient={ctx.patient}
+                      consultation={ctx.consultation}
+                      prescription={ctx.prescription}
+                      prescriptionDraft={ctx.prescriptionDraft}
+                      loadingPrescription={ctx.loadingPrescription}
+                      onDraftChange={ctx.setPrescriptionDraft}
+                      readOnly={ctx.isReadOnlyAppointment}
+                      canEditPrescription={ctx.canEditPrescription}
                     />
                   ) : null}
 

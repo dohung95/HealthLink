@@ -1,166 +1,166 @@
 SET XACT_ABORT ON;
 BEGIN TRANSACTION;
 
-IF OBJECT_ID('dbo.partner_wallet_entries', 'U') IS NULL
+IF OBJECT_ID('dbo.PartnerWalletEntries', 'U') IS NULL
 BEGIN
-    CREATE TABLE dbo.partner_wallet_entries (
-        entry_id BIGINT IDENTITY(1,1) NOT NULL CONSTRAINT PK_PartnerWalletEntries PRIMARY KEY,
-        partner_type VARCHAR(20) NOT NULL,
-        partner_id VARCHAR(450) NOT NULL,
-        entry_type VARCHAR(20) NOT NULL,
+    CREATE TABLE dbo.PartnerWalletEntries (
+        EntryId BIGINT IDENTITY(1,1) NOT NULL CONSTRAINT PK_PartnerWalletEntries PRIMARY KEY,
+        partnerType VARCHAR(20) NOT NULL,
+        partnerId VARCHAR(450) NOT NULL,
+        entryType VARCHAR(20) NOT NULL,
         status VARCHAR(20) NOT NULL,
         amount DECIMAL(18,2) NOT NULL,
-        commission_transaction_id INT NULL,
-        settlement_id INT NULL,
-        appointment_id INT NULL,
-        pharmacy_order_id INT NULL,
-        payment_id INT NULL,
-        idempotency_key VARCHAR(180) NOT NULL,
+        commissionTransactionId INT NULL,
+        settlementId INT NULL,
+        appointmentId INT NULL,
+        pharmacyOrderId INT NULL,
+        paymentId INT NULL,
+        IdempotencyKey VARCHAR(180) NOT NULL,
         description VARCHAR(500) NULL,
-        effective_at DATETIME2 NOT NULL,
-        created_at DATETIME2 NOT NULL,
-        updated_at DATETIME2 NOT NULL
+        effectiveAt DATETIME2 NOT NULL,
+        createdAt DATETIME2 NOT NULL,
+        updatedAt DATETIME2 NOT NULL
     );
 END;
 
-IF COL_LENGTH('dbo.commission_transactions', 'refunded_at') IS NULL
-    ALTER TABLE dbo.commission_transactions ADD refunded_at DATETIME2 NULL;
+IF COL_LENGTH('dbo.CommissionTransactions', 'RefundedAt') IS NULL
+    ALTER TABLE dbo.CommissionTransactions ADD RefundedAt DATETIME2 NULL;
 
-IF COL_LENGTH('dbo.settlements', 'payout_batch_id') IS NULL
-    ALTER TABLE dbo.settlements ADD payout_batch_id VARCHAR(255) NULL;
+IF COL_LENGTH('dbo.Settlements', 'payout_batch_id') IS NULL
+    ALTER TABLE dbo.Settlements ADD payout_batch_id VARCHAR(255) NULL;
 
-IF COL_LENGTH('dbo.settlements', 'external_status') IS NULL
-    ALTER TABLE dbo.settlements ADD external_status VARCHAR(50) NULL;
+IF COL_LENGTH('dbo.Settlements', 'external_status') IS NULL
+    ALTER TABLE dbo.Settlements ADD external_status VARCHAR(50) NULL;
 
-IF COL_LENGTH('dbo.settlements', 'last_reconciled_at') IS NULL
-    ALTER TABLE dbo.settlements ADD last_reconciled_at DATETIME2 NULL;
+IF COL_LENGTH('dbo.Settlements', 'last_reconciled_at') IS NULL
+    ALTER TABLE dbo.Settlements ADD last_reconciled_at DATETIME2 NULL;
 
-IF COL_LENGTH('dbo.settlements', 'client_request_id') IS NULL
-    ALTER TABLE dbo.settlements ADD client_request_id VARCHAR(100) NULL;
+IF COL_LENGTH('dbo.Settlements', 'client_request_id') IS NULL
+    ALTER TABLE dbo.Settlements ADD client_request_id VARCHAR(100) NULL;
 
 IF NOT EXISTS (
     SELECT 1 FROM sys.indexes
-    WHERE object_id = OBJECT_ID('dbo.settlements')
+    WHERE object_id = OBJECT_ID('dbo.Settlements')
       AND name = 'UX_Settlements_PayoutBatchId'
 )
     CREATE UNIQUE INDEX UX_Settlements_PayoutBatchId
-        ON dbo.settlements (payout_batch_id)
+        ON dbo.Settlements (payout_batch_id)
         WHERE payout_batch_id IS NOT NULL;
 
 IF NOT EXISTS (
     SELECT 1 FROM sys.indexes
-    WHERE object_id = OBJECT_ID('dbo.settlements')
+    WHERE object_id = OBJECT_ID('dbo.Settlements')
       AND name = 'UX_Settlements_PartnerClientRequestId'
 )
     CREATE UNIQUE INDEX UX_Settlements_PartnerClientRequestId
-        ON dbo.settlements (recipient_type, recipient_id, client_request_id)
+        ON dbo.Settlements (recipientType, recipientId, client_request_id)
         WHERE client_request_id IS NOT NULL;
 
 IF NOT EXISTS (
     SELECT 1 FROM sys.indexes
-    WHERE object_id = OBJECT_ID('dbo.partner_wallet_entries')
+    WHERE object_id = OBJECT_ID('dbo.PartnerWalletEntries')
       AND name = 'IX_PartnerWalletEntries_PartnerId_EffectiveAt'
 )
     CREATE INDEX IX_PartnerWalletEntries_PartnerId_EffectiveAt
-        ON dbo.partner_wallet_entries (partner_id, effective_at DESC);
+        ON dbo.PartnerWalletEntries (partnerId, effectiveAt DESC);
 
 IF NOT EXISTS (
     SELECT 1 FROM sys.indexes
-    WHERE object_id = OBJECT_ID('dbo.partner_wallet_entries')
+    WHERE object_id = OBJECT_ID('dbo.PartnerWalletEntries')
       AND name = 'IX_PartnerWalletEntries_SettlementId_EntryType'
 )
     CREATE INDEX IX_PartnerWalletEntries_SettlementId_EntryType
-        ON dbo.partner_wallet_entries (settlement_id, entry_type);
+        ON dbo.PartnerWalletEntries (settlementId, entryType);
 
 IF NOT EXISTS (
     SELECT 1 FROM sys.indexes
-    WHERE object_id = OBJECT_ID('dbo.partner_wallet_entries')
+    WHERE object_id = OBJECT_ID('dbo.PartnerWalletEntries')
       AND name = 'UK_WalletEntry_Idempotency'
 )
     CREATE UNIQUE INDEX UK_WalletEntry_Idempotency
-        ON dbo.partner_wallet_entries (idempotency_key);
+        ON dbo.PartnerWalletEntries (IdempotencyKey);
 
-INSERT INTO dbo.partner_wallet_entries (
-    partner_type, partner_id, entry_type, status, amount, commission_transaction_id,
-    appointment_id, pharmacy_order_id, idempotency_key, description,
-    effective_at, created_at, updated_at
+INSERT INTO dbo.PartnerWalletEntries (
+    partnerType, partnerId, entryType, status, amount, commissionTransactionId,
+    appointmentId, pharmacyOrderId, IdempotencyKey, description,
+    effectiveAt, createdAt, updatedAt
 )
 SELECT
-    ctx.recipient_type,
-    ctx.recipient_id,
+    ctx.recipientType,
+    ctx.recipientId,
     'EARNING',
     CASE WHEN ctx.status = 'PENDING' THEN 'PENDING' ELSE 'VESTED' END,
-    ctx.net_amount,
-    ctx.transaction_id,
-    ctx.appointment_id,
-    ctx.pharmacy_order_id,
-    CONCAT('EARNING:CTX:', ctx.transaction_id),
-    CONCAT('Backfilled earning from commission transaction ', ctx.transaction_number),
-    CASE WHEN ctx.status = 'VESTED' THEN COALESCE(ctx.vested_at, ctx.created_at) ELSE ctx.created_at END,
-    ctx.created_at,
-    ctx.created_at
-FROM dbo.commission_transactions ctx
+    ctx.netAmount,
+    ctx.TransactionId,
+    ctx.AppointmentId,
+    ctx.PharmacyOrderId,
+    CONCAT('EARNING:CTX:', ctx.TransactionId),
+    CONCAT('Backfilled earning from commission transaction ', ctx.transactionNumber),
+    CASE WHEN ctx.status = 'VESTED' THEN COALESCE(ctx.VestedAt, ctx.CreatedAt) ELSE ctx.CreatedAt END,
+    ctx.CreatedAt,
+    ctx.CreatedAt
+FROM dbo.CommissionTransactions ctx
 WHERE ctx.status IN ('PENDING', 'VESTED')
   AND NOT EXISTS (
       SELECT 1
-      FROM dbo.partner_wallet_entries entry
-      WHERE entry.idempotency_key = CONCAT('EARNING:CTX:', ctx.transaction_id)
+      FROM dbo.PartnerWalletEntries entry
+      WHERE entry.IdempotencyKey = CONCAT('EARNING:CTX:', ctx.TransactionId)
   );
 
-INSERT INTO dbo.partner_wallet_entries (
-    partner_type, partner_id, entry_type, status, amount, commission_transaction_id,
-    appointment_id, pharmacy_order_id, idempotency_key, description,
-    effective_at, created_at, updated_at
+INSERT INTO dbo.PartnerWalletEntries (
+    partnerType, partnerId, entryType, status, amount, commissionTransactionId,
+    appointmentId, pharmacyOrderId, IdempotencyKey, description,
+    effectiveAt, createdAt, updatedAt
 )
 SELECT
-    ctx.recipient_type,
-    ctx.recipient_id,
+    ctx.recipientType,
+    ctx.recipientId,
     'REFUND',
     'REFUNDED',
-    -ctx.net_amount,
-    ctx.transaction_id,
-    ctx.appointment_id,
-    ctx.pharmacy_order_id,
-    CONCAT('REFUND:CTX:', ctx.transaction_id),
-    CONCAT('Backfilled refund from commission transaction ', ctx.transaction_number),
-    COALESCE(ctx.refunded_at, ctx.created_at),
-    ctx.created_at,
-    COALESCE(ctx.refunded_at, ctx.created_at)
-FROM dbo.commission_transactions ctx
+    -ctx.netAmount,
+    ctx.TransactionId,
+    ctx.AppointmentId,
+    ctx.PharmacyOrderId,
+    CONCAT('REFUND:CTX:', ctx.TransactionId),
+    CONCAT('Backfilled refund from commission transaction ', ctx.transactionNumber),
+    COALESCE(ctx.RefundedAt, ctx.CreatedAt),
+    ctx.CreatedAt,
+    COALESCE(ctx.RefundedAt, ctx.CreatedAt)
+FROM dbo.CommissionTransactions ctx
 WHERE ctx.status = 'REFUNDED'
-  AND ctx.vested_at IS NOT NULL
+  AND ctx.VestedAt IS NOT NULL
   AND NOT EXISTS (
       SELECT 1
-      FROM dbo.partner_wallet_entries entry
-      WHERE entry.idempotency_key = CONCAT('REFUND:CTX:', ctx.transaction_id)
+      FROM dbo.PartnerWalletEntries entry
+      WHERE entry.IdempotencyKey = CONCAT('REFUND:CTX:', ctx.TransactionId)
   );
 
-INSERT INTO dbo.partner_wallet_entries (
-    partner_type, partner_id, entry_type, status, amount, settlement_id,
-    idempotency_key, description, effective_at, created_at, updated_at
+INSERT INTO dbo.PartnerWalletEntries (
+    partnerType, partnerId, entryType, status, amount, settlementId,
+    IdempotencyKey, description, effectiveAt, createdAt, updatedAt
 )
 SELECT
-    stl.recipient_type,
-    stl.recipient_id,
+    stl.recipientType,
+    stl.recipientId,
     'WITHDRAWAL',
     CASE
         WHEN stl.status IN ('PENDING', 'PROCESSING') THEN 'PROCESSING'
         WHEN stl.status = 'COMPLETED' THEN 'COMPLETED'
         ELSE 'FAILED'
     END,
-    -stl.net_amount,
-    stl.settlement_id,
-    CONCAT('WITHDRAWAL:STL:', stl.settlement_id),
-    CONCAT('Backfilled withdrawal from settlement ', stl.settlement_number),
-    COALESCE(stl.completed_at, stl.processed_at, stl.created_at),
-    stl.created_at,
-    stl.created_at
-FROM dbo.settlements stl
+    -stl.netAmount,
+    stl.SettlementId,
+    CONCAT('WITHDRAWAL:STL:', stl.SettlementId),
+    CONCAT('Backfilled withdrawal from settlement ', stl.settlementNumber),
+    COALESCE(stl.completedAt, stl.processedAt, stl.CreatedAt),
+    stl.CreatedAt,
+    stl.CreatedAt
+FROM dbo.Settlements stl
 WHERE stl.status IN ('PENDING', 'PROCESSING', 'COMPLETED', 'FAILED', 'CANCELLED')
   AND NOT EXISTS (
       SELECT 1
-      FROM dbo.partner_wallet_entries entry
-      WHERE entry.idempotency_key = CONCAT('WITHDRAWAL:STL:', stl.settlement_id)
+      FROM dbo.PartnerWalletEntries entry
+      WHERE entry.IdempotencyKey = CONCAT('WITHDRAWAL:STL:', stl.SettlementId)
   );
 
 COMMIT TRANSACTION;

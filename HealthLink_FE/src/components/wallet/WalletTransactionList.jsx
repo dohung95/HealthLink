@@ -109,7 +109,7 @@ export default function WalletTransactionList({
                     <span aria-hidden="true" className="material-symbols-outlined">{presentation.icon}</span>
                   </div>
                   <div className="wallet-tx-item-info">
-                    <span className="wallet-tx-item-title">{entry.title}</span>
+                    <span className="wallet-tx-item-title">#{rawEntry.entryId}</span>
                     <span className="wallet-tx-item-date">{formatDateTime(entry.createdAt)}</span>
                   </div>
                 </div>
@@ -127,7 +127,7 @@ export default function WalletTransactionList({
                     className="wallet-tx-item-expand"
                     aria-controls={detailsId}
                     aria-expanded={isExpanded}
-                    aria-label={`${isExpanded ? 'Hide' : 'Show'} details for ${entry.title}`}
+                    aria-label={`${isExpanded ? 'Hide' : 'Show'} details for #${rawEntry.entryId}`}
                     onClick={() => setExpandedEntryId(isExpanded ? null : entry.id)}
                     type="button"
                   >
@@ -137,7 +137,7 @@ export default function WalletTransactionList({
               </div>
 
               {isExpanded && (
-                <div className="wallet-tx-details" id={detailsId} role="region" aria-label={`Details for ${entry.title}`}>
+                <div className="wallet-tx-details" id={detailsId} role="region" aria-label={`Details for #${rawEntry.entryId}`}>
                   <div className="wallet-tx-details-inner">
                     <div className="wallet-tx-details-grid">
                       {entry.kind === 'earning' ? (
@@ -147,8 +147,16 @@ export default function WalletTransactionList({
                             <span className="wallet-tx-details-value">{formatDateTime(rawEntry.effectiveAt || entry.createdAt)}</span>
                           </div>
                           <div className="wallet-tx-details-item wallet-tx-details-item--right">
+                            <span className="wallet-tx-details-label">Gross</span>
+                            <span className="wallet-tx-details-value wallet-tx-details-value--positive">{formatCurrency(Number(rawEntry.grossAmount || 0))}</span>
+                          </div>
+                          <div className="wallet-tx-details-item">
                             <span className="wallet-tx-details-label">Last updated</span>
                             <span className="wallet-tx-details-value">{formatDateTime(rawEntry.updatedAt || rawEntry.effectiveAt)}</span>
+                          </div>
+                          <div className="wallet-tx-details-item wallet-tx-details-item--right">
+                            <span className="wallet-tx-details-label">Commission</span>
+                            <span className="wallet-tx-details-value wallet-tx-details-value--negative">-{formatCurrency(Number(rawEntry.commissionAmount || 0))}</span>
                           </div>
                           <div className="wallet-tx-details-item">
                             <span className="wallet-tx-details-label">{referenceLabel}</span>
@@ -161,10 +169,6 @@ export default function WalletTransactionList({
                           <div className="wallet-tx-details-item">
                             <span className="wallet-tx-details-label">Status</span>
                             <span className="wallet-tx-details-value">{presentation.statusLabel}</span>
-                          </div>
-                          <div className="wallet-tx-details-item wallet-tx-details-item--right">
-                            <span className="wallet-tx-details-label">Description</span>
-                            <span className="wallet-tx-details-value">{rawEntry.description || 'Earning'}</span>
                           </div>
                         </>
                       ) : entry.kind === 'withdrawal' ? (
@@ -217,12 +221,6 @@ export default function WalletTransactionList({
                           <div className="wallet-tx-details-item">
                             <span className="wallet-tx-details-label">Status</span>
                             <span className="wallet-tx-details-value">{presentation.statusLabel}</span>
-                          </div>
-                          <div className="wallet-tx-details-item wallet-tx-details-item--right">
-                            <span className="wallet-tx-details-label">Description</span>
-                            <span className="wallet-tx-details-value">
-                              {rawEntry.entryType === 'REFUND' ? 'Patient refund' : (rawEntry.description || 'Withdrawal returned')}
-                            </span>
                           </div>
                         </>
                       )}

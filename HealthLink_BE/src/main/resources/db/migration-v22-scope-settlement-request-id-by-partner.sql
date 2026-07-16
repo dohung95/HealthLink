@@ -1,12 +1,12 @@
 SET XACT_ABORT ON;
 BEGIN TRANSACTION;
 
-IF COL_LENGTH('dbo.settlements', 'client_request_id') IS NULL
-    ALTER TABLE dbo.settlements ADD client_request_id VARCHAR(100) NULL;
+IF COL_LENGTH('dbo.Settlements', 'client_request_id') IS NULL
+    ALTER TABLE dbo.Settlements ADD client_request_id VARCHAR(100) NULL;
 
-DECLARE @clientRequestConstraint sysname;
+DECLARE @dropSql NVARCHAR(MAX);
 
-SELECT @clientRequestConstraint = keyConstraint.name
+SELECT @dropSql = N'ALTER TABLE dbo.Settlements DROP CONSTRAINT ' + QUOTENAME(keyConstraint.name)
 FROM sys.key_constraints keyConstraint
 JOIN sys.indexes [index]
     ON [index].object_id = keyConstraint.parent_object_id
@@ -17,28 +17,27 @@ JOIN sys.index_columns indexColumn
 JOIN sys.columns [column]
     ON [column].object_id = indexColumn.object_id
     AND [column].column_id = indexColumn.column_id
-WHERE keyConstraint.parent_object_id = OBJECT_ID('dbo.settlements')
+WHERE keyConstraint.parent_object_id = OBJECT_ID('dbo.Settlements')
   AND keyConstraint.type = 'UQ'
-GROUP BY keyConstraint.name
-HAVING COUNT(*) = 1 AND MAX(CASE WHEN [column].name = 'client_request_id' THEN 1 ELSE 0 END) = 1;
+  AND [column].name = 'client_request_id';
 
-IF @clientRequestConstraint IS NOT NULL
-    EXEC('ALTER TABLE dbo.settlements DROP CONSTRAINT ' + QUOTENAME(@clientRequestConstraint));
+IF @dropSql IS NOT NULL
+    EXEC sp_executesql @dropSql;
 
 IF EXISTS (
     SELECT 1 FROM sys.indexes
-    WHERE object_id = OBJECT_ID('dbo.settlements')
+    WHERE object_id = OBJECT_ID('dbo.Settlements')
       AND name = 'UX_Settlements_ClientRequestId'
 )
-    DROP INDEX UX_Settlements_ClientRequestId ON dbo.settlements;
+    DROP INDEX UX_Settlements_ClientRequestId ON dbo.Settlements;
 
 IF NOT EXISTS (
     SELECT 1 FROM sys.indexes
-    WHERE object_id = OBJECT_ID('dbo.settlements')
+    WHERE object_id = OBJECT_ID('dbo.Settlements')
       AND name = 'UX_Settlements_PartnerClientRequestId'
 )
     CREATE UNIQUE INDEX UX_Settlements_PartnerClientRequestId
-        ON dbo.settlements (recipient_type, recipient_id, client_request_id)
+        ON dbo.Settlements (recipientType, recipientId, client_request_id)
         WHERE client_request_id IS NOT NULL;
 
 COMMIT TRANSACTION;

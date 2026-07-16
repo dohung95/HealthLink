@@ -2,12 +2,14 @@ package com.HealthLink.service.impl.payment;
 
 import com.HealthLink.dto.payment.PartnerWalletEntryFilter;
 import com.HealthLink.dto.payment.PartnerWalletEntryResponse;
+import com.HealthLink.entity.CommissionTransaction;
 import com.HealthLink.entity.PartnerWalletEntry;
 import com.HealthLink.entity.Settlement;
 import com.HealthLink.entity.enums.PartnerWalletEntryStatus;
 import com.HealthLink.entity.enums.PartnerWalletEntryType;
 import com.HealthLink.exception.BadRequestException;
 import com.HealthLink.repository.payment.PartnerWalletEntryRepository;
+import com.HealthLink.repository.payment.PaymentCommissionTransactionRepository;
 import com.HealthLink.repository.payment.PaymentSettlementRepository;
 import com.HealthLink.service.payment.PartnerWalletQueryService;
 import jakarta.persistence.criteria.CriteriaBuilder;
@@ -38,6 +40,7 @@ import java.util.stream.Collectors;
 public class PartnerWalletQueryServiceImpl implements PartnerWalletQueryService {
 
     private final PartnerWalletEntryRepository entryRepository;
+    private final PaymentCommissionTransactionRepository commissionTransactionRepository;
     private final PaymentSettlementRepository settlementRepository;
 
     @Override
@@ -126,11 +129,17 @@ public class PartnerWalletQueryServiceImpl implements PartnerWalletQueryService 
     }
 
     private PartnerWalletEntryResponse toResponse(PartnerWalletEntry entry, Settlement settlement) {
+        CommissionTransaction ct = null;
+        if (entry.getCommissionTransactionId() != null) {
+            ct = commissionTransactionRepository.findById(entry.getCommissionTransactionId()).orElse(null);
+        }
         return PartnerWalletEntryResponse.builder()
                 .entryId(entry.getEntryId())
                 .entryType(entry.getEntryType().name())
                 .status(entry.getStatus().name())
                 .amount(entry.getAmount())
+                .grossAmount(ct != null ? ct.getGrossAmount() : null)
+                .commissionAmount(ct != null ? ct.getCommissionAmount() : null)
                 .description(entry.getDescription())
                 .appointmentId(entry.getAppointmentId())
                 .pharmacyOrderId(entry.getPharmacyOrderId())

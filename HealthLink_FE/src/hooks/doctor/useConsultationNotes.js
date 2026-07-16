@@ -2,6 +2,12 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'react-toastify';
 import { consultationApi } from '@api/consultationApi';
 import { buildConsultation } from '@utils/doctor/tabHelpers';
+import {
+  createConsultationNotesState,
+  hydrateConsultationNotesState,
+  markConsultationNotesSaved,
+  updateConsultationNotesState,
+} from '@utils/doctor/doctorWorkspaceModel';
 
 const stripHtml = (str) => {
   if (!str) return '';
@@ -20,43 +26,57 @@ const stripHtml = (str) => {
 };
 
 export function useConsultationNotes(appointmentId, appointment, appointmentDetail) {
-  const [notesDraft, setNotesDraft] = useState({ diagnosis: '', doctorNotes: '', treatmentPlan: '' });
+  const initialConsultation = buildConsultation(appointmentDetail || appointment);
+  const [notesState, setNotesState] = useState(
+    () => createConsultationNotesState(appointmentId, initialConsultation),
+  );
   const [savingNotes, setSavingNotes] = useState(false);
+  const notesStateRef = useRef(notesState);
   const savingLockRef = useRef(false);
+  const serverNotesSignature = JSON.stringify(
+    createConsultationNotesState(
+      appointmentId,
+      buildConsultation(appointmentDetail || appointment),
+    ).draft,
+  );
 
   useEffect(() => {
-    const consultation = buildConsultation(appointmentDetail || appointment);
-    setNotesDraft({
-      diagnosis: consultation.diagnosis || '',
-      doctorNotes: consultation.doctorNotes || '',
-      treatmentPlan: consultation.treatmentPlan || '',
-    });
-  }, [
-    appointment,
-    appointmentDetail,
-    appointmentDetail?.consultation?.diagnosis,
-    appointmentDetail?.consultation?.doctorNotes,
-    appointmentDetail?.consultation?.treatmentPlan,
-    appointmentDetail?.diagnosis,
-    appointmentDetail?.doctorNotes,
-    appointmentDetail?.treatmentPlan,
-  ]);
+    const serverDraft = JSON.parse(serverNotesSignature);
+    const nextState = hydrateConsultationNotesState(
+      notesStateRef.current,
+      appointmentId,
+      serverDraft,
+    );
+    if (nextState !== notesStateRef.current) {
+      notesStateRef.current = nextState;
+      setNotesState(nextState);
+    }
+  }, [appointmentId, serverNotesSignature]);
 
   const handleNotesDraftChange = useCallback((field, value) => {
-    setNotesDraft((current) => ({ ...current, [field]: value }));
+    const nextState = updateConsultationNotesState(notesStateRef.current, field, value);
+    notesStateRef.current = nextState;
+    setNotesState(nextState);
   }, []);
 
   const handleSaveNotes = useCallback(async () => {
     if (!appointmentId || savingLockRef.current) return false;
 
+    const stateToSave = notesStateRef.current;
+    if (!stateToSave.dirty) return true;
+    const draftToSave = stateToSave.draft;
+
     savingLockRef.current = true;
     setSavingNotes(true);
     try {
       await consultationApi.updateAppointmentNotes(appointmentId, {
-        diagnosis: stripHtml(notesDraft.diagnosis),
-        doctorNotes: stripHtml(notesDraft.doctorNotes),
-        treatmentPlan: stripHtml(notesDraft.treatmentPlan),
+        diagnosis: stripHtml(draftToSave.diagnosis),
+        doctorNotes: stripHtml(draftToSave.doctorNotes),
+        treatmentPlan: stripHtml(draftToSave.treatmentPlan),
       });
+      const nextState = markConsultationNotesSaved(notesStateRef.current, draftToSave);
+      notesStateRef.current = nextState;
+      setNotesState(nextState);
       return true;
     } catch (error) {
       toast.error(error.response?.data?.message || 'Failed to save consultation notes');
@@ -65,7 +85,13 @@ export function useConsultationNotes(appointmentId, appointment, appointmentDeta
       savingLockRef.current = false;
       setSavingNotes(false);
     }
-  }, [appointmentId, notesDraft]);
+  }, [appointmentId]);
 
-  return { notesDraft, savingNotes, handleNotesDraftChange, handleSaveNotes };
+  return {
+    notesDraft: notesState.draft,
+    notesDirty: notesState.dirty,
+    savingNotes,
+    handleNotesDraftChange,
+    handleSaveNotes,
+  };
 }

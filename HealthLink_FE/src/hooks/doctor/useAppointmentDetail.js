@@ -362,6 +362,7 @@ export function useAppointmentDetail({ appointment, patient, doctorId: currentDo
     savingEntryVitals,
     handleSaveVitalsAndEnterWorkspace,
     notesDraft: notes.notesDraft,
+    notesDirty: notes.notesDirty,
     savingNotes: notes.savingNotes,
     handleNotesDraftChange: notes.handleNotesDraftChange,
     handleSaveNotes: notes.handleSaveNotes,
