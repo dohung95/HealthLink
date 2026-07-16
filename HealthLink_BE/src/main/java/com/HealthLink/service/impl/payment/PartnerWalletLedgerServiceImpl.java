@@ -52,13 +52,8 @@ public class PartnerWalletLedgerServiceImpl implements PartnerWalletLedgerServic
     @Override
     @Transactional
     public void vestEarning(CommissionTransaction tx) {
-        PartnerWalletEntry entry = entryRepository.findByIdempotencyKey(earningKey(tx)).orElse(null);
-        if (entry == null || entry.getStatus() != PartnerWalletEntryStatus.PENDING) {
-            return;
-        }
-
         Object partner = lockPartner(tx.getRecipientType(), tx.getRecipientId());
-        entry = entryRepository.findByIdempotencyKey(earningKey(tx)).orElse(null);
+        PartnerWalletEntry entry = entryRepository.findByIdempotencyKey(earningKey(tx)).orElse(null);
         if (entry == null || entry.getStatus() != PartnerWalletEntryStatus.PENDING) {
             return;
         }

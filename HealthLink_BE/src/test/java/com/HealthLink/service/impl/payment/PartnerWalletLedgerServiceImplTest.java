@@ -156,6 +156,34 @@ class PartnerWalletLedgerServiceImplTest {
         verify(entryRepository, times(0)).save(earning);
     }
 
+    @Test
+    void doesNotVestEarningCancelledWhileWaitingForPartnerLock() {
+        CommissionTransaction tx = transaction("DOCTOR", "doctor-1", 6, new BigDecimal("25.00"));
+        PartnerWalletEntry earning = earning(tx, PartnerWalletEntryStatus.PENDING);
+        Doctor doctor = Doctor.builder()
+                .doctorId("doctor-1")
+                .pendingSettlement(new BigDecimal("5.00"))
+                .build();
+        List<String> callOrder = new ArrayList<>();
+        when(entryRepository.findByIdempotencyKey("EARNING:CTX:6")).thenAnswer(invocation -> {
+            callOrder.add("entry");
+            return Optional.of(earning);
+        });
+        when(doctorRepository.findByIdForWalletUpdate("doctor-1")).thenAnswer(invocation -> {
+            callOrder.add("lock");
+            earning.setStatus(PartnerWalletEntryStatus.CANCELLED);
+            return Optional.of(doctor);
+        });
+
+        ledgerService.vestEarning(tx);
+
+        assertThat(earning.getStatus()).isEqualTo(PartnerWalletEntryStatus.CANCELLED);
+        assertThat(doctor.getPendingSettlement()).isEqualByComparingTo("5.00");
+        assertThat(callOrder).containsExactly("lock", "entry");
+        verify(doctorRepository, times(0)).save(doctor);
+        verify(entryRepository, times(0)).save(earning);
+    }
+
     private CommissionTransaction transaction(String partnerType, String partnerId, int transactionId,
                                                BigDecimal netAmount) {
         return CommissionTransaction.builder()
