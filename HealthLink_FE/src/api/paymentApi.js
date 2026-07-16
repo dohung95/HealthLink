@@ -150,6 +150,14 @@ export const paymentApi = {
     return response.data;
   },
 
+  getPartnerWalletEntries: async (partnerId, filters = {}) => {
+    const params = Object.fromEntries(
+      Object.entries(filters).filter(([, value]) => value !== undefined && value !== null && value !== ''),
+    );
+    const response = await axiosInstance.get(`/api/payment/partner/${partnerId}/wallet-entries`, { params });
+    return response.data;
+  },
+
   requestPartnerSettlement: async (partnerId, payload, type = 'DOCTOR') => {
     const response = await axiosInstance.post(`/api/payment/partner/${partnerId}/settle`, payload, {
       params: { type },

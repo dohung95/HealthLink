@@ -7,6 +7,10 @@ import {
   clearFollowUpHomeVisitAccess,
   hasFollowUpHomeVisitAccess,
 } from '../../utils/followUpHomeVisitAccess';
+import {
+  createEmptyFollowUpHomeVisitLocation,
+  isReusableFollowUpHomeVisitLocation,
+} from '../../utils/followUpHomeVisitLocation';
 import FollowUpHomeVisitLocationStep from './FollowUpHomeVisitLocationStep';
 import FollowUpHomeVisitServicesStep from './FollowUpHomeVisitServicesStep';
 import FollowUpHomeVisitConfirmStep from './FollowUpHomeVisitConfirmStep';
@@ -24,22 +28,6 @@ const STEPS = [
   { id: STEP_PAYMENT, label: 'Payment', icon: 'bi-credit-card' },
 ];
 
-const DEFAULT_LOCATION = {
-  visitAddress: '',
-  visitCity: '',
-  contactPhone: '',
-  reasonForHomeVisit: '',
-  specialNotes: '',
-  isForSelf: true,
-  receiverName: '',
-  receiverAge: '',
-  receiverGender: '',
-  receiverRelationship: '',
-  receiverPhone: '',
-  visitLatitude: 10.7769,
-  visitLongitude: 106.7009,
-};
-
 const normalizeConsultationType = (value) => String(value || '')
   .trim()
   .toLowerCase()
@@ -48,7 +36,7 @@ const normalizeConsultationType = (value) => String(value || '')
 const isHomeVisitType = (value) => normalizeConsultationType(value) === 'homevisit';
 
 const mapSourceHomeVisitDetails = (details) => ({
-  ...DEFAULT_LOCATION,
+  ...createEmptyFollowUpHomeVisitLocation(),
   visitAddress: details?.visitAddress || '',
   visitCity: details?.visitCity || '',
   contactPhone: details?.contactPhone || '',
@@ -60,8 +48,12 @@ const mapSourceHomeVisitDetails = (details) => ({
   receiverGender: details?.receiverGender || '',
   receiverRelationship: details?.receiverRelationship || '',
   receiverPhone: details?.receiverPhone || '',
-  visitLatitude: Number(details?.visitLatitude) || DEFAULT_LOCATION.visitLatitude,
-  visitLongitude: Number(details?.visitLongitude) || DEFAULT_LOCATION.visitLongitude,
+  visitLatitude: details?.visitLatitude != null && Number.isFinite(Number(details.visitLatitude))
+    ? Number(details.visitLatitude)
+    : null,
+  visitLongitude: details?.visitLongitude != null && Number.isFinite(Number(details.visitLongitude))
+    ? Number(details.visitLongitude)
+    : null,
 });
 
 const FollowUpHomeVisitBookingPage = () => {
@@ -73,7 +65,9 @@ const FollowUpHomeVisitBookingPage = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [currentStep, setCurrentStep] = useState(STEP_LOCATION);
-  const [locationDetails, setLocationDetails] = useState(DEFAULT_LOCATION);
+  const [locationDetails, setLocationDetails] = useState(
+    () => createEmptyFollowUpHomeVisitLocation(),
+  );
   const [selectedServices, setSelectedServices] = useState([]);
   const [savingDetails, setSavingDetails] = useState(false);
 
@@ -106,13 +100,16 @@ const FollowUpHomeVisitBookingPage = () => {
 
       setStatusData(data);
 
-      if (data.hasSourceHomeVisitDetails && data.sourceHomeVisitDetails) {
-        setLocationDetails(mapSourceHomeVisitDetails(data.sourceHomeVisitDetails));
-        setCurrentStep(STEP_SERVICES);
-      } else {
-        setLocationDetails(DEFAULT_LOCATION);
-        setCurrentStep(STEP_LOCATION);
-      }
+      const sourceLocation = data.sourceHomeVisitDetails
+        ? mapSourceHomeVisitDetails(data.sourceHomeVisitDetails)
+        : createEmptyFollowUpHomeVisitLocation();
+
+      setLocationDetails(sourceLocation);
+      setCurrentStep(
+        data.hasSourceHomeVisitDetails && isReusableFollowUpHomeVisitLocation(sourceLocation)
+          ? STEP_SERVICES
+          : STEP_LOCATION,
+      );
     } catch (err) {
       console.error('Failed to load follow-up HomeVisit status:', err);
       setError(err.response?.data?.message || 'Could not load follow-up HomeVisit booking.');
@@ -230,13 +227,7 @@ const FollowUpHomeVisitBookingPage = () => {
           <FollowUpHomeVisitServicesStep
             selectedServices={selectedServices}
             onChange={setSelectedServices}
-            onBack={() => {
-              if (statusData?.hasSourceHomeVisitDetails) {
-                handleCancel();
-                return;
-              }
-              setCurrentStep(STEP_LOCATION);
-            }}
+            onBack={() => setCurrentStep(STEP_LOCATION)}
             onNext={() => setCurrentStep(STEP_CONFIRM)}
           />
         )}

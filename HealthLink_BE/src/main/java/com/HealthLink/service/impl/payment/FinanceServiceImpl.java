@@ -1151,12 +1151,7 @@ public class FinanceServiceImpl implements FinanceService {
         invoiceRepository.save(invoice);
 
         // 6. Truy vết và hoàn lại commission của đối tác (Doctor + Pharmacy)
-        try {
-            commissionService.processRefund(invoice.getInvoiceId());
-        } catch (Exception ex) {
-            log.error("Commission refund processing failed for invoice {}: {}",
-                    invoice.getInvoiceId(), ex.getMessage(), ex);
-        }
+        commissionService.processRefund(invoice.getInvoiceId());
 
         log.info("Refund processed: paymentId={}, invoiceId={}, amount={}",
                 paymentId, invoice.getInvoiceId(), payment.getAmount());

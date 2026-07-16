@@ -2088,7 +2088,8 @@
           "in" : "query",
           "required" : true,
           "schema" : {
-            "type" : "string"
+            "type" : "string",
+            "enum" : [ "DOCTOR", "PHARMACY" ]
           }
         } ],
         "requestBody" : {
@@ -2102,8 +2103,8 @@
           "required" : true
         },
         "responses" : {
-          "200" : {
-            "description" : "OK",
+          "201" : {
+            "description" : "Withdrawal reserved and submitted for PayPal processing",
             "content" : {
               "*/*" : {
                 "schema" : {
@@ -5336,6 +5337,63 @@
                     "$ref" : "#/components/schemas/CommissionTransactionResponse"
                   }
                 }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/payment/partner/{partnerId}/wallet-entries" : {
+      "get" : {
+        "tags" : [ "partner-payment-controller" ],
+        "operationId" : "getPartnerWalletEntries",
+        "parameters" : [ {
+          "name" : "partnerId",
+          "in" : "path",
+          "required" : true,
+          "schema" : { "type" : "string" }
+        }, {
+          "name" : "search",
+          "in" : "query",
+          "required" : false,
+          "schema" : { "type" : "string" }
+        }, {
+          "name" : "type",
+          "in" : "query",
+          "required" : false,
+          "schema" : { "type" : "string", "default" : "ALL", "enum" : [ "ALL", "EARNING", "WITHDRAWAL", "ADJUSTMENT" ] }
+        }, {
+          "name" : "status",
+          "in" : "query",
+          "required" : false,
+          "schema" : { "type" : "string", "enum" : [ "PENDING", "VESTED", "PROCESSING", "COMPLETED", "FAILED", "RETURNED", "REFUNDED", "CANCELLED" ] }
+        }, {
+          "name" : "from",
+          "in" : "query",
+          "required" : false,
+          "schema" : { "type" : "string", "format" : "date" }
+        }, {
+          "name" : "to",
+          "in" : "query",
+          "required" : false,
+          "schema" : { "type" : "string", "format" : "date" }
+        }, {
+          "name" : "page",
+          "in" : "query",
+          "required" : false,
+          "schema" : { "type" : "integer", "format" : "int32", "default" : 0, "minimum" : 0 }
+        }, {
+          "name" : "size",
+          "in" : "query",
+          "required" : false,
+          "schema" : { "type" : "integer", "format" : "int32", "default" : 10, "minimum" : 1, "maximum" : 100 }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "Paged wallet ledger entries for the authenticated partner only",
+            "content" : {
+              "*/*" : {
+                "schema" : { "$ref" : "#/components/schemas/PartnerWalletEntryPage" }
               }
             }
           }
@@ -13157,6 +13215,11 @@
           },
           "notes" : {
             "type" : "string"
+          },
+          "requestId" : {
+            "type" : "string",
+            "maxLength" : 100,
+            "description" : "Stable client-generated idempotency key for retrying the same withdrawal request."
           }
         }
       },
@@ -13189,7 +13252,9 @@
             "type" : "number"
           },
           "status" : {
-            "type" : "string"
+            "type" : "string",
+            "description" : "PROCESSING means funds are reserved while the PayPal payout outcome is pending or unknown.",
+            "enum" : [ "PENDING", "PROCESSING", "COMPLETED", "FAILED", "CANCELLED" ]
           },
           "paymentMethod" : {
             "type" : "string"
@@ -13210,6 +13275,16 @@
             "format" : "date-time"
           },
           "completedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "payoutBatchId" : {
+            "type" : "string"
+          },
+          "externalStatus" : {
+            "type" : "string"
+          },
+          "lastReconciledAt" : {
             "type" : "string",
             "format" : "date-time"
           },
@@ -15533,6 +15608,10 @@
           "pendingBalance" : {
             "type" : "number"
           },
+          "availableBalance" : {
+            "type" : "number",
+            "description" : "Authoritative withdrawable balance. It is the same value as pendingBalance and may be negative after a patient refund."
+          },
           "totalEarnings" : {
             "type" : "number"
           },
@@ -15542,6 +15621,33 @@
           "withdrawalStatus" : {
             "type" : "string"
           }
+        }
+      },
+      "PartnerWalletEntryResponse" : {
+        "type" : "object",
+        "properties" : {
+          "entryId" : { "type" : "integer", "format" : "int64" },
+          "entryType" : { "type" : "string", "enum" : [ "EARNING", "WITHDRAWAL", "RETURN", "REFUND" ] },
+          "status" : { "type" : "string", "enum" : [ "PENDING", "VESTED", "PROCESSING", "COMPLETED", "FAILED", "RETURNED", "REFUNDED", "CANCELLED" ] },
+          "amount" : { "type" : "number", "description" : "Signed USD amount: positive adds to the wallet and negative deducts from it." },
+          "description" : { "type" : "string" },
+          "appointmentId" : { "type" : "integer", "format" : "int32", "nullable" : true },
+          "pharmacyOrderId" : { "type" : "integer", "format" : "int32", "nullable" : true },
+          "settlementId" : { "type" : "integer", "format" : "int32", "nullable" : true },
+          "settlementNumber" : { "type" : "string", "nullable" : true },
+          "paypalEmail" : { "type" : "string", "nullable" : true },
+          "effectiveAt" : { "type" : "string", "format" : "date-time" },
+          "updatedAt" : { "type" : "string", "format" : "date-time" }
+        }
+      },
+      "PartnerWalletEntryPage" : {
+        "type" : "object",
+        "properties" : {
+          "content" : { "type" : "array", "items" : { "$ref" : "#/components/schemas/PartnerWalletEntryResponse" } },
+          "number" : { "type" : "integer", "format" : "int32" },
+          "size" : { "type" : "integer", "format" : "int32" },
+          "totalElements" : { "type" : "integer", "format" : "int64" },
+          "totalPages" : { "type" : "integer", "format" : "int32" }
         }
       },
       "AdminRevenueReportResponse" : {

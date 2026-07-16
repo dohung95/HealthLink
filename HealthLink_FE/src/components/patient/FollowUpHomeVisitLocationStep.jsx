@@ -1,7 +1,12 @@
-import React, { useMemo } from 'react';
+import React from 'react';
 import { MapContainer, TileLayer, Marker, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+import {
+  FOLLOW_UP_MAP_FALLBACK_CENTER,
+  hasPinnedFollowUpLocation,
+  validateFollowUpHomeVisitLocation,
+} from '../../utils/followUpHomeVisitLocation';
 
 delete L.Icon.Default.prototype._getIconUrl;
 L.Icon.Default.mergeOptions({
@@ -22,36 +27,12 @@ const MapClickHandler = ({ onSelect }) => {
   return null;
 };
 
-const validateLocation = (form) => {
-  const errors = {};
-  if (!form.visitAddress?.trim()) errors.visitAddress = 'Address is required.';
-  if (!form.contactPhone?.trim()) errors.contactPhone = 'Contact phone is required.';
-  if (!form.reasonForHomeVisit?.trim()) errors.reasonForHomeVisit = 'Reason is required.';
-  if (!Number.isFinite(Number(form.visitLatitude)) || !Number.isFinite(Number(form.visitLongitude))) {
-    errors.map = 'Select the visit location on the map.';
-  }
-
-  if (form.isForSelf === false) {
-    if (!form.receiverName?.trim()) errors.receiverName = 'Receiver name is required.';
-    if (!Number(form.receiverAge) || Number(form.receiverAge) < 1) errors.receiverAge = 'Receiver age is required.';
-    if (!form.receiverRelationship?.trim()) errors.receiverRelationship = 'Relationship is required.';
-    if (!form.receiverPhone?.trim()) errors.receiverPhone = 'Receiver phone is required.';
-  }
-
-  return errors;
-};
-
 const FollowUpHomeVisitLocationStep = ({ value, onChange, onBack, onNext }) => {
   const [errors, setErrors] = React.useState({});
 
-  const center = useMemo(() => {
-    const lat = Number(value.visitLatitude);
-    const lng = Number(value.visitLongitude);
-    if (Number.isFinite(lat) && Number.isFinite(lng) && lat !== 0 && lng !== 0) {
-      return [lat, lng];
-    }
-    return [10.7769, 106.7009];
-  }, [value.visitLatitude, value.visitLongitude]);
+  const center = hasPinnedFollowUpLocation(value)
+    ? [value.visitLatitude, value.visitLongitude]
+    : FOLLOW_UP_MAP_FALLBACK_CENTER;
 
   const handleField = (field) => (e) => {
     const newVal = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
@@ -65,9 +46,9 @@ const FollowUpHomeVisitLocationStep = ({ value, onChange, onBack, onNext }) => {
   };
 
   const handleNext = () => {
-    const v = validateLocation(value);
-    setErrors(v);
-    if (Object.keys(v).length === 0) onNext();
+    const validationErrors = validateFollowUpHomeVisitLocation(value);
+    setErrors(validationErrors);
+    if (Object.keys(validationErrors).length === 0) onNext();
   };
 
   return (
@@ -136,10 +117,12 @@ const FollowUpHomeVisitLocationStep = ({ value, onChange, onBack, onNext }) => {
           </div>
           <div className="col-md-3">
             <label className="form-label">Gender</label>
-            <select className="form-select" value={value.receiverGender || 'male'} onChange={handleField('receiverGender')}>
+            <select className={`form-select ${errors.receiverGender ? 'is-invalid' : ''}`} value={value.receiverGender} onChange={handleField('receiverGender')}>
+              <option value="">Select gender</option>
               <option value="male">Male</option>
               <option value="female">Female</option>
             </select>
+            {errors.receiverGender && <div className="invalid-feedback">{errors.receiverGender}</div>}
           </div>
           <div className="col-md-3">
             <label className="form-label">Relationship <span className="text-danger">*</span></label>
@@ -165,15 +148,15 @@ const FollowUpHomeVisitLocationStep = ({ value, onChange, onBack, onNext }) => {
               url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
             />
             <MapClickHandler onSelect={handleMapSelect} />
-            {Number.isFinite(Number(value.visitLatitude)) && Number.isFinite(Number(value.visitLongitude)) && (
-              <Marker position={[Number(value.visitLatitude), Number(value.visitLongitude)]} />
+            {hasPinnedFollowUpLocation(value) && (
+              <Marker position={[value.visitLatitude, value.visitLongitude]} />
             )}
           </MapContainer>
         </div>
         {errors.map && <div className="text-danger small mt-1">{errors.map}</div>}
-        {Number.isFinite(Number(value.visitLatitude)) && Number.isFinite(Number(value.visitLongitude)) && (
+        {hasPinnedFollowUpLocation(value) && (
           <small className="text-muted mt-1 d-block">
-            Selected: {Number(value.visitLatitude).toFixed(4)}, {Number(value.visitLongitude).toFixed(4)}
+            Selected: {value.visitLatitude.toFixed(4)}, {value.visitLongitude.toFixed(4)}
           </small>
         )}
       </div>

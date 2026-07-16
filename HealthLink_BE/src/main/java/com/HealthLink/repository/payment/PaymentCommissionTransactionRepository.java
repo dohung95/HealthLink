@@ -1,6 +1,8 @@
 package com.HealthLink.repository.payment;
 
 import com.HealthLink.entity.CommissionTransaction;
+import jakarta.persistence.LockModeType;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -9,6 +11,7 @@ import org.springframework.stereotype.Repository;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 /**
  * Repository cho bảng CommissionTransactions.
@@ -16,6 +19,10 @@ import java.util.List;
  */
 @Repository
 public interface PaymentCommissionTransactionRepository extends JpaRepository<CommissionTransaction, Integer> {
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select t from CommissionTransaction t where t.transactionId = :transactionId")
+    Optional<CommissionTransaction> findByIdForUpdate(@Param("transactionId") Integer transactionId);
 
     /**
      * Lấy danh sách giao dịch của một đối tác (Doctor/Pharmacy) theo recipientId.
@@ -65,9 +72,15 @@ public interface PaymentCommissionTransactionRepository extends JpaRepository<Co
      */
     List<CommissionTransaction> findByAppointmentId(Integer appointmentId);
 
+    @Query("select t.transactionId from CommissionTransaction t where t.appointmentId = :appointmentId")
+    List<Integer> findIdsByAppointmentId(@Param("appointmentId") Integer appointmentId);
+
     /**
      * Lấy danh sách giao dịch commission theo pharmacyOrderId.
      * Dùng để truy vết khi xử lý hoàn tiền đơn thuốc (Refund).
      */
     List<CommissionTransaction> findByPharmacyOrderId(Integer pharmacyOrderId);
+
+    @Query("select t.transactionId from CommissionTransaction t where t.pharmacyOrderId = :pharmacyOrderId")
+    List<Integer> findIdsByPharmacyOrderId(@Param("pharmacyOrderId") Integer pharmacyOrderId);
 }

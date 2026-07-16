@@ -1,7 +1,9 @@
 package com.HealthLink.repository.doctor;
 
 import com.HealthLink.entity.Doctor;
+import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -13,6 +15,10 @@ import java.util.Optional;
 // Hỗ trợ tìm kiếm bác sĩ theo chuyên khoa và tên
 @Repository
 public interface DoctorRepository extends JpaRepository<Doctor, String> {
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select d from Doctor d where d.doctorId = :id")
+    Optional<Doctor> findByIdForWalletUpdate(@Param("id") String id);
 
     boolean existsByPaypalEmailIgnoreCase(String paypalEmail);
 

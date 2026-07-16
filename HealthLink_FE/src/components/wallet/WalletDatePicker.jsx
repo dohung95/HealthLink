@@ -3,9 +3,11 @@ import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
 import './wallet-shared.css';
 
-const DateInput = React.forwardRef(({ value, onClick, placeholder }, ref) => (
+const DateInput = React.forwardRef(({ value, onClick, placeholder, inputId, ariaLabel }, ref) => (
   <input
     ref={ref}
+    id={inputId}
+    aria-label={ariaLabel || placeholder}
     value={value}
     onClick={onClick}
     placeholder={placeholder}
@@ -14,7 +16,7 @@ const DateInput = React.forwardRef(({ value, onClick, placeholder }, ref) => (
   />
 ));
 
-const WalletDatePicker = memo(({ selected, onChange, placeholderText }) => (
+const WalletDatePicker = memo(({ selected, onChange, placeholderText, inputId, ariaLabel }) => (
   <DatePicker
     selected={selected}
     onChange={onChange}
@@ -23,7 +25,7 @@ const WalletDatePicker = memo(({ selected, onChange, placeholderText }) => (
     isClearable
     popperPlacement="bottom-start"
     calendarClassName="wallet-datepicker-popper"
-    customInput={<DateInput />}
+    customInput={<DateInput inputId={inputId} ariaLabel={ariaLabel} />}
   />
 ));
 

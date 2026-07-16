@@ -1,6 +1,7 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { paymentApi } from '../../api/paymentApi';
+import { usePartnerWallet } from '../../hooks/wallet/usePartnerWallet';
 import { pharmacyTheme } from '../wallet/walletTheme';
 import WalletHeroSection from '../wallet/WalletHeroSection';
 import WalletTransactionFilters from '../wallet/WalletTransactionFilters';
@@ -9,91 +10,53 @@ import WalletPagination from '../wallet/WalletPagination';
 import WithdrawalModal from '../wallet/WithdrawalModal';
 import '../wallet/wallet-shared.css';
 
-export default function PharmacyWalletTab({ profile, balance, transactions, settlements, pharmacyId, reload, loading: parentLoading }) {
-  const [page, setPage] = useState(1);
-  const pageSize = 10;
+const createWithdrawalRequestId = () => globalThis.crypto?.randomUUID?.()
+  || `withdrawal-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+
+export default function PharmacyWalletTab({ profile, pharmacyId }) {
+  const wallet = usePartnerWallet({ partnerId: pharmacyId, partnerType: 'PHARMACY', pageSize: 10 });
   const [showModal, setShowModal] = useState(false);
   const [withdrawing, setWithdrawing] = useState(false);
+  const withdrawalRequestIdRef = useRef(null);
 
-  const [searchTerm, setSearchTerm] = useState('');
-  const [dateFrom, setDateFrom] = useState(null);
-  const [dateTo, setDateTo] = useState(null);
-  const [typeFilter, setTypeFilter] = useState('all');
-  const [statusFilter, setStatusFilter] = useState('all');
+  useEffect(() => {
+    if (wallet.error) {
+      toast.error(wallet.error.response?.data?.message || 'Unable to load wallet.');
+    }
+  }, [wallet.error]);
 
-  const pendingBalance = Number(balance?.pendingBalance ?? profile?.pendingSettlement ?? 0);
-  const eligibleForWithdrawal = Boolean(balance?.eligibleForWithdrawal ?? pendingBalance > 10);
+  const pendingBalance = Number(wallet.balance?.availableBalance ?? wallet.balance?.pendingBalance ?? profile?.pendingSettlement ?? 0);
+  const eligibleForWithdrawal = Boolean(wallet.balance?.eligibleForWithdrawal ?? pendingBalance > 10);
   const maxAmount = Math.max(0, pendingBalance - 10);
+  const filtersActive = Boolean(
+    wallet.filters.searchTerm
+    || wallet.filters.dateFrom
+    || wallet.filters.dateTo
+    || wallet.filters.typeFilter !== 'all'
+    || wallet.filters.statusFilter !== 'all',
+  );
 
-  const history = useMemo(() => {
-    const earnings = (transactions || []).map((item, index) => ({
-      kind: 'earning',
-      id: `earning-${item.transactionId ?? item.transactionNumber ?? index}`,
-      title: (item.sourceType === 'APPOINTMENT' ? 'Appointment' : 'Order') + ' #' + (item.appointmentId || item.pharmacyOrderId || '-'),
-      amount: Number(item.netAmount || 0),
-      status: item.status,
-      createdAt: item.createdAt,
-      raw: item,
-    }));
-    const withdrawals = (settlements || []).map((item, index) => ({
-      kind: 'withdrawal',
-      id: `withdrawal-${item.settlementId ?? item.settlementNumber ?? index}`,
-      title: item.settlementNumber || `Withdrawal #${item.settlementId || '-'}`,
-      amount: Number(item.netAmount || 0) * -1,
-      status: item.status,
-      createdAt: item.createdAt,
-      raw: item,
-    }));
-    return [...earnings, ...withdrawals].sort(
-      (a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0)
-    );
-  }, [transactions, settlements]);
-
-  const filtered = useMemo(() => {
-    let f = [...history];
-    const term = searchTerm.toLowerCase();
-    if (term) {
-      f = f.filter((e) =>
-        e.title.toLowerCase().includes(term) ||
-        (e.raw.appointmentId?.toString() || '').includes(term) ||
-        (e.raw.pharmacyOrderId?.toString() || '').includes(term) ||
-        (e.raw.settlementNumber?.toLowerCase() || '').includes(term)
-      );
-    }
-    if (dateFrom) f = f.filter((e) => new Date(e.createdAt) >= dateFrom);
-    if (dateTo) {
-      const end = new Date(dateTo);
-      end.setHours(23, 59, 59, 999);
-      f = f.filter((e) => new Date(e.createdAt) <= end);
-    }
-    if (typeFilter !== 'all') f = f.filter((e) => e.kind === typeFilter);
-    if (statusFilter !== 'all') {
-      const m = { completed: ['PAID', 'COMPLETED', 'SETTLED'], pending: ['PROCESSING', 'PENDING'], failed: ['FAILED', 'REFUNDED', 'CANCELLED'] };
-      f = f.filter((e) => (m[statusFilter] || []).includes((e.status || '').toUpperCase()));
-    }
-    return f;
-  }, [history, searchTerm, dateFrom, dateTo, typeFilter, statusFilter]);
-
-  useEffect(() => { setPage(1); }, [searchTerm, dateFrom, dateTo, typeFilter, statusFilter]);
-
-  const displayData = filtered;
-  const totalItems = displayData.length;
-  const pagedData = displayData.slice((page - 1) * pageSize, page * pageSize);
-
-  const filtersActive = !!(searchTerm || dateFrom || dateTo || typeFilter !== 'all' || statusFilter !== 'all');
+  const closeWithdrawal = () => {
+    if (withdrawing) return;
+    withdrawalRequestIdRef.current = null;
+    setShowModal(false);
+  };
 
   const handleWithdraw = async ({ amount, paypalEmail, pin }) => {
     if (withdrawing) return;
     setWithdrawing(true);
+    const requestId = withdrawalRequestIdRef.current || createWithdrawalRequestId();
+    withdrawalRequestIdRef.current = requestId;
     try {
       await paymentApi.requestPartnerSettlement(
         pharmacyId,
-        { amount, paypalEmail, pin, notes: 'Pharmacy wallet withdrawal request' },
-        'PHARMACY'
+        { amount, paypalEmail, pin, requestId, notes: 'Pharmacy wallet withdrawal request' },
+        'PHARMACY',
       );
       toast.success('Withdrawal request submitted.');
+      withdrawalRequestIdRef.current = null;
       setShowModal(false);
-      await reload?.();
+      await wallet.refresh();
     } catch (error) {
       console.error('Withdrawal failed', error);
       toast.error(error.response?.data?.message || 'Unable to submit withdrawal.');
@@ -101,17 +64,6 @@ export default function PharmacyWalletTab({ profile, balance, transactions, sett
       setWithdrawing(false);
     }
   };
-
-  if (parentLoading && !balance) {
-    return (
-      <div className="d-flex flex-column align-items-center justify-content-center py-5">
-        <div className="spinner-border mb-3" role="status" style={{ width: '2.5rem', height: '2.5rem', color: 'var(--pharmacy-primary)' }}>
-          <span className="visually-hidden">Loading...</span>
-        </div>
-        <p className="fw-semibold" style={{ color: 'var(--pharmacy-muted)' }}>Loading wallet...</p>
-      </div>
-    );
-  }
 
   return (
     <div className="d-flex flex-column gap-4" style={{ maxWidth: '860px', margin: '0 auto', width: '100%' }}>
@@ -124,38 +76,27 @@ export default function PharmacyWalletTab({ profile, balance, transactions, sett
       />
 
       <section className="wallet-tx-section wallet-card-shadow">
-        <WalletTransactionFilters
-          searchTerm={searchTerm}
-          setSearchTerm={setSearchTerm}
-          dateFrom={dateFrom}
-          setDateFrom={setDateFrom}
-          dateTo={dateTo}
-          setDateTo={setDateTo}
-          typeFilter={typeFilter}
-          setTypeFilter={setTypeFilter}
-          statusFilter={statusFilter}
-          setStatusFilter={setStatusFilter}
-        />
+        <WalletTransactionFilters {...wallet.filterControls} />
 
         <WalletTransactionList
-          transactions={pagedData}
-          loading={parentLoading}
+          transactions={wallet.entries}
+          loading={wallet.loading}
           filtersActive={filtersActive}
-          onRefresh={reload}
-          refreshLoading={parentLoading}
+          onRefresh={wallet.refresh}
+          refreshLoading={wallet.loading}
         />
 
         <WalletPagination
-          page={page}
-          totalItems={totalItems}
-          pageSize={pageSize}
-          onPageChange={setPage}
+          page={wallet.page + 1}
+          totalItems={wallet.totalElements}
+          pageSize={10}
+          onPageChange={(nextPage) => wallet.setPage(nextPage - 1)}
         />
       </section>
 
       <WithdrawalModal
         show={showModal}
-        onClose={() => setShowModal(false)}
+        onClose={closeWithdrawal}
         onSubmit={handleWithdraw}
         maxAmount={maxAmount}
         theme={pharmacyTheme}
