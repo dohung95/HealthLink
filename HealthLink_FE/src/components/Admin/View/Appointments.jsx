@@ -192,6 +192,15 @@ export default function Appointments() {
   });
   const [cancelSubmitting, setCancelSubmitting] = useState(false);
 
+  // Cancel-due-to-doctor-unavailable modal state (Home Visit / patient manually selected their
+  // doctor - cannot reassign directly, only cancel & auto-refund)
+  const [showDoctorUnavailableModal, setShowDoctorUnavailableModal] = useState(false);
+  const [doctorUnavailableReason, setDoctorUnavailableReason] = useState('');
+  const [doctorUnavailableSubmitting, setDoctorUnavailableSubmitting] = useState(false);
+
+  const isForcedCancelAppointment = (appointment) =>
+    appointment.consultationType === 'HomeVisit' || appointment.doctorSelectionMode === 'MANUAL_SELECTED';
+
   // Fetch stats
   const fetchStats = async () => {
     try {
@@ -418,6 +427,40 @@ export default function Appointments() {
       console.error('Error cancelling appointment:', err);
     } finally {
       setCancelSubmitting(false);
+    }
+  };
+
+  // Open Cancel-due-to-doctor-unavailable Modal
+  const handleOpenDoctorUnavailableModal = (appointment) => {
+    setSelectedAppointment(appointment);
+    setDoctorUnavailableReason('');
+    setShowDoctorUnavailableModal(true);
+  };
+
+  // Handle Cancel-due-to-doctor-unavailable Submit
+  const handleCancelDueToDoctorUnavailable = async (e) => {
+    e.preventDefault();
+    if (!doctorUnavailableReason.trim()) {
+      showToast({ title: 'Validation Error', message: 'Please provide a reason', type: 'error' });
+      return;
+    }
+
+    try {
+      setDoctorUnavailableSubmitting(true);
+      await appointmentsApi.cancelDueToDoctorUnavailable(selectedAppointment.appointmentID, doctorUnavailableReason.trim());
+      setShowDoctorUnavailableModal(false);
+      await fetchAppointments();
+      await fetchStats();
+      showToast({ title: 'Success!', message: 'Appointment cancelled & refunded, patient notified to rebook', type: 'success' });
+    } catch (err) {
+      showToast({
+        title: 'Cancel Failed',
+        message: err.response?.data?.message || 'Failed to cancel appointment',
+        type: 'error'
+      });
+      console.error('Error cancelling appointment (doctor unavailable):', err);
+    } finally {
+      setDoctorUnavailableSubmitting(false);
     }
   };
 
@@ -867,16 +910,27 @@ export default function Appointments() {
                       <i className="bi bi-eye"></i>
                       <span>View</span>
                     </button>
-                    {appointment.status !== 'Cancelled' && appointment.status !== 'Completed' && (
+                    {!['cancelled', 'completed'].includes((appointment.status || '').toLowerCase()) && (
                       <>
-                        <button
-                          className="action-btn reassign-btn"
-                          title="Reassign to another doctor"
-                          onClick={() => handleOpenReassignModal(appointment)}
-                        >
-                          <i className="bi bi-arrow-left-right"></i>
-                          <span>Reassign</span>
-                        </button>
+                        {isForcedCancelAppointment(appointment) ? (
+                          <button
+                            className="action-btn cancel-btn"
+                            title="Doctor unavailable - cancel & auto-refund, patient will rebook"
+                            onClick={() => handleOpenDoctorUnavailableModal(appointment)}
+                          >
+                            <i className="bi bi-arrow-counterclockwise"></i>
+                            <span>Cancel & Refund</span>
+                          </button>
+                        ) : (
+                          <button
+                            className="action-btn reassign-btn"
+                            title="Reassign to another doctor"
+                            onClick={() => handleOpenReassignModal(appointment)}
+                          >
+                            <i className="bi bi-arrow-left-right"></i>
+                            <span>Reassign</span>
+                          </button>
+                        )}
                         <button
                           className="action-btn cancel-btn"
                           title="Cancel Appointment"
@@ -1388,6 +1442,83 @@ export default function Appointments() {
                         <>
                           <i className="bi bi-x-circle me-2"></i>
                           Confirm Cancel
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Cancel-due-to-doctor-unavailable Modal */}
+        {showDoctorUnavailableModal && selectedAppointment && (
+          <div className="modal show d-block admin-modal-backdrop" tabIndex="-1">
+            <div className="modal-dialog modal-dialog-centered">
+              <div className="modal-content" style={{ border: 'none', boxShadow: 'var(--shadow-lg)' }}>
+                <div className="modal-header bg-danger text-white">
+                  <h5 className="modal-title">
+                    <i className="bi bi-arrow-counterclockwise me-2"></i>
+                    Cancel & Refund - Doctor Unavailable
+                  </h5>
+                  <button
+                    type="button"
+                    className="btn-close btn-close-white"
+                    onClick={() => setShowDoctorUnavailableModal(false)}
+                  ></button>
+                </div>
+                <form onSubmit={handleCancelDueToDoctorUnavailable}>
+                  <div className="modal-body">
+                    <div className="alert alert-info mb-3">
+                      <i className="bi bi-info-circle me-2"></i>
+                      Home Visit appointments or appointments with a manually-selected doctor cannot be reassigned directly.
+                      Appointment #{selectedAppointment.appointmentID} will be cancelled, automatically refunded 100%
+                      (if already paid), and the patient will be notified with a rebook link.
+                    </div>
+
+                    <div className="mb-3">
+                      <div className="mb-1"><strong>Patient:</strong> {selectedAppointment.patientName}</div>
+                      <div className="mb-1"><strong>Doctor:</strong> {selectedAppointment.doctorName}</div>
+                      <div><strong>Date:</strong> {selectedAppointment.date} {selectedAppointment.time}</div>
+                    </div>
+
+                    <div className="mb-3">
+                      <label className="form-label fw-semibold">
+                        Reason <span className="text-danger">*</span>
+                      </label>
+                      <textarea
+                        className="form-control"
+                        rows="3"
+                        value={doctorUnavailableReason}
+                        onChange={(e) => setDoctorUnavailableReason(e.target.value)}
+                        placeholder="E.g.: Doctor reported sudden unavailability, no suitable replacement found..."
+                        required
+                      ></textarea>
+                    </div>
+                  </div>
+                  <div className="modal-footer">
+                    <button
+                      type="button"
+                      className="btn btn-secondary"
+                      onClick={() => setShowDoctorUnavailableModal(false)}
+                    >
+                      Close
+                    </button>
+                    <button
+                      type="submit"
+                      className="btn btn-danger"
+                      disabled={doctorUnavailableSubmitting || !doctorUnavailableReason.trim()}
+                    >
+                      {doctorUnavailableSubmitting ? (
+                        <>
+                          <span className="spinner-border spinner-border-sm me-2"></span>
+                          Processing...
+                        </>
+                      ) : (
+                        <>
+                          <i className="bi bi-arrow-counterclockwise me-2"></i>
+                          Confirm Cancel & Refund
                         </>
                       )}
                     </button>

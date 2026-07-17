@@ -1,7 +1,9 @@
 package com.HealthLink.service.doctor;
 
 import com.HealthLink.dto.doctor.schedule.DoctorScheduleChangeRequestRequest;
+import com.HealthLink.dto.doctor.schedule.DoctorScheduleChangeRequestResolveRequest;
 import com.HealthLink.dto.doctor.schedule.DoctorScheduleChangeRequestResponse;
+import jakarta.servlet.http.HttpServletRequest;
 
 import java.util.List;
 
@@ -16,7 +18,8 @@ public interface DoctorScheduleChangeRequestService {
 
     DoctorScheduleChangeRequestResponse approveChangeRequest(Integer requestId,
                                                              String adminId,
-                                                             String adminReason);
+                                                             DoctorScheduleChangeRequestResolveRequest resolveRequest,
+                                                             HttpServletRequest httpRequest);
 
     DoctorScheduleChangeRequestResponse rejectChangeRequest(Integer requestId,
                                                             String adminId,

@@ -3,6 +3,7 @@ package com.HealthLink.controller.admin;
 import com.HealthLink.dto.admin.AdminDoctorScheduleDto;
 import com.HealthLink.dto.admin.AdminScheduleExceptionRequest;
 import com.HealthLink.dto.admin.schedule.AdminAuditLogPageResponse;
+import com.HealthLink.dto.doctor.schedule.DoctorScheduleChangeRequestResolveRequest;
 import com.HealthLink.dto.doctor.schedule.DoctorScheduleChangeRequestResponse;
 import com.HealthLink.entity.User;
 import com.HealthLink.repository.auth.UserRepository;
@@ -102,11 +103,13 @@ public class AdminScheduleController {
     @PostMapping("/change-requests/{requestId}/approve")
     public ResponseEntity<DoctorScheduleChangeRequestResponse> approveChangeRequest(
             @PathVariable Integer requestId,
-            @RequestParam(required = false) String adminReason,
-            @AuthenticationPrincipal UserDetails userDetails) {
+            @Valid @RequestBody DoctorScheduleChangeRequestResolveRequest resolveRequest,
+            @AuthenticationPrincipal UserDetails userDetails,
+            HttpServletRequest httpRequest) {
 
         String adminUserId = resolveUserId(userDetails);
-        return ResponseEntity.ok(changeRequestService.approveChangeRequest(requestId, adminUserId, adminReason));
+        return ResponseEntity.ok(changeRequestService.approveChangeRequest(
+                requestId, adminUserId, resolveRequest, httpRequest));
     }
 
     @PostMapping("/change-requests/{requestId}/reject")

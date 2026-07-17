@@ -233,6 +233,18 @@ export const appointmentsApi = {
   cancel: async (id, data) => {
     const response = await adminApi.put(`/adminappointments/${id}/cancel`, data);
     return response.data;
+  },
+
+  /**
+   * Admin cancels an appointment because the assigned doctor is unavailable (Home Visit / patient
+   * manually selected their doctor - reassigning directly is not allowed). Automatically refunds
+   * and sends the patient a rebook link.
+   * @param {number} id - Appointment ID
+   * @param {string} reason
+   */
+  cancelDueToDoctorUnavailable: async (id, reason) => {
+    const response = await adminApi.put(`/adminappointments/${id}/cancel-doctor-unavailable`, { reason });
+    return response.data;
   }
 };
 
@@ -633,10 +645,12 @@ export const scheduleApi = {
     return response.data || [];
   },
 
-  approveScheduleChangeRequest: async (requestId, adminReason = '') => {
-    const response = await adminApi.post(`/schedule/change-requests/${requestId}/approve`, null, {
-      params: { adminReason }
-    });
+  /**
+   * @param {number} requestId
+   * @param {object} resolveData - { resolutionType: 'REASSIGN'|'CANCEL', newDoctorId?, adminReason }
+   */
+  approveScheduleChangeRequest: async (requestId, resolveData) => {
+    const response = await adminApi.post(`/schedule/change-requests/${requestId}/approve`, resolveData);
     return response.data;
   },
 

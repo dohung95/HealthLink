@@ -95,6 +95,25 @@ public class AdminAppointmentController {
         return ResponseEntity.ok(result);
     }
 
+    /**
+     * PUT /api/admin/adminappointments/{id}/cancel-doctor-unavailable
+     * Admin cancels an appointment because the assigned doctor is unavailable (Home Visit / patient
+     * manually selected their doctor - reassigning the doctor directly is not allowed). Automatically
+     * refunds if already paid, and sends the patient a rebook link.
+     */
+    @PutMapping("/{id}/cancel-doctor-unavailable")
+    public ResponseEntity<AdminAppointmentDto> cancelDueToDoctorUnavailable(
+            @PathVariable Integer id,
+            @Valid @RequestBody AdminAppointmentCancelDoctorUnavailableRequest request,
+            @AuthenticationPrincipal UserDetails userDetails,
+            HttpServletRequest httpRequest) {
+
+        String adminUserId = resolveUserId(userDetails);
+        AdminAppointmentDto result = appointmentService.cancelDueToDoctorUnavailable(
+                id, request.getReason(), adminUserId, httpRequest);
+        return ResponseEntity.ok(result);
+    }
+
     // ==================== Private Helper ====================
 
     private String resolveUserId(UserDetails userDetails) {

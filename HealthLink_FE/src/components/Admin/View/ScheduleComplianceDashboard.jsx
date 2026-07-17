@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useRef } from "react";
 import { useSearchParams } from "react-router-dom";
 import NavbarAdmin from "./NavbarAdmin";
 import { adminComplianceService } from "../../../api/complianceApi";
-import { scheduleApi } from "../../../api/adminApi";
+import { scheduleApi, doctorsApi } from "../../../api/adminApi";
 import Toast from "./Toast";
 import useToast from "../useToast";
 import { getAvatarUrl } from "../../../utils/avatarHelper";
@@ -86,6 +86,13 @@ export default function ScheduleComplianceDashboard() {
   const [rejectReason, setRejectReason] = useState('');
   const [processingRequestId, setProcessingRequestId] = useState(null);
 
+  // Resolve (Approve) modal state - reassign to another doctor, or cancel & refund
+  const [showResolveModal, setShowResolveModal] = useState(false);
+  const [resolvingRequest, setResolvingRequest] = useState(null);
+  const [resolveForm, setResolveForm] = useState({ resolutionType: 'CANCEL', newDoctorId: '', adminReason: '' });
+  const [resolveDoctors, setResolveDoctors] = useState([]);
+  const [resolveDoctorsLoading, setResolveDoctorsLoading] = useState(false);
+
   // Day names for schedule display
   const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
@@ -116,16 +123,66 @@ export default function ScheduleComplianceDashboard() {
     }
   };
 
-  // Approve a change request
-  const handleApproveRequest = async (requestId) => {
+  // Home Visit appointments or appointments with a manually-selected doctor must be cancelled &
+  // refunded - they cannot be reassigned directly (matches the backend guard).
+  const isForcedCancelRequest = (request) =>
+    request.consultationType === 'HomeVisit' || request.doctorSelectionMode === 'MANUAL_SELECTED';
+
+  // Open the resolution modal for a doctor's schedule change request
+  const handleOpenResolveModal = async (request) => {
+    const forcedCancel = isForcedCancelRequest(request);
+    setResolvingRequest(request);
+    setResolveForm({
+      resolutionType: forcedCancel ? 'CANCEL' : 'REASSIGN',
+      newDoctorId: '',
+      adminReason: ''
+    });
+    setShowResolveModal(true);
+
+    if (!forcedCancel) {
+      try {
+        setResolveDoctorsLoading(true);
+        const dateStr = request.appointmentTime ? request.appointmentTime.slice(0, 10) : null;
+        const doctors = await doctorsApi.getAvailableOnDate(dateStr, '', request.doctorId);
+        setResolveDoctors(doctors || []);
+      } catch (err) {
+        console.error('Error fetching available doctors:', err);
+      } finally {
+        setResolveDoctorsLoading(false);
+      }
+    }
+  };
+
+  // Submit the resolution for a change request (reassign to another doctor / cancel & refund)
+  const handleResolveRequest = async () => {
+    if (!resolvingRequest || !resolveForm.adminReason.trim()) {
+      showToast({ title: 'Error', message: 'Please provide a reason', type: 'error' });
+      return;
+    }
+    if (resolveForm.resolutionType === 'REASSIGN' && !resolveForm.newDoctorId) {
+      showToast({ title: 'Error', message: 'Please select a replacement doctor', type: 'error' });
+      return;
+    }
     try {
-      setProcessingRequestId(requestId);
-      await scheduleApi.approveScheduleChangeRequest(requestId, 'Approved by admin');
-      showToast({ title: 'Success', message: 'Change request approved', type: 'success' });
+      setProcessingRequestId(resolvingRequest.requestId);
+      await scheduleApi.approveScheduleChangeRequest(resolvingRequest.requestId, {
+        resolutionType: resolveForm.resolutionType,
+        newDoctorId: resolveForm.resolutionType === 'REASSIGN' ? resolveForm.newDoctorId : null,
+        adminReason: resolveForm.adminReason.trim()
+      });
+      showToast({
+        title: 'Success',
+        message: resolveForm.resolutionType === 'REASSIGN'
+          ? 'Reassigned to another doctor'
+          : 'Appointment cancelled and refunded to the patient',
+        type: 'success'
+      });
+      setShowResolveModal(false);
+      setResolvingRequest(null);
       fetchChangeRequests();
     } catch (err) {
-      console.error('Error approving request:', err);
-      showToast({ title: 'Error', message: err.response?.data?.message || 'Failed to approve request', type: 'error' });
+      console.error('Error resolving request:', err);
+      showToast({ title: 'Error', message: err.response?.data?.message || 'Failed to resolve request', type: 'error' });
     } finally {
       setProcessingRequestId(null);
     }
@@ -872,7 +929,7 @@ export default function ScheduleComplianceDashboard() {
                                   <button
                                     className="compliance-action-btn"
                                     style={{ color: '#16a34a' }}
-                                    onClick={() => handleApproveRequest(request.requestId)}
+                                    onClick={() => handleOpenResolveModal(request)}
                                     disabled={processingRequestId === request.requestId}
                                     title="Approve"
                                   >
@@ -913,6 +970,136 @@ export default function ScheduleComplianceDashboard() {
           )}
         </div>
       </div>
+
+      {/* Resolve (Approve) Change Request Modal */}
+      {showResolveModal && resolvingRequest && (
+        <div className="compliance-modal-overlay">
+          <div className="compliance-modal">
+            <div className="compliance-modal-header">
+              <h5 className="compliance-modal-title">Resolve Schedule Change Request</h5>
+              <button className="compliance-modal-close" onClick={() => {
+                setShowResolveModal(false);
+                setResolvingRequest(null);
+              }}>
+                <i className="bi bi-x-lg"></i>
+              </button>
+            </div>
+            <div className="compliance-modal-body">
+              <div className="mb-3 p-3 rounded" style={{ background: '#f8fafc' }}>
+                <div className="d-flex justify-content-between align-items-start">
+                  <div>
+                    <div className="fw-bold">{resolvingRequest.doctorName}</div>
+                    <div className="text-muted small">Patient: {resolvingRequest.patientName}</div>
+                    <div className="text-muted small">
+                      Appointment: {resolvingRequest.appointmentTime ?
+                        new Date(resolvingRequest.appointmentTime).toLocaleString() : 'N/A'}
+                    </div>
+                    <div className="text-muted small">
+                      {resolvingRequest.consultationType} · {resolvingRequest.doctorSelectionMode}
+                    </div>
+                  </div>
+                  <span className="badge bg-warning text-dark">#{resolvingRequest.requestId}</span>
+                </div>
+                <div className="mt-2 pt-2 border-top">
+                  <small className="text-muted">Doctor's reason:</small>
+                  <div>{resolvingRequest.reason}</div>
+                </div>
+              </div>
+
+              {isForcedCancelRequest(resolvingRequest) ? (
+                <div className="alert alert-info small mb-3">
+                  Home Visit appointments or appointments with a manually-selected doctor cannot be reassigned directly.
+                  The system will cancel the appointment, automatically refund it, and send the patient a rebook link.
+                </div>
+              ) : (
+                <div className="compliance-form-group mb-3">
+                  <label className="compliance-form-label">Resolution *</label>
+                  <div className="d-flex flex-column gap-2 mt-1">
+                    <label className="d-flex align-items-center gap-2">
+                      <input
+                        type="radio"
+                        name="resolutionType"
+                        checked={resolveForm.resolutionType === 'REASSIGN'}
+                        onChange={() => setResolveForm({ ...resolveForm, resolutionType: 'REASSIGN' })}
+                      />
+                      Reassign to another doctor
+                    </label>
+                    <label className="d-flex align-items-center gap-2">
+                      <input
+                        type="radio"
+                        name="resolutionType"
+                        checked={resolveForm.resolutionType === 'CANCEL'}
+                        onChange={() => setResolveForm({ ...resolveForm, resolutionType: 'CANCEL' })}
+                      />
+                      No replacement found → Cancel & Refund
+                    </label>
+                  </div>
+                </div>
+              )}
+
+              {!isForcedCancelRequest(resolvingRequest) && resolveForm.resolutionType === 'REASSIGN' && (
+                <div className="compliance-form-group mb-3">
+                  <label className="compliance-form-label">Replacement Doctor *</label>
+                  <select
+                    className="compliance-form-select"
+                    value={resolveForm.newDoctorId}
+                    onChange={(e) => setResolveForm({ ...resolveForm, newDoctorId: e.target.value })}
+                    disabled={resolveDoctorsLoading}
+                  >
+                    <option value="">-- Select a doctor --</option>
+                    {resolveDoctors.map((doc) => (
+                      <option key={doc.doctorId || doc.id} value={doc.doctorId || doc.id}>
+                        {doc.fullName || doc.doctorName}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              <div className="compliance-form-group">
+                <label className="compliance-form-label">Reason *</label>
+                <textarea
+                  className="compliance-form-textarea"
+                  value={resolveForm.adminReason}
+                  onChange={(e) => setResolveForm({ ...resolveForm, adminReason: e.target.value })}
+                  placeholder="Explain the reason for this resolution..."
+                  required
+                  rows={3}
+                />
+              </div>
+            </div>
+            <div className="compliance-modal-footer">
+              <button
+                className="compliance-modal-btn secondary"
+                onClick={() => {
+                  setShowResolveModal(false);
+                  setResolvingRequest(null);
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                className="compliance-modal-btn"
+                style={{ background: '#16a34a', color: '#fff' }}
+                onClick={handleResolveRequest}
+                disabled={!!processingRequestId || !resolveForm.adminReason.trim()}
+              >
+                {processingRequestId === resolvingRequest.requestId ? (
+                  <>
+                    <span className="spinner-border spinner-border-sm"></span>
+                    Processing...
+                  </>
+                ) : (
+                  <>
+                    <i className="bi bi-check-circle"></i>
+                    Confirm
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Reject Change Request Modal */}
       {showRejectModal && rejectingRequest && (

@@ -26,4 +26,8 @@ public class DoctorScheduleChangeRequestResponse {
     private String handledBy;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+
+    // Lets the FE know whether to show the "pick another doctor" UI or only "cancel & refund"
+    private String consultationType;
+    private String doctorSelectionMode;
 }

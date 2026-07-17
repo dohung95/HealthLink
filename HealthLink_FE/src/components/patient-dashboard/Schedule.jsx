@@ -195,6 +195,44 @@ const Schedule = () => {
     setStep(2); // Nhảy thẳng sang bước 2 (chọn bác sĩ)
   }, [searchParams, doctorId]);
 
+  // Handles ?rebook=1&specialty=&consultationType= from the "rebook" link in a cancellation
+  // notification (the previous appointment was cancelled because the doctor was unavailable) -
+  // prefills the specialty + consultation type so the patient just picks a new doctor/time,
+  // same as a normal booking.
+  useEffect(() => {
+    if (searchParams.get('rebook') !== '1' || doctorId) return;
+    const specialtyParam = searchParams.get('specialty');
+    const consultationTypeParam = searchParams.get('consultationType');
+    const decodedSpecialty = specialtyParam ? decodeURIComponent(specialtyParam) : '';
+
+    if (specialtyParam) {
+      setSelectedSpecialty(decodedSpecialty);
+    }
+
+    if (consultationTypeParam === 'Online' || consultationTypeParam === 'HomeVisit') {
+      setConsultationType(consultationTypeParam);
+      setStep(3); // Both specialty and consultation type are known, skip straight to the next step
+
+      // Normally the manual-selection fee is fetched when the user clicks "Next" from the
+      // Consultation step (see loadManualSelectionFee below). Since this effect jumps straight
+      // to the Doctor Option step, fetch it here too so it's not stuck at $0 until the user
+      // toggles the selection mode - the closure can't rely on `selectedSpecialty` state yet
+      // since the setSelectedSpecialty call above hasn't been applied in this render.
+      if (consultationTypeParam === 'Online' && decodedSpecialty) {
+        setLoadingRecommendedDoctor(true);
+        appointmentService.recommendDoctor({
+          specialty: decodedSpecialty,
+          consultationType: 'Online',
+        })
+          .then((result) => setManualSelectionFee(Number(result?.manualSelectionFee || 0)))
+          .catch((error) => console.error('Failed to load manual selection fee for rebook', error))
+          .finally(() => setLoadingRecommendedDoctor(false));
+      }
+    } else if (specialtyParam) {
+      setStep(2);
+    }
+  }, [searchParams, doctorId]);
+
   useEffect(() => {
     if (!doctorId || doctors.length === 0) return;
 
