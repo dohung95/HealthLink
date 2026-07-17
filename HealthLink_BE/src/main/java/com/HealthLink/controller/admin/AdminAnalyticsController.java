@@ -99,7 +99,9 @@ public class AdminAnalyticsController {
     }
 
     @GetMapping("/overview-stats")
-    public ResponseEntity<AdminOverviewStatsDto> getOverviewStats() {
-        return ResponseEntity.ok(analyticsService.getOverviewStats());
+    public ResponseEntity<AdminOverviewStatsDto> getOverviewStats(
+            @RequestParam(defaultValue = "0") int year,
+            @RequestParam(defaultValue = "0") int month) {
+        return ResponseEntity.ok(analyticsService.getOverviewStats(year, month));
     }
 }

@@ -323,8 +323,12 @@ export const analyticsApi = {
     return response.data;
   },
 
-  getOverviewStats: async () => {
-    const response = await adminApi.get('/analytics/overview-stats');
+  /**
+   * @param {number} year - 0 = all-time (default); >0 = scope to that year
+   * @param {number} month - 0 = whole year (when year>0); 1-12 = scope to that month
+   */
+  getOverviewStats: async (year = 0, month = 0) => {
+    const response = await adminApi.get('/analytics/overview-stats', { params: { year, month } });
     return response.data;
   }
 };
@@ -426,8 +430,12 @@ export const commissionApi = {
 // ==================== FINANCIAL API ====================
 
 export const financialApi = {
-  getOverview: async () => {
-    const response = await adminApi.get('/financial/overview');
+  /**
+   * @param {number} year - 0 = all-time (default); >0 = scope to that year
+   * @param {number} month - 0 = whole year (when year>0); 1-12 = scope to that month
+   */
+  getOverview: async (year = 0, month = 0) => {
+    const response = await adminApi.get('/financial/overview', { params: { year, month } });
     return response.data;
   },
 
@@ -539,6 +547,47 @@ export const auditApi = {
   getLogDetail: async (id) => {
     const response = await adminApi.get(`/audit-logs/${id}`);
     return response.data;
+  },
+
+  /**
+   * Export the merged Audit Log (schedule + admin) matching the given filters.
+   * @param {object} params - { source: 'ALL'|'SCHEDULE'|'ADMIN', category?, doctorId?, actionType?, startTime?, endTime?, format: 'CSV'|'XLSX' }
+   */
+  exportLogs: async (params = {}) => {
+    const {
+      source = 'ALL',
+      category,
+      doctorId,
+      actionType,
+      startTime,
+      endTime,
+      format = 'CSV'
+    } = params;
+
+    const queryParams = { source, format };
+    if (category) queryParams.category = category;
+    if (doctorId) queryParams.doctorId = doctorId;
+    if (actionType) queryParams.actionType = actionType;
+    if (startTime) queryParams.startTime = startTime;
+    if (endTime) queryParams.endTime = endTime;
+
+    const response = await adminApi.get('/audit-log/export', {
+      params: queryParams,
+      responseType: 'blob'
+    });
+
+    const isXlsx = format === 'XLSX';
+    const mimeType = isXlsx
+      ? 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+      : 'text/csv';
+    const dateStr = new Date().toISOString().slice(0, 10);
+
+    const url = URL.createObjectURL(new Blob([response.data], { type: mimeType }));
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `audit-log-${dateStr}.${isXlsx ? 'xlsx' : 'csv'}`;
+    link.click();
+    URL.revokeObjectURL(url);
   }
 };
 

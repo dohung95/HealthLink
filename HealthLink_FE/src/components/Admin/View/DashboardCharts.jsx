@@ -1,11 +1,28 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { BarChart, Bar, AreaChart, Area, LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { BarChart, Bar, AreaChart, Area, LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LabelList } from 'recharts';
 import { analyticsApi } from '../../../api/adminApi';
 import '../Css/DashboardCharts.css';
 
 const AXIS_MARGIN = { top: 24, right: 16, left: 8, bottom: 34 };
 const AXIS_LABEL_STYLE = { fontSize: '12px', fill: '#6b7280' };
 const Y_AXIS_LABEL_STYLE = { ...AXIS_LABEL_STYLE, textAnchor: 'start' };
+
+// Hide zero-value data labels so sparse series (e.g. quiet hours) don't clutter the chart with "0"s
+const hideZero = (value) => (value ? value : '');
+const compactCurrency = (value) => (value ? `$${value >= 1000 ? (value / 1000).toFixed(1) + 'k' : value}` : '');
+
+// A single dark, high-contrast style for every on-chart data label, with a white halo
+// (stroke drawn behind the fill via paintOrder) so numbers stay readable no matter what
+// color line/area/bar they land on — matching each label to its own series color made
+// them blend into same-hued fills and were hard to read.
+const DATA_LABEL_STYLE = {
+    fontSize: 10,
+    fontWeight: 700,
+    fill: '#1f2937',
+    stroke: '#fff',
+    strokeWidth: 3,
+    paintOrder: 'stroke'
+};
 
 const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
@@ -37,6 +54,10 @@ const DashboardCharts = () => {
     const [overviewStats, setOverviewStats] = useState(null);
     const [selectedYear, setSelectedYear] = useState(currentYear);
     const [selectedMonth, setSelectedMonth] = useState(0); // 0 = All months (yearly view), 1-12 = drill down to weeks within that month
+    // Tracks whether the admin has actually touched the Year/Month filter yet. The overview
+    // stat circles (Total Appointments/Revenue/Patients/Doctors/Pharmacies) show all-time totals
+    // until then, and only start following the selected year/month once the filter is used.
+    const [hasFilterChanged, setHasFilterChanged] = useState(false);
 
     // Generate year options from 2024 to 2030
     const yearOptions = [];
@@ -60,10 +81,11 @@ const DashboardCharts = () => {
     }, [selectedYear, selectedMonth]);
 
     useEffect(() => {
-        analyticsApi.getOverviewStats()
+        const [statsYear, statsMonth] = hasFilterChanged ? [selectedYear, selectedMonth] : [0, 0];
+        analyticsApi.getOverviewStats(statsYear, statsMonth)
             .then(res => setOverviewStats(res))
             .catch(error => console.error('Error fetching overview stats:', error));
-    }, []);
+    }, [hasFilterChanged, selectedYear, selectedMonth]);
 
     const fetchAllData = async (year) => {
         try {
@@ -170,14 +192,17 @@ const DashboardCharts = () => {
 
     const handleYearChange = (e) => {
         setSelectedYear(parseInt(e.target.value));
+        setHasFilterChanged(true);
     };
 
     const handleMonthChange = (e) => {
         setSelectedMonth(parseInt(e.target.value));
+        setHasFilterChanged(true);
     };
 
     const handleCurrentYear = () => {
         setSelectedYear(currentYear);
+        setHasFilterChanged(true);
     };
 
     const xAxisUnitLabel = selectedMonth === 0 ? '(Month)' : '(Week)';
@@ -333,7 +358,9 @@ const DashboardCharts = () => {
                                                 strokeWidth={2}
                                                 fillOpacity={1}
                                                 fill="url(#colorHourOnline)"
-                                            />
+                                            >
+                                                <LabelList dataKey="valueA" position="top" formatter={hideZero} style={{ ...DATA_LABEL_STYLE, fontSize: 9 }} />
+                                            </Area>
                                             <Area
                                                 type="monotone"
                                                 dataKey="valueB"
@@ -342,7 +369,9 @@ const DashboardCharts = () => {
                                                 strokeWidth={2}
                                                 fillOpacity={1}
                                                 fill="url(#colorHourHomeVisit)"
-                                            />
+                                            >
+                                                <LabelList dataKey="valueB" position="bottom" formatter={hideZero} style={{ ...DATA_LABEL_STYLE, fontSize: 9 }} />
+                                            </Area>
                                         </AreaChart>
                                     </ResponsiveContainer>
                                 </div>
@@ -459,7 +488,9 @@ const DashboardCharts = () => {
                                             strokeWidth={2.5}
                                             dot={false}
                                             activeDot={{ r: 5 }}
-                                        />
+                                        >
+                                            <LabelList dataKey="valueA" position="top" formatter={hideZero} style={{ ...DATA_LABEL_STYLE, fontSize: 10 }} />
+                                        </Line>
                                         <Line
                                             type="monotone"
                                             dataKey="valueB"
@@ -468,7 +499,9 @@ const DashboardCharts = () => {
                                             strokeWidth={2.5}
                                             dot={false}
                                             activeDot={{ r: 5 }}
-                                        />
+                                        >
+                                            <LabelList dataKey="valueB" position="bottom" formatter={hideZero} style={{ ...DATA_LABEL_STYLE, fontSize: 10 }} />
+                                        </Line>
                                     </LineChart>
                                 </ResponsiveContainer>
                             </div>
@@ -529,7 +562,9 @@ const DashboardCharts = () => {
                                         strokeWidth={2}
                                         fillOpacity={1}
                                         fill="url(#colorPatients)"
-                                    />
+                                    >
+                                        <LabelList dataKey="count" position="top" formatter={hideZero} style={{ ...DATA_LABEL_STYLE, fontSize: 10 }} />
+                                    </Area>
                                 </AreaChart>
                             </ResponsiveContainer>
                         </div>
@@ -600,8 +635,12 @@ const DashboardCharts = () => {
                                         }}
                                     />
                                     <Legend verticalAlign="top" align="right" wrapperStyle={{ fontSize: '12px' }} />
-                                    <Bar dataKey="valueA" name="Doctors" fill="#059669" radius={[6, 6, 0, 0]} />
-                                    <Bar dataKey="valueB" name="Pharmacies" fill="#8b5cf6" radius={[6, 6, 0, 0]} />
+                                    <Bar dataKey="valueA" name="Doctors" fill="#059669" radius={[6, 6, 0, 0]}>
+                                        <LabelList dataKey="valueA" position="top" formatter={hideZero} style={{ ...DATA_LABEL_STYLE, fontSize: 10 }} />
+                                    </Bar>
+                                    <Bar dataKey="valueB" name="Pharmacies" fill="#8b5cf6" radius={[6, 6, 0, 0]}>
+                                        <LabelList dataKey="valueB" position="top" formatter={hideZero} style={{ ...DATA_LABEL_STYLE, fontSize: 10 }} />
+                                    </Bar>
                                 </BarChart>
                             </ResponsiveContainer>
                         </div>
@@ -734,7 +773,9 @@ const DashboardCharts = () => {
                                             strokeWidth={2.5}
                                             dot={false}
                                             activeDot={{ r: 5 }}
-                                        />
+                                        >
+                                            <LabelList dataKey="valueA" position="top" formatter={compactCurrency} style={{ ...DATA_LABEL_STYLE, fontSize: 10 }} />
+                                        </Line>
                                         <Line
                                             type="monotone"
                                             dataKey="valueB"
@@ -743,7 +784,9 @@ const DashboardCharts = () => {
                                             strokeWidth={2.5}
                                             dot={false}
                                             activeDot={{ r: 5 }}
-                                        />
+                                        >
+                                            <LabelList dataKey="valueB" position="bottom" formatter={compactCurrency} style={{ ...DATA_LABEL_STYLE, fontSize: 10 }} />
+                                        </Line>
                                     </LineChart>
                                 </ResponsiveContainer>
                             </div>

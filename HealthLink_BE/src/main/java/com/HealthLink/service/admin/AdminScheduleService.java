@@ -213,6 +213,16 @@ public class AdminScheduleService {
                 .build();
     }
 
+    /**
+     * Get every schedule audit log matching the given filters, unpaginated — used for export.
+     */
+    public List<AdminAuditLogDto> getAllAuditLogsForExport(
+            String doctorId, String actionType, LocalDateTime startTime, LocalDateTime endTime) {
+        Page<AdminScheduleAuditLog> page = auditLogRepository.findWithFilters(
+                null, doctorId, actionType, startTime, endTime, Pageable.unpaged());
+        return page.stream().map(this::mapAuditLogToDto).collect(Collectors.toList());
+    }
+
     // ==================== Private Helper Methods ====================
 
     private void validateExceptionType(String type) {

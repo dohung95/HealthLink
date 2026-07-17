@@ -733,29 +733,84 @@ public class AdminAnalyticsService {
      * All-time system totals (not filtered by year/month): appointments, revenue,
      * patients, doctors, pharmacies. Used by the reserved dashboard panel.
      */
-    public AdminOverviewStatsDto getOverviewStats() {
-        long totalAppointments = ((Number) entityManager
-            .createNativeQuery("SELECT COUNT(*) FROM Appointments")
-            .getSingleResult()).longValue();
+    /**
+     * @param year  0 = all-time (mặc định, không lọc); &gt;0 = chỉ lấy năm đó
+     * @param month 0 = cả năm (khi year&gt;0); 1-12 = chỉ lấy đúng tháng đó trong năm
+     */
+    public AdminOverviewStatsDto getOverviewStats(int year, int month) {
+        if (year <= 0) {
+            // All-time (default / unfiltered) — unchanged from before this method took year/month.
+            long totalAppointments = ((Number) entityManager
+                .createNativeQuery("SELECT COUNT(*) FROM Appointments")
+                .getSingleResult()).longValue();
 
-        long totalPatients = ((Number) entityManager
-            .createNativeQuery("SELECT COUNT(*) FROM Patients")
-            .getSingleResult()).longValue();
+            long totalPatients = ((Number) entityManager
+                .createNativeQuery("SELECT COUNT(*) FROM Patients")
+                .getSingleResult()).longValue();
 
-        long totalDoctors = ((Number) entityManager
-            .createNativeQuery("SELECT COUNT(*) FROM Doctors")
-            .getSingleResult()).longValue();
+            long totalDoctors = ((Number) entityManager
+                .createNativeQuery("SELECT COUNT(*) FROM Doctors")
+                .getSingleResult()).longValue();
 
-        long totalPharmacies = ((Number) entityManager
-            .createNativeQuery("SELECT COUNT(*) FROM Pharmacies")
-            .getSingleResult()).longValue();
+            long totalPharmacies = ((Number) entityManager
+                .createNativeQuery("SELECT COUNT(*) FROM Pharmacies")
+                .getSingleResult()).longValue();
 
-        Number revenueResult = (Number) entityManager
-            .createNativeQuery("SELECT COALESCE(SUM(Fee), 0) FROM Appointments WHERE LOWER(Status) = 'completed'")
-            .getSingleResult();
-        BigDecimal totalRevenue = revenueResult != null
-            ? new BigDecimal(revenueResult.toString())
-            : BigDecimal.ZERO;
+            // Total Revenue = Appointments (completed) + PharmacyOrders (paid) — same definition
+            // Financial Reports uses, so the two screens agree. This used to only count
+            // Appointments, silently omitting pharmacy revenue from a metric labeled "Total".
+            Number doctorRevenueResult = (Number) entityManager
+                .createNativeQuery("SELECT COALESCE(SUM(Fee), 0) FROM Appointments WHERE LOWER(Status) = 'completed'")
+                .getSingleResult();
+            Number pharmacyRevenueResult = (Number) entityManager
+                .createNativeQuery("SELECT COALESCE(SUM(totalAmount), 0) FROM PharmacyOrders WHERE UPPER(paymentStatus) = 'PAID'")
+                .getSingleResult();
+            BigDecimal totalRevenue = (doctorRevenueResult != null ? new BigDecimal(doctorRevenueResult.toString()) : BigDecimal.ZERO)
+                .add(pharmacyRevenueResult != null ? new BigDecimal(pharmacyRevenueResult.toString()) : BigDecimal.ZERO);
+
+            return AdminOverviewStatsDto.builder()
+                .totalAppointments(totalAppointments)
+                .totalRevenue(totalRevenue)
+                .totalPatients(totalPatients)
+                .totalDoctors(totalDoctors)
+                .totalPharmacies(totalPharmacies)
+                .build();
+        }
+
+        // Filtered mode — same date columns as the rest of this service:
+        // Appointments.AppointmentTime for bookings/revenue, Users.CreatedDate for registrations
+        // (Patients/Doctors/Pharmacies share their primary key with their Users row).
+        LocalDate from = month > 0 ? LocalDate.of(year, month, 1) : LocalDate.of(year, 1, 1);
+        LocalDate to = month > 0 ? from.plusMonths(1) : from.plusYears(1);
+
+        long totalAppointments = getRangeLongResult(
+            "SELECT COUNT(*) FROM Appointments WHERE AppointmentTime >= :from AND AppointmentTime < :to",
+            from, to);
+
+        long totalPatients = getRangeLongResult(
+            "SELECT COUNT(*) FROM Patients p JOIN Users u ON p.PatientID = u.Id " +
+                "WHERE u.CreatedDate >= :from AND u.CreatedDate < :to",
+            from, to);
+
+        long totalDoctors = getRangeLongResult(
+            "SELECT COUNT(*) FROM Doctors d JOIN Users u ON d.DoctorID = u.Id " +
+                "WHERE u.CreatedDate >= :from AND u.CreatedDate < :to",
+            from, to);
+
+        long totalPharmacies = getRangeLongResult(
+            "SELECT COUNT(*) FROM Pharmacies ph JOIN Users u ON ph.PharmacyID = u.Id " +
+                "WHERE u.CreatedDate >= :from AND u.CreatedDate < :to",
+            from, to);
+
+        // Total Revenue = Appointments (completed) + PharmacyOrders (paid), same as all-time above.
+        BigDecimal totalRevenue = getRangeBigDecimalResult(
+            "SELECT COALESCE(SUM(Fee), 0) FROM Appointments WHERE LOWER(Status) = 'completed' " +
+                "AND AppointmentTime >= :from AND AppointmentTime < :to",
+            from, to)
+            .add(getRangeBigDecimalResult(
+                "SELECT COALESCE(SUM(totalAmount), 0) FROM PharmacyOrders WHERE UPPER(paymentStatus) = 'PAID' " +
+                    "AND createdAt >= :from AND createdAt < :to",
+                from, to));
 
         return AdminOverviewStatsDto.builder()
             .totalAppointments(totalAppointments)
@@ -764,5 +819,21 @@ public class AdminAnalyticsService {
             .totalDoctors(totalDoctors)
             .totalPharmacies(totalPharmacies)
             .build();
+    }
+
+    private long getRangeLongResult(String sql, LocalDate fromInclusive, LocalDate toExclusive) {
+        Query query = entityManager.createNativeQuery(sql);
+        query.setParameter("from", fromInclusive.atStartOfDay());
+        query.setParameter("to", toExclusive.atStartOfDay());
+        Object result = query.getSingleResult();
+        return result != null ? ((Number) result).longValue() : 0L;
+    }
+
+    private BigDecimal getRangeBigDecimalResult(String sql, LocalDate fromInclusive, LocalDate toExclusive) {
+        Query query = entityManager.createNativeQuery(sql);
+        query.setParameter("from", fromInclusive.atStartOfDay());
+        query.setParameter("to", toExclusive.atStartOfDay());
+        Object result = query.getSingleResult();
+        return result != null ? new BigDecimal(result.toString()) : BigDecimal.ZERO;
     }
 }

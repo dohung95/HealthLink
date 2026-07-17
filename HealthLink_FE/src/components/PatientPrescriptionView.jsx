@@ -21,6 +21,41 @@ const PatientPrescriptionView = () => {
     fetchPrescriptions();
   }, []);
 
+  // Custom styles for printing
+  useEffect(() => {
+    const style = document.createElement('style');
+    style.innerHTML = `
+      @media print {
+        .print-row {
+          display: block !important;
+          width: 100% !important;
+          clear: both !important;
+          margin-bottom: 1rem !important;
+        }
+        .print-col-4 {
+          display: block !important;
+          float: left !important;
+          width: 33.33333333% !important;
+          padding-left: 0.5rem !important;
+          padding-right: 0.5rem !important;
+        }
+        .print-p-2 {
+          padding: 0.5rem !important;
+        }
+        .print-mb-1 {
+          margin-bottom: 0.25rem !important;
+        }
+        .mt-print-0 {
+          margin-top: 0 !important;
+        }
+      }
+    `;
+    document.head.appendChild(style);
+    return () => {
+      document.head.removeChild(style);
+    };
+  }, []);
+
   useEffect(() => {
     filterPrescriptions();
   }, [prescriptions, searchQuery]);
@@ -218,15 +253,68 @@ const PatientPrescriptionView = () => {
                   </div>
 
                   {/* Header Section */}
-                  <div className="pb-4 mb-4 border-bottom border-custom print-border-dark">
+                  <div className="pb-4 mb-4 border-bottom border-custom print-border-dark d-flex justify-content-between align-items-start flex-wrap gap-3">
                     <div>
                       <p className="text-gray-900 fs-5 fw-bold mb-1">
-                        Prescription from {selectedPrescription.doctorName || 'Dr. Unknown'}
+                        Consultation Report & Prescription
                       </p>
-                      <p className="text-gray-500 small mb-1">Specialty: {selectedPrescription.specialty || 'Not specified'}</p>
+                      <p className="text-gray-500 small mb-1">Doctor: {selectedPrescription.doctorName || 'Dr. Unknown'} ({selectedPrescription.specialty || 'General'})</p>
                       <p className="text-gray-500 small mb-1">Diagnosis: {stripHtml(selectedPrescription.diagnosis) || 'Not specified'}</p>
-                      <p className="text-gray-500 small mb-0">Issued: {formatDate(selectedPrescription.issueDate)}</p>
+                      <p className="text-gray-500 small mb-0">Date: {formatDate(selectedPrescription.issueDate)}</p>
                     </div>
+                    {selectedPrescription.paymentStatus && (
+                      <div className="text-end">
+                        <span className={`badge ${selectedPrescription.paymentStatus === 'PAID' ? 'bg-success' : 'bg-warning'} px-3 py-2 rounded-pill`}>
+                          Payment: {selectedPrescription.paymentStatus}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Patient Info, Vitals, and Clinical Notes - Compact Row for Print */}
+                  <div className="mb-4 row g-3 print-row">
+                    <div className="col-12 col-md-6 print-col-4">
+                      <p className="text-gray-900 fs-6 fw-semibold mb-2 print-mb-1"><i className="bi bi-person-badge me-2"></i>Patient Information</p>
+                      <div className="bg-light p-3 print-p-2 rounded-3 h-100">
+                        <p className="small mb-1"><strong>Name:</strong> {selectedPrescription.patientName}</p>
+                        <p className="small mb-1"><strong>Age:</strong> {selectedPrescription.patientAge || 'N/A'} | <strong>Gender:</strong> {selectedPrescription.patientGender || 'N/A'}</p>
+                        <p className="small mb-1"><strong>Phone:</strong> {selectedPrescription.patientPhone || 'N/A'}</p>
+                        <p className="small mb-0"><strong>Address:</strong> {selectedPrescription.patientAddress || 'N/A'}</p>
+                      </div>
+                    </div>
+                    <div className="col-12 col-md-6 print-col-4">
+                      <p className="text-gray-900 fs-6 fw-semibold mb-2 print-mb-1"><i className="bi bi-heart-pulse me-2"></i>Vital Signs</p>
+                      <div className="bg-light p-3 print-p-2 rounded-3 h-100">
+                        <div className="row g-1">
+                          <div className="col-6"><p className="small mb-0"><strong>BP:</strong> {selectedPrescription.bloodPressureSystolic ? `${selectedPrescription.bloodPressureSystolic}/${selectedPrescription.bloodPressureDiastolic}` : 'N/A'} mmHg</p></div>
+                          <div className="col-6"><p className="small mb-0"><strong>Heart Rate:</strong> {selectedPrescription.heartRate || 'N/A'} bpm</p></div>
+                          <div className="col-6"><p className="small mb-0"><strong>Temp:</strong> {selectedPrescription.temperature || 'N/A'} °C</p></div>
+                          <div className="col-6"><p className="small mb-0"><strong>SpO2:</strong> {selectedPrescription.spO2 || 'N/A'} %</p></div>
+                          <div className="col-6"><p className="small mb-0"><strong>Weight:</strong> {selectedPrescription.patientWeight || 'N/A'} kg</p></div>
+                          <div className="col-6"><p className="small mb-0"><strong>Height:</strong> {selectedPrescription.patientHeight || 'N/A'} cm</p></div>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    {(selectedPrescription.symptoms || selectedPrescription.medicalHistory) && (
+                      <div className="col-12 col-md-12 print-col-4 mt-md-4 mt-print-0">
+                        <p className="text-gray-900 fs-6 fw-semibold mb-2 print-mb-1"><i className="bi bi-clipboard2-pulse me-2"></i>Clinical Notes</p>
+                        <div className="border border-custom rounded-3 p-3 print-p-2 h-100">
+                          {selectedPrescription.symptoms && (
+                            <div className="mb-2">
+                              <strong className="small d-block text-gray-700">Symptoms:</strong>
+                              <span className="small text-muted">{selectedPrescription.symptoms}</span>
+                            </div>
+                          )}
+                          {selectedPrescription.medicalHistory && (
+                            <div>
+                              <strong className="small d-block text-gray-700">Medical History:</strong>
+                              <span className="small text-muted">{selectedPrescription.medicalHistory}</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
                   </div>
 
                   {/* Medication List Table */}
@@ -267,12 +355,61 @@ const PatientPrescriptionView = () => {
                   </div>
 
                   {/* Doctor's Notes Section */}
-                  {selectedPrescription.notes && stripHtml(selectedPrescription.notes).trim() !== '' && (
-                    <div className="mt-5">
-                      <p className="text-gray-900 fs-6 fw-semibold mb-3">Doctor's Advice</p>
-                      <div className="notes-box">
-                        <p className="text-gray-600 small mb-0">{stripHtml(selectedPrescription.notes)}</p>
+                  <div className="mt-5 row g-4">
+                    <div className="col-md-6">
+                      <p className="text-gray-900 fs-6 fw-semibold mb-3"><i className="bi bi-journal-medical me-2"></i>Treatment & Advice</p>
+                      <div className="notes-box h-100">
+                        {selectedPrescription.treatment && (
+                          <div className="mb-3">
+                            <strong className="small d-block mb-1">Treatment Plan:</strong>
+                            <p className="text-gray-600 small mb-0">{stripHtml(selectedPrescription.treatment)}</p>
+                          </div>
+                        )}
+                        {selectedPrescription.notes && (
+                          <div>
+                            <strong className="small d-block mb-1">General Advice:</strong>
+                            <p className="text-gray-600 small mb-0">{stripHtml(selectedPrescription.notes)}</p>
+                          </div>
+                        )}
+                        {!selectedPrescription.treatment && !selectedPrescription.notes && (
+                          <p className="text-gray-400 small fst-italic mb-0">No specific advice recorded.</p>
+                        )}
                       </div>
+                    </div>
+                    <div className="col-md-6">
+                      <p className="text-gray-900 fs-6 fw-semibold mb-3"><i className="bi bi-calendar-check me-2"></i>Follow-up Information</p>
+                      <div className="notes-box h-100 bg-light">
+                        {selectedPrescription.followUpDate ? (
+                          <>
+                            <p className="small mb-2"><strong>Next Visit:</strong> {formatDate(selectedPrescription.followUpDate)}</p>
+                            {selectedPrescription.followUpNotes && (
+                              <p className="small text-muted mb-0"><strong>Notes:</strong> {selectedPrescription.followUpNotes}</p>
+                            )}
+                          </>
+                        ) : (
+                          <p className="text-gray-400 small fst-italic mb-0">No follow-up scheduled.</p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Attachments */}
+                  {selectedPrescription.attachments && selectedPrescription.attachments.length > 0 && (
+                    <div className="mt-4">
+                      <p className="text-gray-900 fs-6 fw-semibold mb-3"><i className="bi bi-paperclip me-2"></i>Attachments & Documents</p>
+                      <ul className="list-group">
+                        {selectedPrescription.attachments.map((doc, index) => (
+                          <li key={index} className="list-group-item d-flex justify-content-between align-items-center bg-light border-0 mb-2 rounded-3">
+                            <div>
+                              <i className="bi bi-file-earmark-medical text-primary me-2"></i>
+                              <span className="small text-gray-800">{doc}</span>
+                            </div>
+                            <button className="btn btn-sm btn-outline-primary rounded-pill px-3">
+                              <i className="bi bi-download me-1"></i> Download
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
                     </div>
                   )}
 

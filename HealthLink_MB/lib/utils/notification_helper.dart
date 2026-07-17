@@ -9,6 +9,8 @@ class NotificationHelper {
         IconData icon = Icons.notifications,
         Color backgroundColor = Colors.white,
         Color iconColor = Colors.teal,
+        Color textColor = Colors.black87,
+        Color subtitleColor = Colors.black54,
         Duration duration = const Duration(seconds: 3),
         VoidCallback? onTap,
         bool playSound = true,
@@ -91,14 +93,14 @@ class NotificationHelper {
                           children: [
                             Text(
                               title,
-                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.black87),
+                              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: textColor),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                             ),
                             const SizedBox(height: 4),
                             Text(
                               message,
-                              style: const TextStyle(color: Colors.black54, fontSize: 14),
+                              style: TextStyle(color: subtitleColor, fontSize: 14),
                               maxLines: 2,
                               overflow: TextOverflow.ellipsis,
                             ),

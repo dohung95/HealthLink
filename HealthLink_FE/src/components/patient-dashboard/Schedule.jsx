@@ -586,7 +586,55 @@ const Schedule = () => {
     setStep((prev) => Math.min(prev + 1, stepConfig.length));
   };
 
+  const goToStep = (targetKey) => {
+    const targetIndex = stepConfig.findIndex((item) => item.key === targetKey);
+
+    if (targetIndex >= 0) {
+      setStep(targetIndex + 1);
+      return;
+    }
+
+    setStep((prev) => Math.max(prev - 1, 1));
+  };
+
+  const clearHomeVisitDoctorSelection = () => {
+    setSelectedHomeVisitDoctor(null);
+    setSelectedDoctorId('');
+    setSelectedHomeVisitServices([]);
+    setSessionDraftId(null);
+    setSelectedSlot(null);
+    setSlots([]);
+    setFirstSlotSearchKey('');
+
+    setHomeVisitInfo((prev) => ({
+      ...prev,
+      selectedSession: null,
+    }));
+  };
+
+  const handleBackFromHomeVisitDoctor = () => {
+    clearHomeVisitDoctorSelection();
+    goToStep('homevisit');
+  };
+
   const handleBack = () => {
+    if (currentStepKey === 'doctor-selection-mode') {
+      setSelectedDoctorId('');
+      setSelectedSlot(null);
+      setSlots([]);
+      setFirstSlotSearchKey('');
+      setRecommendedDoctor(null);
+      setManualSelectionFee(0);
+      setDoctorSelectionMode('');
+    }
+
+    if (currentStepKey === 'datetime' && doctorSelectionMode === 'MANUAL_SELECTED') {
+      setSelectedDoctorId('');
+      setSelectedSlot(null);
+      setSlots([]);
+      setFirstSlotSearchKey('');
+    }
+
     setStep((prev) => Math.max(prev - 1, 1));
   };
 
@@ -903,6 +951,11 @@ const Schedule = () => {
     }
   };
 
+  const handleBackFromHomeVisitServices = () => {
+    clearHomeVisitDoctorSelection();
+    goToStep('homevisit-doctor');
+  };
+
   useEffect(() => {
     let cancelled = false;
 
@@ -1103,7 +1156,7 @@ const Schedule = () => {
                       selectedSession: null,
                     }));
                   }}
-                  onBack={handleBack}
+                  onBack={handleBackFromHomeVisitDoctor}
                   onNext={handleNext}
                 />
               )}
@@ -1112,7 +1165,7 @@ const Schedule = () => {
                 <HomeVisitServicesStep
                   selectedServices={selectedHomeVisitServices}
                   setSelectedServices={setSelectedHomeVisitServices}
-                  onBack={handleBack}
+                  onBack={handleBackFromHomeVisitServices}
                   onNext={handleNext}
                 />
               )}

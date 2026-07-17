@@ -242,12 +242,40 @@ public class PrescriptionServiceImpl implements PrescriptionService {
                 .map(this::toItemResponse)
                 .collect(Collectors.toList());
 
+        // Extract Extended Info
+        Appointment appointment = header.getAppointment();
+        com.HealthLink.entity.Patient patient = header.getPatient();
+        Consultation consultation = appointment != null ? appointment.getConsultation() : null;
+
+        // Vitals (fetch latest from patient for simplicity)
+        com.HealthLink.entity.VitalSign latestVitals = null;
+        if (patient != null && patient.getVitalSigns() != null && !patient.getVitalSigns().isEmpty()) {
+            latestVitals = patient.getVitalSigns().get(patient.getVitalSigns().size() - 1);
+        }
+
+        // Payment (from Invoice)
+        String paymentStatus = null;
+        String paymentMethod = null;
+        BigDecimal consultationFee = appointment != null ? appointment.getFee() : null;
+        if (appointment != null && appointment.getInvoice() != null) {
+            paymentStatus = appointment.getInvoice().getStatus();
+            if (appointment.getInvoice().getPayments() != null && !appointment.getInvoice().getPayments().isEmpty()) {
+                paymentMethod = appointment.getInvoice().getPayments().get(0).getPaymentMethod();
+            }
+        }
+
+        // Patient Age
+        Integer age = null;
+        if (patient != null && patient.getDateOfBirth() != null) {
+            age = java.time.LocalDate.now().getYear() - patient.getDateOfBirth().getYear();
+        }
+
         return PrescriptionResponse.builder()
                 .prescriptionHeaderId(header.getPrescriptionHeaderId())
-                .appointmentId(header.getAppointment() != null ? header.getAppointment().getAppointmentId() : null)
+                .appointmentId(appointment != null ? appointment.getAppointmentId() : null)
                 .pharmacyRequestId(null)
-                .patientId(header.getPatient() != null ? header.getPatient().getPatientId() : null)
-                .patientName(header.getPatient() != null ? header.getPatient().getFullName() : null)
+                .patientId(patient != null ? patient.getPatientId() : null)
+                .patientName(patient != null ? patient.getFullName() : null)
                 .doctorId(header.getDoctor() != null ? header.getDoctor().getDoctorId() : null)
                 .doctorName(header.getDoctor() != null ? header.getDoctor().getFullName() : null)
                 .specialty(header.getDoctor() != null ? header.getDoctor().getSpecialty() : null)
@@ -261,6 +289,30 @@ public class PrescriptionServiceImpl implements PrescriptionService {
                 .sourceAppointmentId(header.getSourceAppointmentId())
                 .sourcePrescriptionHeaderId(header.getSourcePrescriptionHeaderId())
                 .totalAmount(header.getTotalAmount())
+                // --- Extended Fields ---
+                .patientAge(age)
+                .patientGender(patient != null ? patient.getGender() : null)
+                .patientPhone(patient != null && patient.getUser() != null ? patient.getUser().getPhoneNumber() : null)
+                .patientAddress(patient != null ? patient.getAddress() : null)
+                .patientWeight(latestVitals != null ? latestVitals.getWeight() : null)
+                .patientHeight(latestVitals != null ? latestVitals.getHeight() : null)
+                .medicalHistory(patient != null ? patient.getMedicalHistorySummary() : null)
+                .symptoms(appointment != null ? appointment.getSymptoms() : null)
+                .treatment(consultation != null ? consultation.getTreatmentPlan() : null)
+                .followUpDate(consultation != null ? consultation.getFollowUpDate() : null)
+                .followUpNotes(consultation != null ? consultation.getFollowUpNotes() : null)
+                .bmi(latestVitals != null ? latestVitals.getBmi() : null)
+                .bloodPressureSystolic(latestVitals != null ? latestVitals.getBloodPressureSystolic() : null)
+                .bloodPressureDiastolic(latestVitals != null ? latestVitals.getBloodPressureDiastolic() : null)
+                .heartRate(latestVitals != null ? latestVitals.getHeartRate() : null)
+                .temperature(latestVitals != null ? latestVitals.getTemperature() : null)
+                .respiratoryRate(latestVitals != null ? latestVitals.getRespiratoryRate() : null)
+                .spO2(latestVitals != null ? latestVitals.getOxygenSaturation() : null)
+                .paymentStatus(paymentStatus)
+                .paymentMethod(paymentMethod)
+                .consultationFee(consultationFee)
+                .attachments(List.of()) // Simplification for now, as documents are tied to health records
+                // -----------------------
                 .items(itemResponses)
                 .build();
     }

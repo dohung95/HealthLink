@@ -133,7 +133,24 @@ class PatientService {
     if (res.statusCode == 200) {
       return jsonDecode(utf8.decode(res.bodyBytes)) as List<dynamic>;
     } else {
-      throw Exception('Failed to load prescriptions: ${res.body}');
+      throw Exception('Failed to load prescriptions: ${res.statusCode}');
+    }
+  }
+
+  static Future<Map<String, dynamic>> requestRefill(String token, String prescriptionId) async {
+    final res = await http.post(
+      Uri.parse('${ApiConfig.baseUrl}/prescriptions/$prescriptionId/refill'),
+      headers: {
+        'Accept': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+    ).timeout(ApiConfig.connectTimeout);
+
+    if (res.statusCode == 200 || res.statusCode == 201) {
+      return jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>;
+    } else {
+      final error = jsonDecode(utf8.decode(res.bodyBytes));
+      throw Exception(error['message'] ?? 'Failed to request refill');
     }
   }
 

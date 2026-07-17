@@ -1170,7 +1170,7 @@ export default function Appointments() {
                   <div className="modal-body">
                     <div className="alert alert-info mb-3">
                       <div className="mb-1"><strong>Patient:</strong> {selectedAppointment.patientName}</div>
-                      <div className="mb-1"><strong>Current Doctor:</strong> Dr. {selectedAppointment.doctorName}</div>
+                      <div className="mb-1"><strong>Current Doctor:</strong> {selectedAppointment.doctorName}</div>
                       <div><strong>Department:</strong> {selectedAppointment.department}</div>
                     </div>
 
