@@ -92,6 +92,14 @@ const PatientHeader = () => {
         setShowDropdown(false);
 
         const type = notification.type;
+
+        // Cancelled appointment with a rebook link - navigate straight to actionUrl instead of
+        // the default per-type route, so the specialty/consultation-type prefill is preserved.
+        if (type === 'ADMIN_APPOINTMENT_CANCEL' && notification.actionUrl?.includes('rebook=1')) {
+            navigate(notification.actionUrl);
+            return;
+        }
+
         if (type === 'PRESCRIPTION_ISSUED' || type === 'NEW_PRESCRIPTION') {
             navigate('/patient-dashboard/prescriptions');
         } else if (type === 'HOME_VISIT_PROPOSED') {

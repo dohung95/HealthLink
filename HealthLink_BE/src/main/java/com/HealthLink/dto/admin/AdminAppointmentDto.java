@@ -20,6 +20,7 @@ public class AdminAppointmentDto {
     private String rawTime;    // For input: "HH:mm"
     private LocalDateTime appointmentTime;
     private String consultationType;
+    private String doctorSelectionMode;
     private String status;
     private String symptoms;
     private String notes;

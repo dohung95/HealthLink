@@ -10,6 +10,7 @@ import com.HealthLink.repository.admin.AdminDoctorRepository;
 import com.HealthLink.repository.admin.AdminScheduleAuditLogRepository;
 import com.HealthLink.repository.auth.UserRepository;
 import com.HealthLink.service.admin.AdminNotificationService;
+import com.HealthLink.service.payment.FinanceService;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.data.domain.Page;
@@ -20,6 +21,8 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -37,18 +40,21 @@ public class AdminAppointmentService {
     private final AdminScheduleAuditLogRepository auditLogRepository;
     private final UserRepository userRepository;
     private final AdminNotificationService adminNotificationService;
+    private final FinanceService financeService;
 
     public AdminAppointmentService(
             AdminAppointmentRepository appointmentRepository,
             AdminDoctorRepository doctorRepository,
             AdminScheduleAuditLogRepository auditLogRepository,
             UserRepository userRepository,
-            AdminNotificationService adminNotificationService) {
+            AdminNotificationService adminNotificationService,
+            FinanceService financeService) {
         this.appointmentRepository = appointmentRepository;
         this.doctorRepository = doctorRepository;
         this.auditLogRepository = auditLogRepository;
         this.userRepository = userRepository;
         this.adminNotificationService = adminNotificationService;
+        this.financeService = financeService;
     }
 
     public AdminAppointmentStatsDto getStats() {
@@ -221,6 +227,7 @@ public class AdminAppointmentService {
             .rawTime(rawTime)
             .appointmentTime(appointment.getAppointmentTime())
             .consultationType(appointment.getConsultationType())
+            .doctorSelectionMode(appointment.getDoctorSelectionMode())
             .status(appointment.getStatus())
             .symptoms(appointment.getSymptoms())
             .notes(appointment.getNotes())
@@ -258,7 +265,7 @@ public class AdminAppointmentService {
     // ==================== Admin Reassign/Cancel Methods ====================
 
     /**
-     * Admin chuyển appointment sang bác sĩ khác.
+     * Admin transfers an appointment to another doctor.
      */
     public AdminAppointmentDto reassignAppointment(
             AdminAppointmentReassignRequest request,
@@ -272,6 +279,15 @@ public class AdminAppointmentService {
         if ("CANCELLED".equalsIgnoreCase(appointment.getStatus()) ||
             "COMPLETED".equalsIgnoreCase(appointment.getStatus())) {
             throw new BadRequestException("Cannot reassign a cancelled or completed appointment");
+        }
+
+        // Home Visit appointments or appointments where the patient manually picked their doctor
+        // (and paid an extra fee for it) cannot be reassigned directly - they must be cancelled
+        // with a refund so the patient can rebook themselves (see cancelDueToDoctorUnavailable).
+        if (isForcedCancelAppointment(appointment)) {
+            throw new BadRequestException(
+                    "Home Visit appointments or appointments with a manually-selected doctor cannot be reassigned directly. " +
+                    "Please use the 'Cancel & Refund' action instead so the patient can rebook.");
         }
 
         Doctor oldDoctor = appointment.getDoctor();
@@ -444,7 +460,121 @@ public class AdminAppointmentService {
         return mapToDto(savedAppointment);
     }
 
+    /**
+     * Cancels an appointment because the assigned doctor cannot perform it (sudden unavailability,
+     * or admin could not find a suitable replacement), and automatically refunds 100% of the payment
+     * to the patient. Used for Home Visit appointments or appointments where the patient manually
+     * selected their doctor (MANUAL_SELECTED) - cases where the doctor cannot be reassigned directly
+     * (see the guard in reassignAppointment). The patient is notified with a link to rebook.
+     */
+    public AdminAppointmentDto cancelDueToDoctorUnavailable(
+            Integer appointmentId,
+            String reason,
+            String adminUserId,
+            HttpServletRequest httpRequest) {
+
+        Appointment appointment = appointmentRepository.findById(appointmentId)
+                .orElseThrow(() -> new ResourceNotFoundException("Appointment", "id", appointmentId));
+
+        if ("CANCELLED".equalsIgnoreCase(appointment.getStatus())) {
+            throw new BadRequestException("Appointment is already cancelled");
+        }
+        if ("COMPLETED".equalsIgnoreCase(appointment.getStatus())) {
+            throw new BadRequestException("Cannot cancel a completed appointment");
+        }
+
+        User adminUser = userRepository.findById(adminUserId)
+                .orElseThrow(() -> new ResourceNotFoundException("Admin User", "id", adminUserId));
+
+        String oldState = appointmentToJson(appointment);
+
+        appointment.setStatus("CANCELLED");
+        appointment.setCancelReason("[System] Doctor unavailable: " + reason);
+        appointment.setCancelledBy("Admin");
+        appointment.setCancelledAt(LocalDateTime.now());
+
+        Appointment savedAppointment = appointmentRepository.save(appointment);
+
+        logAdminAction(
+                adminUser,
+                "CANCEL_APPOINTMENT_DOCTOR_UNAVAILABLE",
+                appointment.getDoctor() != null ? appointment.getDoctor().getDoctorId() : null,
+                appointment.getAppointmentId(),
+                appointment.getPatient() != null ? appointment.getPatient().getPatientId() : null,
+                String.format("Cancelled appointment #%d - doctor unavailable, auto refund", appointment.getAppointmentId()),
+                oldState,
+                appointmentToJson(savedAppointment),
+                reason,
+                getClientIp(httpRequest)
+        );
+
+        // Automatically refund if the appointment has a successful payment
+        boolean refunded = false;
+        Invoice invoice = appointment.getInvoice();
+        if (invoice != null && invoice.getPayments() != null) {
+            Payment successPayment = invoice.getPayments().stream()
+                    .filter(p -> "SUCCESS".equalsIgnoreCase(p.getStatus()))
+                    .findFirst()
+                    .orElse(null);
+            if (successPayment != null) {
+                financeService.processRefund(successPayment.getPaymentId(), reason);
+                refunded = true;
+            }
+        }
+
+        String rebookUrl = buildRebookActionUrl(appointment);
+
+        if (appointment.getPatient() != null && appointment.getPatient().getUser() != null) {
+            String refundNote = refunded
+                    ? " Your payment has been automatically refunded."
+                    : "";
+            adminNotificationService.sendMobilePushNotification(
+                    appointment.getPatient().getUser().getId(),
+                    NotificationType.ADMIN_APPOINTMENT_CANCEL,
+                    "Appointment Cancelled",
+                    String.format("Your appointment on %s has been cancelled because the doctor is unavailable. Reason: %s.%s Please book a new appointment.",
+                            appointment.getAppointmentTime() != null
+                                    ? appointment.getAppointmentTime().format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm"))
+                                    : "",
+                            reason,
+                            refundNote),
+                    appointment.getAppointmentId(),
+                    rebookUrl
+            );
+        }
+
+        if (appointment.getDoctor() != null && appointment.getDoctor().getUser() != null) {
+            adminNotificationService.sendWebSocketNotification(
+                    appointment.getDoctor().getUser().getId(),
+                    NotificationType.ADMIN_APPOINTMENT_CANCEL,
+                    "Appointment Cancelled by Admin",
+                    String.format("Appointment #%d has been cancelled because you are unavailable. Reason: %s",
+                            appointment.getAppointmentId(), reason),
+                    appointment.getAppointmentId()
+            );
+        }
+
+        return mapToDto(savedAppointment);
+    }
+
     // ==================== Private Helper Methods ====================
+
+    private boolean isForcedCancelAppointment(Appointment appointment) {
+        return "HomeVisit".equalsIgnoreCase(appointment.getConsultationType())
+                || "MANUAL_SELECTED".equalsIgnoreCase(appointment.getDoctorSelectionMode());
+    }
+
+    private String buildRebookActionUrl(Appointment appointment) {
+        String specialty = appointment.getDoctor() != null ? appointment.getDoctor().getSpecialty() : null;
+        StringBuilder url = new StringBuilder("/schedule?rebook=1");
+        if (StringUtils.hasText(specialty)) {
+            url.append("&specialty=").append(URLEncoder.encode(specialty, StandardCharsets.UTF_8));
+        }
+        if (StringUtils.hasText(appointment.getConsultationType())) {
+            url.append("&consultationType=").append(URLEncoder.encode(appointment.getConsultationType(), StandardCharsets.UTF_8));
+        }
+        return url.toString();
+    }
 
     private void logAdminAction(
             User adminUser,

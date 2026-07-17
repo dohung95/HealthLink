@@ -1,22 +1,28 @@
 package com.HealthLink.service.impl.doctor;
 
+import com.HealthLink.dto.admin.AdminAppointmentReassignRequest;
 import com.HealthLink.dto.doctor.schedule.DoctorScheduleChangeRequestRequest;
+import com.HealthLink.dto.doctor.schedule.DoctorScheduleChangeRequestResolveRequest;
 import com.HealthLink.dto.doctor.schedule.DoctorScheduleChangeRequestResponse;
 import com.HealthLink.entity.Appointment;
 import com.HealthLink.entity.Doctor;
 import com.HealthLink.entity.DoctorScheduleChangeRequest;
 import com.HealthLink.entity.enums.ChangeRequestStatus;
 import com.HealthLink.entity.AdminScheduleAuditLog;
+import com.HealthLink.exception.BadRequestException;
 import com.HealthLink.repository.admin.AdminScheduleAuditLogRepository;
 import com.HealthLink.repository.admin.DoctorScheduleChangeRequestRepository;
 import com.HealthLink.repository.appointment.AppointmentRepository;
 import com.HealthLink.entity.enums.NotificationType;
 import com.HealthLink.repository.doctor.DoctorRepository;
+import com.HealthLink.service.admin.AdminAppointmentService;
 import com.HealthLink.service.admin.AdminNotificationService;
 import com.HealthLink.service.doctor.DoctorScheduleChangeRequestService;
 import com.HealthLink.service.notification.NotificationService;
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -32,19 +38,22 @@ public class DoctorScheduleChangeRequestServiceImpl implements DoctorScheduleCha
     private final AdminScheduleAuditLogRepository auditLogRepository;
     private final NotificationService notificationService;
     private final AdminNotificationService adminNotificationService;
+    private final AdminAppointmentService adminAppointmentService;
 
     public DoctorScheduleChangeRequestServiceImpl(DoctorRepository doctorRepository,
                                                   AppointmentRepository appointmentRepository,
                                                   DoctorScheduleChangeRequestRepository changeRequestRepository,
                                                   AdminScheduleAuditLogRepository auditLogRepository,
                                                   NotificationService notificationService,
-                                                  AdminNotificationService adminNotificationService) {
+                                                  AdminNotificationService adminNotificationService,
+                                                  AdminAppointmentService adminAppointmentService) {
         this.doctorRepository = doctorRepository;
         this.appointmentRepository = appointmentRepository;
         this.changeRequestRepository = changeRequestRepository;
         this.auditLogRepository = auditLogRepository;
         this.notificationService = notificationService;
         this.adminNotificationService = adminNotificationService;
+        this.adminAppointmentService = adminAppointmentService;
     }
 
     @Override
@@ -103,10 +112,41 @@ public class DoctorScheduleChangeRequestServiceImpl implements DoctorScheduleCha
     @Override
     public DoctorScheduleChangeRequestResponse approveChangeRequest(Integer requestId,
                                                                      String adminId,
-                                                                     String adminReason) {
+                                                                     DoctorScheduleChangeRequestResolveRequest resolveRequest,
+                                                                     HttpServletRequest httpRequest) {
         DoctorScheduleChangeRequest request = loadRequest(requestId);
+        Appointment appointment = request.getAppointment();
+
+        boolean forcedCancel = "HomeVisit".equalsIgnoreCase(appointment.getConsultationType())
+                || "MANUAL_SELECTED".equalsIgnoreCase(appointment.getDoctorSelectionMode());
+
+        String resolutionType = resolveRequest.getResolutionType();
+        if ("REASSIGN".equalsIgnoreCase(resolutionType)) {
+            if (forcedCancel) {
+                throw new BadRequestException(
+                        "Home Visit appointments or appointments with a manually-selected doctor must be resolved by cancelling with a refund, not by reassigning the doctor directly.");
+            }
+            if (!StringUtils.hasText(resolveRequest.getNewDoctorId())) {
+                throw new BadRequestException("newDoctorId is required when resolutionType is REASSIGN");
+            }
+            AdminAppointmentReassignRequest reassignRequest = AdminAppointmentReassignRequest.builder()
+                    .appointmentId(appointment.getAppointmentId())
+                    .newDoctorId(resolveRequest.getNewDoctorId())
+                    .reason(resolveRequest.getAdminReason())
+                    .notifyPatient(true)
+                    .notifyOldDoctor(true)
+                    .notifyNewDoctor(true)
+                    .build();
+            adminAppointmentService.reassignAppointment(reassignRequest, adminId, httpRequest);
+        } else if ("CANCEL".equalsIgnoreCase(resolutionType)) {
+            adminAppointmentService.cancelDueToDoctorUnavailable(
+                    appointment.getAppointmentId(), resolveRequest.getAdminReason(), adminId, httpRequest);
+        } else {
+            throw new BadRequestException("resolutionType must be REASSIGN or CANCEL");
+        }
+
         request.setStatus(ChangeRequestStatus.APPROVED);
-        request.setAdminReason(adminReason);
+        request.setAdminReason(resolveRequest.getAdminReason());
         request.setHandledBy(adminId);
         request.setUpdatedAt(LocalDateTime.now());
         DoctorScheduleChangeRequest saved = changeRequestRepository.save(request);
@@ -152,6 +192,8 @@ public class DoctorScheduleChangeRequestServiceImpl implements DoctorScheduleCha
                 .handledBy(request.getHandledBy())
                 .createdAt(request.getCreatedAt())
                 .updatedAt(request.getUpdatedAt())
+                .consultationType(request.getAppointment().getConsultationType())
+                .doctorSelectionMode(request.getAppointment().getDoctorSelectionMode())
                 .build();
     }
 

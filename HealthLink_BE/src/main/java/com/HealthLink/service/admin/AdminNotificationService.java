@@ -133,6 +133,16 @@ public class AdminNotificationService {
      */
     public void sendWebSocketNotification(String userId, NotificationType type,
                                           String title, String message, Integer relatedId) {
+        sendWebSocketNotification(userId, type, title, message, relatedId, null);
+    }
+
+    /**
+     * Sends a WebSocket notification to a user (Doctor/Patient/Pharmacy), including a click-through
+     * link (e.g. a link to rebook a new appointment).
+     */
+    public void sendWebSocketNotification(String userId, NotificationType type,
+                                          String title, String message, Integer relatedId,
+                                          String actionUrl) {
         User user = userRepository.findById(userId).orElse(null);
         if (user == null) {
             log.warn("[AdminNotif] User not found: {}", userId);
@@ -141,7 +151,7 @@ public class AdminNotificationService {
 
         Notification notification = saveNotificationForUser(
                 user, type, title, message,
-                NotificationPriority.NORMAL, relatedId, null);
+                NotificationPriority.NORMAL, relatedId, actionUrl);
 
         adminWebSocketService.sendToUser(userId, notification);
 
@@ -163,6 +173,15 @@ public class AdminNotificationService {
         // Trong hệ thống Admin độc lập, gửi qua WebSocket thay vì FCM
         // để không phụ thuộc vào FirebaseNotificationService của team khác
         sendWebSocketNotification(userId, type, title, message, relatedId);
+    }
+
+    /**
+     * Sends a mobile push notification (via WebSocket) including a click-through link.
+     */
+    public void sendMobilePushNotification(String userId, NotificationType type,
+                                           String title, String message, Integer relatedId,
+                                           String actionUrl) {
+        sendWebSocketNotification(userId, type, title, message, relatedId, actionUrl);
     }
 
     /**
