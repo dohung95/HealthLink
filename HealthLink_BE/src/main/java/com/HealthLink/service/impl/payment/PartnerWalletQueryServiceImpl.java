@@ -42,6 +42,7 @@ public class PartnerWalletQueryServiceImpl implements PartnerWalletQueryService 
     private final PartnerWalletEntryRepository entryRepository;
     private final PaymentCommissionTransactionRepository commissionTransactionRepository;
     private final PaymentSettlementRepository settlementRepository;
+    private final com.HealthLink.repository.pharmacy.PharmacyOrderRepository pharmacyOrderRepository;
 
     @Override
     @Transactional(readOnly = true)
@@ -54,7 +55,10 @@ public class PartnerWalletQueryServiceImpl implements PartnerWalletQueryService 
                 specification(partnerId, normalized), sortedPage);
 
         Map<Integer, Settlement> settlementsById = settlementsById(entries.getContent());
-        return entries.map(entry -> toResponse(entry, settlementsById.get(entry.getSettlementId())));
+        Map<Integer, String> orderNumbersByOrderId = orderNumbersByOrderId(entries.getContent());
+        return entries.map(entry -> toResponse(entry,
+                settlementsById.get(entry.getSettlementId()),
+                orderNumbersByOrderId.get(entry.getPharmacyOrderId())));
     }
 
     private PartnerWalletEntryFilter normalize(PartnerWalletEntryFilter filter) {
@@ -128,7 +132,22 @@ public class PartnerWalletQueryServiceImpl implements PartnerWalletQueryService 
         return settlements;
     }
 
-    private PartnerWalletEntryResponse toResponse(PartnerWalletEntry entry, Settlement settlement) {
+    private Map<Integer, String> orderNumbersByOrderId(Collection<PartnerWalletEntry> entries) {
+        Set<Integer> orderIds = entries.stream()
+                .map(PartnerWalletEntry::getPharmacyOrderId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+        if (orderIds.isEmpty()) {
+            return new HashMap<>();
+        }
+        Map<Integer, String> numbers = new HashMap<>();
+        pharmacyOrderRepository.findAllById(orderIds)
+                .forEach(order -> numbers.put(order.getOrderId(), order.getOrderNumber()));
+        return numbers;
+    }
+
+    private PartnerWalletEntryResponse toResponse(PartnerWalletEntry entry, Settlement settlement,
+                                                   String orderNumber) {
         CommissionTransaction ct = null;
         if (entry.getCommissionTransactionId() != null) {
             ct = commissionTransactionRepository.findById(entry.getCommissionTransactionId()).orElse(null);
@@ -146,6 +165,7 @@ public class PartnerWalletQueryServiceImpl implements PartnerWalletQueryService 
                 .settlementId(entry.getSettlementId())
                 .settlementNumber(settlement == null ? null : settlement.getSettlementNumber())
                 .paypalEmail(settlement == null ? null : settlement.getPaypalEmail())
+                .orderNumber(orderNumber)
                 .effectiveAt(entry.getEffectiveAt())
                 .updatedAt(entry.getUpdatedAt())
                 .build();

@@ -26,6 +26,7 @@ public class PartnerWalletEntryResponse {
     private Integer settlementId;
     private String settlementNumber;
     private String paypalEmail;
+    private String orderNumber;
     private LocalDateTime effectiveAt;
     private LocalDateTime updatedAt;
 }

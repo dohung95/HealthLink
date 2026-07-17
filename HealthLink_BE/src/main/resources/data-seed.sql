@@ -829,20 +829,22 @@ INSERT INTO CommissionTransactions (TransactionId, transactionNumber, sourceType
 (15, 'CTX-202405-00015', 'APPOINTMENT', 14, NULL, 'DOCTOR', 'user-d01', 'Dr. John Smith', 'CONSULTATION_HOME_VISIT', 103.00, 0.1000, 8.80, 94.20, 'PENDING', NULL, '2024-05-27 20:45:00');
 -- 16-22: Seven daily transactions ending today (D0..D6)
 INSERT INTO CommissionTransactions (TransactionId, transactionNumber, sourceType, appointmentId, pharmacyOrderId, recipientType, recipientId, recipientName, serviceType, grossAmount, commissionRate, commissionAmount, netAmount, status, SettlementId, CreatedAt) VALUES
-(16, 'CTX-DEMO-PH01-D0', 'PHARMACY_ORDER', NULL, NULL, 'PHARMACY', 'user-ph01', 'HealthLink Pharmacy - Ben Thanh', 'PHARMACY_ORDER', 32.61, 0.0800, 2.61, 30.00, 'SETTLED', NULL, DATEADD(DAY, -6, GETDATE())),
-(17, 'CTX-DEMO-PH01-D1', 'PHARMACY_ORDER', NULL, NULL, 'PHARMACY', 'user-ph01', 'HealthLink Pharmacy - Ben Thanh', 'PHARMACY_ORDER', 54.35, 0.0800, 4.35, 50.00, 'VESTED', NULL, DATEADD(DAY, -5, GETDATE())),
-(18, 'CTX-DEMO-PH01-D2', 'PHARMACY_ORDER', NULL, NULL, 'PHARMACY', 'user-ph01', 'HealthLink Pharmacy - Ben Thanh', 'PHARMACY_ORDER', 21.74, 0.0800, 1.74, 20.00, 'SETTLED', NULL, DATEADD(DAY, -4, GETDATE())),
-(19, 'CTX-DEMO-PH01-D3', 'PHARMACY_ORDER', NULL, NULL, 'PHARMACY', 'user-ph01', 'HealthLink Pharmacy - Ben Thanh', 'PHARMACY_ORDER', 43.48, 0.0800, 3.48, 40.00, 'PENDING', NULL, DATEADD(DAY, -3, GETDATE())),
-(20, 'CTX-DEMO-PH01-D4', 'PHARMACY_ORDER', NULL, NULL, 'PHARMACY', 'user-ph01', 'HealthLink Pharmacy - Ben Thanh', 'PHARMACY_ORDER', 65.22, 0.0800, 5.22, 60.00, 'VESTED', NULL, DATEADD(DAY, -2, GETDATE())),
-(21, 'CTX-DEMO-PH01-D5', 'PHARMACY_ORDER', NULL, NULL, 'PHARMACY', 'user-ph01', 'HealthLink Pharmacy - Ben Thanh', 'PHARMACY_ORDER', 32.61, 0.0800, 2.61, 30.00, 'SETTLED', NULL, DATEADD(DAY, -1, GETDATE())),
-(22, 'CTX-DEMO-PH01-D6', 'PHARMACY_ORDER', NULL, NULL, 'PHARMACY', 'user-ph01', 'HealthLink Pharmacy - Ben Thanh', 'PHARMACY_ORDER', 16.30, 0.0800, 1.30, 15.00, 'PENDING', NULL, GETDATE());
+(16, 'CTX-DEMO-PH01-D0', 'PHARMACY_ORDER', NULL, 1, 'PHARMACY', 'user-ph01', 'HealthLink Pharmacy - Ben Thanh', 'PHARMACY_ORDER', 32.61, 0.0800, 2.61, 30.00, 'SETTLED', NULL, DATEADD(DAY, -6, GETDATE())),
+(17, 'CTX-DEMO-PH01-D1', 'PHARMACY_ORDER', NULL, 9, 'PHARMACY', 'user-ph01', 'HealthLink Pharmacy - Ben Thanh', 'PHARMACY_ORDER', 54.35, 0.0800, 4.35, 50.00, 'VESTED', NULL, DATEADD(DAY, -5, GETDATE())),
+(18, 'CTX-DEMO-PH01-D2', 'PHARMACY_ORDER', NULL, 12, 'PHARMACY', 'user-ph01', 'HealthLink Pharmacy - Ben Thanh', 'PHARMACY_ORDER', 21.74, 0.0800, 1.74, 20.00, 'SETTLED', NULL, DATEADD(DAY, -4, GETDATE())),
+(19, 'CTX-DEMO-PH01-D3', 'PHARMACY_ORDER', NULL, 1, 'PHARMACY', 'user-ph01', 'HealthLink Pharmacy - Ben Thanh', 'PHARMACY_ORDER', 43.48, 0.0800, 3.48, 40.00, 'PENDING', NULL, DATEADD(DAY, -3, GETDATE())),
+(20, 'CTX-DEMO-PH01-D4', 'PHARMACY_ORDER', NULL, 9, 'PHARMACY', 'user-ph01', 'HealthLink Pharmacy - Ben Thanh', 'PHARMACY_ORDER', 65.22, 0.0800, 5.22, 60.00, 'VESTED', NULL, DATEADD(DAY, -2, GETDATE())),
+(21, 'CTX-DEMO-PH01-D5', 'PHARMACY_ORDER', NULL, 12, 'PHARMACY', 'user-ph01', 'HealthLink Pharmacy - Ben Thanh', 'PHARMACY_ORDER', 32.61, 0.0800, 2.61, 30.00, 'SETTLED', NULL, DATEADD(DAY, -1, GETDATE())),
+(22, 'CTX-DEMO-PH01-D6', 'PHARMACY_ORDER', NULL, 1, 'PHARMACY', 'user-ph01', 'HealthLink Pharmacy - Ben Thanh', 'PHARMACY_ORDER', 16.30, 0.0800, 1.30, 15.00, 'PENDING', NULL, GETDATE());
 
 -- 23-52: Thirty daily transactions spanning last 30 days
 INSERT INTO CommissionTransactions (TransactionId, transactionNumber, sourceType, appointmentId, pharmacyOrderId, recipientType, recipientId, recipientName, serviceType, grossAmount, commissionRate, commissionAmount, netAmount, status, SettlementId, CreatedAt)
 SELECT
     22 + v.n,
     'CTX-DEMO-PH01-D' + RIGHT('0' + CAST(v.n AS VARCHAR), 2),
-    'PHARMACY_ORDER', NULL, NULL, 'PHARMACY', 'user-ph01', 'HealthLink Pharmacy - Ben Thanh', 'PHARMACY_ORDER',
+    'PHARMACY_ORDER', NULL,
+    CASE v.n % 3 WHEN 1 THEN 9 WHEN 2 THEN 12 ELSE 1 END,
+    'PHARMACY', 'user-ph01', 'HealthLink Pharmacy - Ben Thanh', 'PHARMACY_ORDER',
     CASE v.n % 5
         WHEN 0 THEN 54.35 WHEN 1 THEN 32.61
         WHEN 2 THEN 43.48 WHEN 3 THEN 21.74
@@ -872,7 +874,9 @@ INSERT INTO CommissionTransactions (TransactionId, transactionNumber, sourceType
 SELECT
     52 + v.n,
     'CTX-DEMO-PH01-M' + RIGHT('0' + CAST(v.n AS VARCHAR), 2),
-    'PHARMACY_ORDER', NULL, NULL, 'PHARMACY', 'user-ph01', 'HealthLink Pharmacy - Ben Thanh', 'PHARMACY_ORDER',
+    'PHARMACY_ORDER', NULL,
+    CASE v.n % 3 WHEN 1 THEN 9 WHEN 2 THEN 12 ELSE 1 END,
+    'PHARMACY', 'user-ph01', 'HealthLink Pharmacy - Ben Thanh', 'PHARMACY_ORDER',
     CASE v.n % 5
         WHEN 0 THEN 54.35 WHEN 1 THEN 32.61
         WHEN 2 THEN 43.48 WHEN 3 THEN 21.74
@@ -934,6 +938,29 @@ SELECT
     ct.CreatedAt AS updatedAt
 FROM CommissionTransactions ct
 WHERE ct.RecipientId = 'user-ph01';
+
+-- 43.6 PARTNER_WALLET_ENTRIES (seed earnings for doctors from CommissionTransactions)
+INSERT INTO PartnerWalletEntries (
+    partnerType, partnerId, entryType, status, amount, commissionTransactionId,
+    appointmentId, pharmacyOrderId, IdempotencyKey, description,
+    effectiveAt, createdAt, updatedAt
+)
+SELECT
+    'DOCTOR' AS partnerType,
+    ct.RecipientId AS partnerId,
+    'EARNING' AS entryType,
+    CASE WHEN ct.Status = 'PENDING' THEN 'PENDING' ELSE 'VESTED' END AS status,
+    ct.NetAmount AS amount,
+    ct.TransactionId AS commissionTransactionId,
+    ct.AppointmentId,
+    ct.PharmacyOrderId,
+    'EARNING:CTX:' + CAST(ct.TransactionId AS VARCHAR) AS IdempotencyKey,
+    'Seed earning' AS description,
+    ct.CreatedAt AS effectiveAt,
+    ct.CreatedAt AS createdAt,
+    ct.CreatedAt AS updatedAt
+FROM CommissionTransactions ct
+WHERE ct.RecipientType = 'DOCTOR';
 -- ponytail: no NOT EXISTS guard — seed runs on fresh DB, consistent with all other seed INSERTs
 
 -- 44. DOCTOR_SCHEDULE_CHANGE_REQUESTS (5 requests)

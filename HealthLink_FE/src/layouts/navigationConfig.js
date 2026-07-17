@@ -21,7 +21,6 @@ export const NAV_ITEMS = [
     ],
   },
   { key: 'patients',      label: 'Patients',      icon: 'groups',     wide: true, path: '/doctor/patients' },
-  { key: 'prescriptions', label: 'Prescriptions', icon: 'medication', wide: true, path: '/doctor/prescriptions' },
   { key: 'schedule',      label: 'Schedule',      icon: 'event_note',  wide: true, path: '/doctor/schedule' },
   { key: 'chat',          label: 'Chat',          icon: 'chat',        wide: true, path: '/doctor/chat' },
 ];

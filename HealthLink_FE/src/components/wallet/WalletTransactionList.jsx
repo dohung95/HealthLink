@@ -96,8 +96,11 @@ export default function WalletTransactionList({
           const rawEntry = entry.raw || entry;
           const signedAmount = `${isPositive ? '+' : '-'}${formatCurrency(Math.abs(Number(entry.amount || 0)))}`;
           const detailsId = `wallet-transaction-details-${entry.id}`;
-          const referenceLabel = rawEntry.pharmacyOrderId ? 'Order' : 'Appointment';
-          const referenceValue = rawEntry.pharmacyOrderId || rawEntry.appointmentId || '-';
+          const referenceLabel = rawEntry.orderNumber ? 'Order'
+            : rawEntry.appointmentId ? 'Appointment'
+            : 'Reference';
+          const referenceValue = rawEntry.orderNumber
+            || String(rawEntry.pharmacyOrderId || rawEntry.appointmentId || rawEntry.entryId || '-');
 
           return (
             <div key={entry.id} className="wallet-tx-item">
