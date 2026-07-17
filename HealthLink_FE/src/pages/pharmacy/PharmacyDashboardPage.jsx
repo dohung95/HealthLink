@@ -47,6 +47,7 @@ export default function PharmacyDashboardPage() {
   const [workItemsError, setWorkItemsError] = useState(null);
   const [workItemsLoading, setWorkItemsLoading] = useState(false);
   const [balance, setBalance] = useState(null);
+  const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [inventoryRefreshToken, setInventoryRefreshToken] = useState(0);
   const [workflowAttention, setWorkflowAttention] = useState(null);
@@ -102,12 +103,14 @@ export default function PharmacyDashboardPage() {
         resolvedPharmacyId ? pharmacyApi.getConsultationRequestsByPharmacy(resolvedPharmacyId) : Promise.resolve([]),
         resolvedPharmacyId ? pharmacyApi.getWorkItemsByPharmacy(resolvedPharmacyId) : Promise.resolve([]),
         resolvedPharmacyId ? paymentApi.getPartnerBalance(resolvedPharmacyId, 'PHARMACY') : Promise.resolve(null),
+        resolvedPharmacyId ? paymentApi.getPartnerTransactions(resolvedPharmacyId) : Promise.resolve([]),
       ]);
-      const [orderResult, requestResult, workItemResult, balanceResult] = results;
+      const [orderResult, requestResult, workItemResult, balanceResult, transactionResult] = results;
 
       if (orderResult.status === 'fulfilled') setOrders(Array.isArray(orderResult.value) ? orderResult.value : []);
       applyWorkflowResults(requestResult, workItemResult);
       if (balanceResult.status === 'fulfilled') setBalance(balanceResult.value);
+      if (transactionResult.status === 'fulfilled') setTransactions(Array.isArray(transactionResult.value) ? transactionResult.value : []);
       setInventoryRefreshToken((value) => value + 1);
     } catch (error) {
       console.error('Failed to load pharmacy dashboard', error);
@@ -231,6 +234,7 @@ export default function PharmacyDashboardPage() {
     profile,
     orders,
     requests,
+    transactions,
     workItems,
     workItemsError,
     workItemsLoading,

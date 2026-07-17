@@ -211,6 +211,7 @@ public class DoctorServiceImpl implements DoctorService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public DoctorPatientHistoryResponse getMyPatientHistory(String doctorId, String patientId) {
         doctorRepository.findById(doctorId)
                 .orElseThrow(() -> new ResourceNotFoundException("Doctor", "doctorId", doctorId));
@@ -238,6 +239,23 @@ public class DoctorServiceImpl implements DoctorService {
                 .map(this::toPrescriptionResponse)
                 .collect(Collectors.toList());
 
+        // Load documents và clinical results với try-catch để tránh crash toàn bộ response
+        List<AdminDocumentCategoryDto> documentsByCategory;
+        try {
+            documentsByCategory = getDocumentsByCategory(patient, doctorId);
+        } catch (Exception e) {
+            log.error("Failed to load documents for patient {} under doctor {}: {}", patientId, doctorId, e.getMessage(), e);
+            documentsByCategory = List.of();
+        }
+
+        List<AdminMedicalDocumentDto> clinicalResults;
+        try {
+            clinicalResults = getClinicalResultsForDoctor(patient, doctorId);
+        } catch (Exception e) {
+            log.error("Failed to load clinical results for patient {} under doctor {}: {}", patientId, doctorId, e.getMessage(), e);
+            clinicalResults = List.of();
+        }
+
         User user = patient.getUser();
         return DoctorPatientHistoryResponse.builder()
                 .patientId(patient.getPatientId())
@@ -258,9 +276,9 @@ public class DoctorServiceImpl implements DoctorService {
                 .heightCm(patient.getHeightCm())
                 .weightKg(patient.getWeightKg())
                 .appointments(appointments)
-                .documentsByCategory(getDocumentsByCategory(patient, doctorId))
+                .documentsByCategory(documentsByCategory)
                 .prescriptions(prescriptions)
-                .clinicalResults(getClinicalResultsForDoctor(patient, doctorId))
+                .clinicalResults(clinicalResults)
                 .build();
     }
 
@@ -578,13 +596,33 @@ public class DoctorServiceImpl implements DoctorService {
      * thẳng toàn bộ MedicalDocuments của patient như trước đây.
      */
     private List<AdminDocumentCategoryDto> getDocumentsByCategory(Patient patient, String doctorId) {
-        List<HealthRecordShare> activeShares = healthRecordShareRepository
-                .findBySharedWithDoctor_DoctorIdAndRevokedFalseOrderByConsentGivenAtDesc(doctorId)
-                .stream()
-                .filter(share -> share.getExpiryDate() == null || share.getExpiryDate().isAfter(LocalDateTime.now()))
-                .filter(share -> share.getSharedByPatient() != null
-                        && patient.getPatientId().equals(share.getSharedByPatient().getPatientId()))
-                .toList();
+        List<HealthRecordShare> activeShares;
+        try {
+            activeShares = healthRecordShareRepository
+                    .findBySharedWithDoctor_DoctorIdAndRevokedFalseOrderByConsentGivenAtDesc(doctorId)
+                    .stream()
+                    .filter(share -> {
+                        try {
+                            return share.getExpiryDate() == null || share.getExpiryDate().isAfter(LocalDateTime.now());
+                        } catch (Exception e) {
+                            log.warn("Error checking expiry date for share: {}", e.getMessage());
+                            return false;
+                        }
+                    })
+                    .filter(share -> {
+                        try {
+                            Patient sharedBy = share.getSharedByPatient();
+                            return sharedBy != null && patient.getPatientId().equals(sharedBy.getPatientId());
+                        } catch (Exception e) {
+                            log.warn("Error checking sharedByPatient for share: {}", e.getMessage());
+                            return false;
+                        }
+                    })
+                    .toList();
+        } catch (Exception e) {
+            log.error("Failed to fetch health record shares for doctor {}: {}", doctorId, e.getMessage(), e);
+            return List.of();
+        }
 
         Map<Integer, HealthRecordShare> shareByHealthRecordId = new HashMap<>();
         for (HealthRecordShare share : activeShares) {
@@ -642,8 +680,13 @@ public class DoctorServiceImpl implements DoctorService {
         if (!StringUtils.hasText(sharedIds)) {
             return true;
         }
+        Integer docId = document.getDocumentId();
+        if (docId == null) {
+            return false;
+        }
+        String docIdStr = docId.toString();
         for (String id : sharedIds.split(",")) {
-            if (id.trim().equals(document.getDocumentId().toString())) {
+            if (id.trim().equals(docIdStr)) {
                 return true;
             }
         }
@@ -651,24 +694,37 @@ public class DoctorServiceImpl implements DoctorService {
     }
 
     private List<AdminMedicalDocumentDto> getClinicalResultsForDoctor(Patient patient, String doctorId) {
-        return medicalDocumentRepository
-                .findByHealthRecord_Patient_PatientIdAndSourceTypeOrderByUploadedAtDesc(
-                        patient.getPatientId(),
-                        "DOCTOR"
-                )
-                .stream()
-                .filter(document -> "PUBLISHED".equalsIgnoreCase(document.getVisibilityStatus())
-                        || (document.getDoctor() != null && doctorId.equals(document.getDoctor().getDoctorId())))
-                .map(this::toDocumentDto)
-                .sorted((left, right) -> {
-                    LocalDateTime leftDate = left.getDocumentDate() != null ? left.getDocumentDate() : left.getUploadedAt();
-                    LocalDateTime rightDate = right.getDocumentDate() != null ? right.getDocumentDate() : right.getUploadedAt();
-                    if (leftDate == null && rightDate == null) return 0;
-                    if (leftDate == null) return 1;
-                    if (rightDate == null) return -1;
-                    return rightDate.compareTo(leftDate);
-                })
-                .collect(Collectors.toList());
+        try {
+            return medicalDocumentRepository
+                    .findByHealthRecord_Patient_PatientIdAndSourceTypeOrderByUploadedAtDesc(
+                            patient.getPatientId(),
+                            "DOCTOR"
+                    )
+                    .stream()
+                    .filter(document -> {
+                        try {
+                            return "PUBLISHED".equalsIgnoreCase(document.getVisibilityStatus())
+                                    || (document.getDoctor() != null && doctorId.equals(document.getDoctor().getDoctorId()));
+                        } catch (Exception e) {
+                            log.warn("Error filtering clinical result: {}", e.getMessage());
+                            return false;
+                        }
+                    })
+                    .map(this::toDocumentDto)
+                    .sorted((left, right) -> {
+                        LocalDateTime leftDate = left.getDocumentDate() != null ? left.getDocumentDate() : left.getUploadedAt();
+                        LocalDateTime rightDate = right.getDocumentDate() != null ? right.getDocumentDate() : right.getUploadedAt();
+                        if (leftDate == null && rightDate == null) return 0;
+                        if (leftDate == null) return 1;
+                        if (rightDate == null) return -1;
+                        return rightDate.compareTo(leftDate);
+                    })
+                    .collect(Collectors.toList());
+        } catch (Exception e) {
+            log.error("Failed to load clinical results for patient {} under doctor {}: {}",
+                    patient.getPatientId(), doctorId, e.getMessage(), e);
+            return List.of();
+        }
     }
 
     private AdminMedicalDocumentDto toDocumentDto(MedicalDocument document) {

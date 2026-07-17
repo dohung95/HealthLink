@@ -25,3 +25,13 @@ export function toCartPayload(items) {
     quantity: Number(item.quantity || 1),
   }));
 }
+
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_SPRING_API_BASE_URL || 'http://localhost:8096';
+
+export function getImageUrl(medicine) {
+  if (!medicine?.imageUrl) return null;
+  const url = medicine.imageUrl;
+  if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('data:')) return url;
+  if (url.startsWith('/')) return `${API_BASE_URL}${url}`;
+  return url;
+}

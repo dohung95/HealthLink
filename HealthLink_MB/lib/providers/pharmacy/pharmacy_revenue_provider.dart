@@ -8,7 +8,7 @@ import '../../utils/pharmacy/pharmacy_revenue_calculator.dart';
 typedef PartnerWalletServiceFactory = PartnerWalletService Function(String partnerId);
 
 /// Manages pharmacy revenue state: fetches transactions once, then re-buckets
-/// locally when the range or month/year selection changes.
+/// locally when the range selection changes.
 class PharmacyRevenueProvider extends ChangeNotifier {
   PharmacyRevenueProvider({PartnerWalletServiceFactory? serviceFactory})
       : _serviceFactory = serviceFactory ??
@@ -24,8 +24,6 @@ class PharmacyRevenueProvider extends ChangeNotifier {
   // Cached transaction list — loaded once per refresh.
   List<PartnerTransaction> _cachedTransactions = [];
 
-  int _selectedMonth = DateTime.now().month;
-  int _selectedYear = DateTime.now().year;
   bool _loading = false;
   String? _error;
   DateTime? _updatedAt;
@@ -35,21 +33,17 @@ class PharmacyRevenueProvider extends ChangeNotifier {
   // ── Getters ──────────────────────────────────────────────────────────
 
   PharmacyRevenueRange get range => _range;
-  int get selectedMonth => _selectedMonth;
-  int get selectedYear => _selectedYear;
   bool get loading => _loading;
   String? get error => _error;
   DateTime? get updatedAt => _updatedAt;
   bool get hasData => _cachedTransactions.isNotEmpty;
 
-  /// Build the series from cached transactions using current range/selection.
+  /// Build the series from cached transactions using current range.
   PharmacyRevenueSeries get series {
     return PharmacyRevenueCalculator.build(
       transactions: _cachedTransactions,
       range: _range,
       now: DateTime.now(),
-      selectedMonth: _selectedMonth,
-      selectedYear: _selectedYear,
     );
   }
 
@@ -134,24 +128,10 @@ class PharmacyRevenueProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Switch range type and optionally reset month/year.
+  /// Switch range type.
   void selectRange(PharmacyRevenueRange value) {
     if (_range == value) return;
     _range = value;
-    final now = DateTime.now();
-    _selectedMonth = now.month;
-    _selectedYear = now.year;
-    notifyListeners();
-  }
-
-  void selectMonth(int month, int year) {
-    _selectedMonth = month;
-    _selectedYear = year;
-    notifyListeners();
-  }
-
-  void selectYear(int year) {
-    _selectedYear = year;
     notifyListeners();
   }
 }

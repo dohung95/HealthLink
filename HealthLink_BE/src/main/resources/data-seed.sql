@@ -181,16 +181,16 @@ SET IDENTITY_INSERT MedicineCategories OFF;
 -- 9. MEDICINES (10 medicines)
 SET IDENTITY_INSERT Medicines ON;
 INSERT INTO Medicines (MedicineID, name, genericName, brandName, category, CategoryID, dosageForm, strength, unit, manufacturer, countryOfOrigin, description, activeIngredients, indications, contraindications, sideEffects, precautions, interactions, storageConditions, prescriptionRequired, price, active, imageUrl, createdAt, updatedAt) VALUES
-(1, 'Paracetamol 500mg', 'Paracetamol', 'Tylenol', 'Pain Relief - Fever', 20, 'Tablet', '500mg', 'Tablet', 'Johnson & Johnson', 'USA', 'Common pain reliever and fever reducer', 'Paracetamol 500mg', 'Headache, fever, muscle pain', 'Allergy to paracetamol, severe liver disease', 'Nausea, rash (rare)', 'Do not exceed 4g per day', 'Increased toxicity with alcohol', 'Store below 30C', 0, 5.99, 1, '/medicines/paracetamol.jpg', '2024-01-01', NULL),
-(2, 'Amoxicillin 500mg', 'Amoxicillin', 'Amoxil', 'Antibiotic', 10, 'Capsule', '500mg', 'Capsule', 'Pfizer', 'USA', 'Broad spectrum antibiotic', 'Amoxicillin trihydrate', 'Respiratory infections, UTI', 'Penicillin allergy', 'Diarrhea, rash, nausea', 'Adjust dose for kidney disease', 'May reduce contraceptive efficacy', 'Store at 15-25C', 1, 12.99, 1, '/medicines/amoxicillin.jpg', '2024-01-01', NULL),
-(3, 'Omeprazole 20mg', 'Omeprazole', 'Prilosec', 'Gastrointestinal', 14, 'Capsule', '20mg', 'Capsule', 'AstraZeneca', 'Sweden', 'Proton pump inhibitor', 'Omeprazole', 'Gastric ulcer, GERD', 'Allergy to omeprazole', 'Headache, diarrhea, nausea', 'Not for long-term use', 'Reduces B12 absorption', 'Store below 25C, protect from moisture', 1, 15.99, 1, '/medicines/omeprazole.jpg', '2024-01-01', NULL),
-(4, 'Metformin 500mg', 'Metformin', 'Glucophage', 'Diabetes', 12, 'Tablet', '500mg', 'Tablet', 'Merck', 'Germany', 'Type 2 diabetes treatment', 'Metformin HCl', 'Type 2 diabetes', 'Kidney disease, acidosis', 'GI upset, B12 deficiency', 'Stop before CT scan with contrast', 'Increased hypoglycemia risk with other drugs', 'Store at 15-25C', 1, 8.99, 1, '/medicines/metformin.jpg', '2024-01-01', NULL),
-(5, 'Amlodipine 5mg', 'Amlodipine', 'Norvasc', 'Cardiovascular', 11, 'Tablet', '5mg', 'Tablet', 'Pfizer', 'USA', 'Blood pressure medication', 'Amlodipine besylate', 'Hypertension, angina', 'Hypotension, cardiogenic shock', 'Ankle swelling, headache', 'Monitor blood pressure regularly', 'Increased effect with grapefruit', 'Store below 30C', 1, 18.99, 1, '/medicines/amlodipine.jpg', '2024-01-01', NULL),
-(6, 'Cetirizine 10mg', 'Cetirizine', 'Zyrtec', 'Allergy', 21, 'Tablet', '10mg', 'Tablet', 'UCB', 'Belgium', 'Second generation antihistamine', 'Cetirizine HCl', 'Allergic rhinitis, urticaria', 'Severe kidney disease', 'Drowsiness, dry mouth', 'Caution when driving', 'Increased sedation with alcohol', 'Store below 25C', 0, 9.99, 1, '/medicines/cetirizine.jpg', '2024-01-01', NULL),
-(7, 'Vitamin C 1000mg', 'Ascorbic Acid', 'Emergen-C', 'Vitamin - Mineral', 30, 'Effervescent', '1000mg', 'Tablet', 'Pfizer', 'USA', 'Vitamin C supplement', 'Ascorbic acid', 'Vitamin C deficiency, immune support', 'Kidney stones (oxalate)', 'GI upset at high doses', 'Do not exceed 2000mg per day', 'Increases iron absorption', 'Store in dry place', 0, 12.99, 1, '/medicines/vitaminc.jpg', '2024-01-01', NULL),
-(8, 'Ibuprofen 400mg', 'Ibuprofen', 'Advil', 'Pain Relief - Anti-inflammatory', 20, 'Tablet', '400mg', 'Tablet', 'Pfizer', 'USA', 'NSAID pain reliever', 'Ibuprofen', 'Headache, muscle pain, arthritis', 'Gastric ulcer, kidney disease', 'Stomach pain, nausea', 'Take with food', 'Increased bleeding risk with aspirin', 'Store below 25C', 0, 7.99, 1, '/medicines/ibuprofen.jpg', '2024-01-01', NULL),
-(9, 'Salbutamol 100mcg', 'Salbutamol', 'Ventolin', 'Respiratory', 13, 'Inhaler', '100mcg', 'Puff', 'GSK', 'UK', 'Bronchodilator inhaler', 'Salbutamol sulfate', 'Asthma, bronchospasm', 'Heart arrhythmia', 'Rapid heartbeat, tremor', 'Do not overuse', 'Increased effect with theophylline', 'Store below 30C', 1, 35.99, 1, '/medicines/salbutamol.jpg', '2024-01-01', NULL),
-(10, 'Allopurinol 300mg', 'Allopurinol', 'Zyloprim', 'Gout', 15, 'Tablet', '300mg', 'Tablet', 'Takeda', 'Japan', 'Uric acid reducer', 'Allopurinol', 'Gout, hyperuricemia', 'Allopurinol allergy', 'Rash, liver problems', 'Drink plenty of water', 'Increased azathioprine toxicity', 'Store below 25C, protect from moisture', 1, 14.99, 1, '/medicines/allopurinol.jpg', '2024-01-01', NULL);
+(1, 'Paracetamol 500mg', 'Paracetamol', 'Tylenol', 'Pain Relief - Fever', 20, 'Tablet', '500mg', 'Tablet', 'Johnson & Johnson', 'USA', 'Common pain reliever and fever reducer', 'Paracetamol 500mg', 'Headache, fever, muscle pain', 'Allergy to paracetamol, severe liver disease', 'Nausea, rash (rare)', 'Do not exceed 4g per day', 'Increased toxicity with alcohol', 'Store below 30C', 0, 5.99, 1, '/uploads/medicinces/Paracetamol.webp', '2024-01-01', NULL),
+(2, 'Amoxicillin 500mg', 'Amoxicillin', 'Amoxil', 'Antibiotic', 10, 'Capsule', '500mg', 'Capsule', 'Pfizer', 'USA', 'Broad spectrum antibiotic', 'Amoxicillin trihydrate', 'Respiratory infections, UTI', 'Penicillin allergy', 'Diarrhea, rash, nausea', 'Adjust dose for kidney disease', 'May reduce contraceptive efficacy', 'Store at 15-25C', 1, 12.99, 1, '/uploads/medicinces/Amoxicillin.jpg', '2024-01-01', NULL),
+(3, 'Omeprazole 20mg', 'Omeprazole', 'Prilosec', 'Gastrointestinal', 14, 'Capsule', '20mg', 'Capsule', 'AstraZeneca', 'Sweden', 'Proton pump inhibitor', 'Omeprazole', 'Gastric ulcer, GERD', 'Allergy to omeprazole', 'Headache, diarrhea, nausea', 'Not for long-term use', 'Reduces B12 absorption', 'Store below 25C, protect from moisture', 1, 15.99, 1, '/uploads/medicinces/Omeprazole.jpg', '2024-01-01', NULL),
+(4, 'Metformin 500mg', 'Metformin', 'Glucophage', 'Diabetes', 12, 'Tablet', '500mg', 'Tablet', 'Merck', 'Germany', 'Type 2 diabetes treatment', 'Metformin HCl', 'Type 2 diabetes', 'Kidney disease, acidosis', 'GI upset, B12 deficiency', 'Stop before CT scan with contrast', 'Increased hypoglycemia risk with other drugs', 'Store at 15-25C', 1, 8.99, 1, '/uploads/medicinces/Metformin.webp', '2024-01-01', NULL),
+(5, 'Amlodipine 5mg', 'Amlodipine', 'Norvasc', 'Cardiovascular', 11, 'Tablet', '5mg', 'Tablet', 'Pfizer', 'USA', 'Blood pressure medication', 'Amlodipine besylate', 'Hypertension, angina', 'Hypotension, cardiogenic shock', 'Ankle swelling, headache', 'Monitor blood pressure regularly', 'Increased effect with grapefruit', 'Store below 30C', 1, 18.99, 1, '/uploads/medicinces/Amlodipine.webp', '2024-01-01', NULL),
+(6, 'Cetirizine 10mg', 'Cetirizine', 'Zyrtec', 'Allergy', 21, 'Tablet', '10mg', 'Tablet', 'UCB', 'Belgium', 'Second generation antihistamine', 'Cetirizine HCl', 'Allergic rhinitis, urticaria', 'Severe kidney disease', 'Drowsiness, dry mouth', 'Caution when driving', 'Increased sedation with alcohol', 'Store below 25C', 0, 9.99, 1, '/uploads/medicinces/Cetirizine.webp', '2024-01-01', NULL),
+(7, 'Vitamin C 1000mg', 'Ascorbic Acid', 'Emergen-C', 'Vitamin - Mineral', 30, 'Effervescent', '1000mg', 'Tablet', 'Pfizer', 'USA', 'Vitamin C supplement', 'Ascorbic acid', 'Vitamin C deficiency, immune support', 'Kidney stones (oxalate)', 'GI upset at high doses', 'Do not exceed 2000mg per day', 'Increases iron absorption', 'Store in dry place', 0, 12.99, 1, '/uploads/medicinces/Ascorbic Acid.jpg', '2024-01-01', NULL),
+(8, 'Ibuprofen 400mg', 'Ibuprofen', 'Advil', 'Pain Relief - Anti-inflammatory', 20, 'Tablet', '400mg', 'Tablet', 'Pfizer', 'USA', 'NSAID pain reliever', 'Ibuprofen', 'Headache, muscle pain, arthritis', 'Gastric ulcer, kidney disease', 'Stomach pain, nausea', 'Take with food', 'Increased bleeding risk with aspirin', 'Store below 25C', 0, 7.99, 1, '/uploads/medicinces/Ibuprofen.webp', '2024-01-01', NULL),
+(9, 'Salbutamol 100mcg', 'Salbutamol', 'Ventolin', 'Respiratory', 13, 'Inhaler', '100mcg', 'Puff', 'GSK', 'UK', 'Bronchodilator inhaler', 'Salbutamol sulfate', 'Asthma, bronchospasm', 'Heart arrhythmia', 'Rapid heartbeat, tremor', 'Do not overuse', 'Increased effect with theophylline', 'Store below 30C', 1, 35.99, 1, '/uploads/medicinces/Salbutamol.webp', '2024-01-01', NULL),
+(10, 'Allopurinol 300mg', 'Allopurinol', 'Zyloprim', 'Gout', 15, 'Tablet', '300mg', 'Tablet', 'Takeda', 'Japan', 'Uric acid reducer', 'Allopurinol', 'Gout, hyperuricemia', 'Allopurinol allergy', 'Rash, liver problems', 'Drink plenty of water', 'Increased azathioprine toxicity', 'Store below 25C, protect from moisture', 1, 14.99, 1, '/uploads/medicinces/Allopurinol.webp', '2024-01-01', NULL);
 SET IDENTITY_INSERT Medicines OFF;
 
 -- 10. PHARMACY_INVENTORY (28 inventory rows)
@@ -831,10 +831,6 @@ INSERT INTO CommissionTransactions (TransactionId, transactionNumber, sourceType
 (13, 'CTX-202405-00013', 'PHARMACY_ORDER', NULL, 14, 'PHARMACY', 'user-ph04', 'CVS Pharmacy - SF', 'PHARMACY_ORDER', 82.99, 0.0800, 6.64, 76.35, 'REFUNDED', NULL, '2024-05-22 12:30:00'),
 (14, 'CTX-202405-00014', 'PHARMACY_ORDER', NULL, 15, 'PHARMACY', 'user-ph06', 'Hospital Pharmacy - NYC', 'PHARMACY_ORDER', 40.00, 0.0800, 3.20, 36.80, 'PENDING', NULL, '2024-05-23 09:10:00'),
 (15, 'CTX-202405-00015', 'APPOINTMENT', 14, NULL, 'DOCTOR', 'user-d01', 'Dr. John Smith', 'CONSULTATION_HOME_VISIT', 103.00, 0.1000, 8.80, 94.20, 'PENDING', NULL, '2024-05-27 20:45:00');
--- â”€â”€ Pharmacy revenue history demo rows (IDs 16-51) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
--- Ledger-only dashboard fixtures. Order/Appointment/Settlement FK are all NULL.
--- Statuses rotate across PENDING, VESTED, and SETTLED (never REFUNDED).
-
 -- 16-22: Seven daily transactions ending today (D0..D6)
 INSERT INTO CommissionTransactions (TransactionId, transactionNumber, sourceType, appointmentId, pharmacyOrderId, recipientType, recipientId, recipientName, serviceType, grossAmount, commissionRate, commissionAmount, netAmount, status, SettlementId, CreatedAt) VALUES
 (16, 'CTX-DEMO-PH01-D0', 'PHARMACY_ORDER', NULL, NULL, 'PHARMACY', 'user-ph01', 'HealthLink Pharmacy - Ben Thanh', 'PHARMACY_ORDER', 32.61, 0.0800, 2.61, 30.00, 'SETTLED', NULL, DATEADD(DAY, -6, GETDATE())),
@@ -845,56 +841,65 @@ INSERT INTO CommissionTransactions (TransactionId, transactionNumber, sourceType
 (21, 'CTX-DEMO-PH01-D5', 'PHARMACY_ORDER', NULL, NULL, 'PHARMACY', 'user-ph01', 'HealthLink Pharmacy - Ben Thanh', 'PHARMACY_ORDER', 32.61, 0.0800, 2.61, 30.00, 'SETTLED', NULL, DATEADD(DAY, -1, GETDATE())),
 (22, 'CTX-DEMO-PH01-D6', 'PHARMACY_ORDER', NULL, NULL, 'PHARMACY', 'user-ph01', 'HealthLink Pharmacy - Ben Thanh', 'PHARMACY_ORDER', 16.30, 0.0800, 1.30, 15.00, 'PENDING', NULL, GETDATE());
 
--- 23-34: One transaction on day 15 for each current-year month (CM01..CM12)
+-- 23-52: Thirty daily transactions spanning last 30 days
 INSERT INTO CommissionTransactions (TransactionId, transactionNumber, sourceType, appointmentId, pharmacyOrderId, recipientType, recipientId, recipientName, serviceType, grossAmount, commissionRate, commissionAmount, netAmount, status, SettlementId, CreatedAt)
-SELECT 23, 'CTX-DEMO-PH01-CM01', 'PHARMACY_ORDER', NULL, NULL, 'PHARMACY', 'user-ph01', 'HealthLink Pharmacy - Ben Thanh', 'PHARMACY_ORDER', 54.35, 0.0800, 4.35, 50.00, 'SETTLED', NULL, DATEFROMPARTS(YEAR(GETDATE()), 1, 15) WHERE 1 <= MONTH(GETDATE());
-INSERT INTO CommissionTransactions (TransactionId, transactionNumber, sourceType, appointmentId, pharmacyOrderId, recipientType, recipientId, recipientName, serviceType, grossAmount, commissionRate, commissionAmount, netAmount, status, SettlementId, CreatedAt)
-SELECT 24, 'CTX-DEMO-PH01-CM02', 'PHARMACY_ORDER', NULL, NULL, 'PHARMACY', 'user-ph01', 'HealthLink Pharmacy - Ben Thanh', 'PHARMACY_ORDER', 43.48, 0.0800, 3.48, 40.00, 'VESTED', NULL, DATEFROMPARTS(YEAR(GETDATE()), 2, 15) WHERE 2 <= MONTH(GETDATE());
-INSERT INTO CommissionTransactions (TransactionId, transactionNumber, sourceType, appointmentId, pharmacyOrderId, recipientType, recipientId, recipientName, serviceType, grossAmount, commissionRate, commissionAmount, netAmount, status, SettlementId, CreatedAt)
-SELECT 25, 'CTX-DEMO-PH01-CM03', 'PHARMACY_ORDER', NULL, NULL, 'PHARMACY', 'user-ph01', 'HealthLink Pharmacy - Ben Thanh', 'PHARMACY_ORDER', 65.22, 0.0800, 5.22, 60.00, 'SETTLED', NULL, DATEFROMPARTS(YEAR(GETDATE()), 3, 15) WHERE 3 <= MONTH(GETDATE());
-INSERT INTO CommissionTransactions (TransactionId, transactionNumber, sourceType, appointmentId, pharmacyOrderId, recipientType, recipientId, recipientName, serviceType, grossAmount, commissionRate, commissionAmount, netAmount, status, SettlementId, CreatedAt)
-SELECT 26, 'CTX-DEMO-PH01-CM04', 'PHARMACY_ORDER', NULL, NULL, 'PHARMACY', 'user-ph01', 'HealthLink Pharmacy - Ben Thanh', 'PHARMACY_ORDER', 32.61, 0.0800, 2.61, 30.00, 'PENDING', NULL, DATEFROMPARTS(YEAR(GETDATE()), 4, 15) WHERE 4 <= MONTH(GETDATE());
-INSERT INTO CommissionTransactions (TransactionId, transactionNumber, sourceType, appointmentId, pharmacyOrderId, recipientType, recipientId, recipientName, serviceType, grossAmount, commissionRate, commissionAmount, netAmount, status, SettlementId, CreatedAt)
-SELECT 27, 'CTX-DEMO-PH01-CM05', 'PHARMACY_ORDER', NULL, NULL, 'PHARMACY', 'user-ph01', 'HealthLink Pharmacy - Ben Thanh', 'PHARMACY_ORDER', 76.09, 0.0800, 6.09, 70.00, 'VESTED', NULL, DATEFROMPARTS(YEAR(GETDATE()), 5, 15) WHERE 5 <= MONTH(GETDATE());
-INSERT INTO CommissionTransactions (TransactionId, transactionNumber, sourceType, appointmentId, pharmacyOrderId, recipientType, recipientId, recipientName, serviceType, grossAmount, commissionRate, commissionAmount, netAmount, status, SettlementId, CreatedAt)
-SELECT 28, 'CTX-DEMO-PH01-CM06', 'PHARMACY_ORDER', NULL, NULL, 'PHARMACY', 'user-ph01', 'HealthLink Pharmacy - Ben Thanh', 'PHARMACY_ORDER', 54.35, 0.0800, 4.35, 50.00, 'SETTLED', NULL, DATEFROMPARTS(YEAR(GETDATE()), 6, 15) WHERE 6 <= MONTH(GETDATE());
-INSERT INTO CommissionTransactions (TransactionId, transactionNumber, sourceType, appointmentId, pharmacyOrderId, recipientType, recipientId, recipientName, serviceType, grossAmount, commissionRate, commissionAmount, netAmount, status, SettlementId, CreatedAt)
-SELECT 29, 'CTX-DEMO-PH01-CM07', 'PHARMACY_ORDER', NULL, NULL, 'PHARMACY', 'user-ph01', 'HealthLink Pharmacy - Ben Thanh', 'PHARMACY_ORDER', 43.48, 0.0800, 3.48, 40.00, 'VESTED', NULL, DATEFROMPARTS(YEAR(GETDATE()), 7, 15) WHERE 7 <= MONTH(GETDATE());
-INSERT INTO CommissionTransactions (TransactionId, transactionNumber, sourceType, appointmentId, pharmacyOrderId, recipientType, recipientId, recipientName, serviceType, grossAmount, commissionRate, commissionAmount, netAmount, status, SettlementId, CreatedAt)
-SELECT 30, 'CTX-DEMO-PH01-CM08', 'PHARMACY_ORDER', NULL, NULL, 'PHARMACY', 'user-ph01', 'HealthLink Pharmacy - Ben Thanh', 'PHARMACY_ORDER', 32.61, 0.0800, 2.61, 30.00, 'PENDING', NULL, DATEFROMPARTS(YEAR(GETDATE()), 8, 15) WHERE 8 <= MONTH(GETDATE());
-INSERT INTO CommissionTransactions (TransactionId, transactionNumber, sourceType, appointmentId, pharmacyOrderId, recipientType, recipientId, recipientName, serviceType, grossAmount, commissionRate, commissionAmount, netAmount, status, SettlementId, CreatedAt)
-SELECT 31, 'CTX-DEMO-PH01-CM09', 'PHARMACY_ORDER', NULL, NULL, 'PHARMACY', 'user-ph01', 'HealthLink Pharmacy - Ben Thanh', 'PHARMACY_ORDER', 54.35, 0.0800, 4.35, 50.00, 'SETTLED', NULL, DATEFROMPARTS(YEAR(GETDATE()), 9, 15) WHERE 9 <= MONTH(GETDATE());
-INSERT INTO CommissionTransactions (TransactionId, transactionNumber, sourceType, appointmentId, pharmacyOrderId, recipientType, recipientId, recipientName, serviceType, grossAmount, commissionRate, commissionAmount, netAmount, status, SettlementId, CreatedAt)
-SELECT 32, 'CTX-DEMO-PH01-CM10', 'PHARMACY_ORDER', NULL, NULL, 'PHARMACY', 'user-ph01', 'HealthLink Pharmacy - Ben Thanh', 'PHARMACY_ORDER', 65.22, 0.0800, 5.22, 60.00, 'VESTED', NULL, DATEFROMPARTS(YEAR(GETDATE()), 10, 15) WHERE 10 <= MONTH(GETDATE());
-INSERT INTO CommissionTransactions (TransactionId, transactionNumber, sourceType, appointmentId, pharmacyOrderId, recipientType, recipientId, recipientName, serviceType, grossAmount, commissionRate, commissionAmount, netAmount, status, SettlementId, CreatedAt)
-SELECT 33, 'CTX-DEMO-PH01-CM11', 'PHARMACY_ORDER', NULL, NULL, 'PHARMACY', 'user-ph01', 'HealthLink Pharmacy - Ben Thanh', 'PHARMACY_ORDER', 43.48, 0.0800, 3.48, 40.00, 'SETTLED', NULL, DATEFROMPARTS(YEAR(GETDATE()), 11, 15) WHERE 11 <= MONTH(GETDATE());
-INSERT INTO CommissionTransactions (TransactionId, transactionNumber, sourceType, appointmentId, pharmacyOrderId, recipientType, recipientId, recipientName, serviceType, grossAmount, commissionRate, commissionAmount, netAmount, status, SettlementId, CreatedAt)
-SELECT 34, 'CTX-DEMO-PH01-CM12', 'PHARMACY_ORDER', NULL, NULL, 'PHARMACY', 'user-ph01', 'HealthLink Pharmacy - Ben Thanh', 'PHARMACY_ORDER', 32.61, 0.0800, 2.61, 30.00, 'PENDING', NULL, DATEFROMPARTS(YEAR(GETDATE()), 12, 15) WHERE 12 <= MONTH(GETDATE());
+SELECT
+    22 + v.n,
+    'CTX-DEMO-PH01-D' + RIGHT('0' + CAST(v.n AS VARCHAR), 2),
+    'PHARMACY_ORDER', NULL, NULL, 'PHARMACY', 'user-ph01', 'HealthLink Pharmacy - Ben Thanh', 'PHARMACY_ORDER',
+    CASE v.n % 5
+        WHEN 0 THEN 54.35 WHEN 1 THEN 32.61
+        WHEN 2 THEN 43.48 WHEN 3 THEN 21.74
+        ELSE 65.22
+    END,
+    0.0800,
+    CASE v.n % 5
+        WHEN 0 THEN 4.35 WHEN 1 THEN 2.61
+        WHEN 2 THEN 3.48 WHEN 3 THEN 1.74
+        ELSE 5.22
+    END,
+    CASE v.n % 5
+        WHEN 0 THEN 50.00 WHEN 1 THEN 30.00
+        WHEN 2 THEN 40.00 WHEN 3 THEN 20.00
+        ELSE 60.00
+    END,
+    CASE v.n % 3
+        WHEN 0 THEN 'SETTLED' WHEN 1 THEN 'VESTED'
+        ELSE 'PENDING'
+    END,
+    NULL,
+    DATEADD(DAY, -v.n, GETDATE())
+FROM (VALUES (1),(2),(3),(4),(5),(6),(7),(8),(9),(10),(11),(12),(13),(14),(15),(16),(17),(18),(19),(20),(21),(22),(23),(24),(25),(26),(27),(28),(29),(30)) v(n);
 
--- 35-46: One transaction on day 15 for all twelve previous-year months (PY01..PY12)
-INSERT INTO CommissionTransactions (TransactionId, transactionNumber, sourceType, appointmentId, pharmacyOrderId, recipientType, recipientId, recipientName, serviceType, grossAmount, commissionRate, commissionAmount, netAmount, status, SettlementId, CreatedAt) VALUES
-(35, 'CTX-DEMO-PH01-PY01', 'PHARMACY_ORDER', NULL, NULL, 'PHARMACY', 'user-ph01', 'HealthLink Pharmacy - Ben Thanh', 'PHARMACY_ORDER', 43.48, 0.0800, 3.48, 40.00, 'SETTLED', NULL, DATEFROMPARTS(YEAR(GETDATE())-1, 1, 15)),
-(36, 'CTX-DEMO-PH01-PY02', 'PHARMACY_ORDER', NULL, NULL, 'PHARMACY', 'user-ph01', 'HealthLink Pharmacy - Ben Thanh', 'PHARMACY_ORDER', 32.61, 0.0800, 2.61, 30.00, 'VESTED', NULL, DATEFROMPARTS(YEAR(GETDATE())-1, 2, 15)),
-(37, 'CTX-DEMO-PH01-PY03', 'PHARMACY_ORDER', NULL, NULL, 'PHARMACY', 'user-ph01', 'HealthLink Pharmacy - Ben Thanh', 'PHARMACY_ORDER', 54.35, 0.0800, 4.35, 50.00, 'SETTLED', NULL, DATEFROMPARTS(YEAR(GETDATE())-1, 3, 15)),
-(38, 'CTX-DEMO-PH01-PY04', 'PHARMACY_ORDER', NULL, NULL, 'PHARMACY', 'user-ph01', 'HealthLink Pharmacy - Ben Thanh', 'PHARMACY_ORDER', 65.22, 0.0800, 5.22, 60.00, 'PENDING', NULL, DATEFROMPARTS(YEAR(GETDATE())-1, 4, 15)),
-(39, 'CTX-DEMO-PH01-PY05', 'PHARMACY_ORDER', NULL, NULL, 'PHARMACY', 'user-ph01', 'HealthLink Pharmacy - Ben Thanh', 'PHARMACY_ORDER', 43.48, 0.0800, 3.48, 40.00, 'VESTED', NULL, DATEFROMPARTS(YEAR(GETDATE())-1, 5, 15)),
-(40, 'CTX-DEMO-PH01-PY06', 'PHARMACY_ORDER', NULL, NULL, 'PHARMACY', 'user-ph01', 'HealthLink Pharmacy - Ben Thanh', 'PHARMACY_ORDER', 32.61, 0.0800, 2.61, 30.00, 'SETTLED', NULL, DATEFROMPARTS(YEAR(GETDATE())-1, 6, 15)),
-(41, 'CTX-DEMO-PH01-PY07', 'PHARMACY_ORDER', NULL, NULL, 'PHARMACY', 'user-ph01', 'HealthLink Pharmacy - Ben Thanh', 'PHARMACY_ORDER', 76.09, 0.0800, 6.09, 70.00, 'SETTLED', NULL, DATEFROMPARTS(YEAR(GETDATE())-1, 7, 15)),
-(42, 'CTX-DEMO-PH01-PY08', 'PHARMACY_ORDER', NULL, NULL, 'PHARMACY', 'user-ph01', 'HealthLink Pharmacy - Ben Thanh', 'PHARMACY_ORDER', 54.35, 0.0800, 4.35, 50.00, 'PENDING', NULL, DATEFROMPARTS(YEAR(GETDATE())-1, 8, 15)),
-(43, 'CTX-DEMO-PH01-PY09', 'PHARMACY_ORDER', NULL, NULL, 'PHARMACY', 'user-ph01', 'HealthLink Pharmacy - Ben Thanh', 'PHARMACY_ORDER', 43.48, 0.0800, 3.48, 40.00, 'VESTED', NULL, DATEFROMPARTS(YEAR(GETDATE())-1, 9, 15)),
-(44, 'CTX-DEMO-PH01-PY10', 'PHARMACY_ORDER', NULL, NULL, 'PHARMACY', 'user-ph01', 'HealthLink Pharmacy - Ben Thanh', 'PHARMACY_ORDER', 32.61, 0.0800, 2.61, 30.00, 'SETTLED', NULL, DATEFROMPARTS(YEAR(GETDATE())-1, 10, 15)),
-(45, 'CTX-DEMO-PH01-PY11', 'PHARMACY_ORDER', NULL, NULL, 'PHARMACY', 'user-ph01', 'HealthLink Pharmacy - Ben Thanh', 'PHARMACY_ORDER', 65.22, 0.0800, 5.22, 60.00, 'SETTLED', NULL, DATEFROMPARTS(YEAR(GETDATE())-1, 11, 15)),
-(46, 'CTX-DEMO-PH01-PY12', 'PHARMACY_ORDER', NULL, NULL, 'PHARMACY', 'user-ph01', 'HealthLink Pharmacy - Ben Thanh', 'PHARMACY_ORDER', 54.35, 0.0800, 4.35, 50.00, 'PENDING', NULL, DATEFROMPARTS(YEAR(GETDATE())-1, 12, 15));
-
--- 47-50: Current-month week-boundary dates (W1..W4)
+-- 53-64: Twelve monthly transactions spanning last 12 months
 INSERT INTO CommissionTransactions (TransactionId, transactionNumber, sourceType, appointmentId, pharmacyOrderId, recipientType, recipientId, recipientName, serviceType, grossAmount, commissionRate, commissionAmount, netAmount, status, SettlementId, CreatedAt)
-SELECT 47, 'CTX-DEMO-PH01-W1', 'PHARMACY_ORDER', NULL, NULL, 'PHARMACY', 'user-ph01', 'HealthLink Pharmacy - Ben Thanh', 'PHARMACY_ORDER', 43.48, 0.0800, 3.48, 40.00, 'SETTLED', NULL, DATEFROMPARTS(YEAR(GETDATE()), MONTH(GETDATE()), 3) WHERE 3 <= DAY(GETDATE());
-INSERT INTO CommissionTransactions (TransactionId, transactionNumber, sourceType, appointmentId, pharmacyOrderId, recipientType, recipientId, recipientName, serviceType, grossAmount, commissionRate, commissionAmount, netAmount, status, SettlementId, CreatedAt)
-SELECT 48, 'CTX-DEMO-PH01-W2', 'PHARMACY_ORDER', NULL, NULL, 'PHARMACY', 'user-ph01', 'HealthLink Pharmacy - Ben Thanh', 'PHARMACY_ORDER', 65.22, 0.0800, 5.22, 60.00, 'VESTED', NULL, DATEFROMPARTS(YEAR(GETDATE()), MONTH(GETDATE()), 10) WHERE 10 <= DAY(GETDATE());
-INSERT INTO CommissionTransactions (TransactionId, transactionNumber, sourceType, appointmentId, pharmacyOrderId, recipientType, recipientId, recipientName, serviceType, grossAmount, commissionRate, commissionAmount, netAmount, status, SettlementId, CreatedAt)
-SELECT 49, 'CTX-DEMO-PH01-W3', 'PHARMACY_ORDER', NULL, NULL, 'PHARMACY', 'user-ph01', 'HealthLink Pharmacy - Ben Thanh', 'PHARMACY_ORDER', 32.61, 0.0800, 2.61, 30.00, 'PENDING', NULL, DATEFROMPARTS(YEAR(GETDATE()), MONTH(GETDATE()), 17) WHERE 17 <= DAY(GETDATE());
-INSERT INTO CommissionTransactions (TransactionId, transactionNumber, sourceType, appointmentId, pharmacyOrderId, recipientType, recipientId, recipientName, serviceType, grossAmount, commissionRate, commissionAmount, netAmount, status, SettlementId, CreatedAt)
-SELECT 50, 'CTX-DEMO-PH01-W4', 'PHARMACY_ORDER', NULL, NULL, 'PHARMACY', 'user-ph01', 'HealthLink Pharmacy - Ben Thanh', 'PHARMACY_ORDER', 54.35, 0.0800, 4.35, 50.00, 'SETTLED', NULL, DATEFROMPARTS(YEAR(GETDATE()), MONTH(GETDATE()), 24) WHERE 24 <= DAY(GETDATE());
+SELECT
+    52 + v.n,
+    'CTX-DEMO-PH01-M' + RIGHT('0' + CAST(v.n AS VARCHAR), 2),
+    'PHARMACY_ORDER', NULL, NULL, 'PHARMACY', 'user-ph01', 'HealthLink Pharmacy - Ben Thanh', 'PHARMACY_ORDER',
+    CASE v.n % 5
+        WHEN 0 THEN 54.35 WHEN 1 THEN 32.61
+        WHEN 2 THEN 43.48 WHEN 3 THEN 21.74
+        ELSE 65.22
+    END,
+    0.0800,
+    CASE v.n % 5
+        WHEN 0 THEN 4.35 WHEN 1 THEN 2.61
+        WHEN 2 THEN 3.48 WHEN 3 THEN 1.74
+        ELSE 5.22
+    END,
+    CASE v.n % 5
+        WHEN 0 THEN 50.00 WHEN 1 THEN 30.00
+        WHEN 2 THEN 40.00 WHEN 3 THEN 20.00
+        ELSE 60.00
+    END,
+    CASE v.n % 3
+        WHEN 0 THEN 'SETTLED' WHEN 1 THEN 'VESTED'
+        ELSE 'PENDING'
+    END,
+    NULL,
+    DATEADD(MONTH, -v.n + 1, DATEFROMPARTS(YEAR(GETDATE()), MONTH(GETDATE()), 15))
+FROM (VALUES (1),(2),(3),(4),(5),(6),(7),(8),(9),(10),(11),(12)) v(n);
 
 -- Reconcile user-ph01 wallet totals
 UPDATE p
@@ -910,6 +915,30 @@ CROSS APPLY (
 ) totals
 WHERE p.PharmacyId = 'user-ph01';
 SET IDENTITY_INSERT CommissionTransactions OFF;
+
+-- 43.5 PARTNER_WALLET_ENTRIES (seed earnings for user-ph01 from CommissionTransactions)
+INSERT INTO PartnerWalletEntries (
+    partnerType, partnerId, entryType, status, amount, commissionTransactionId,
+    appointmentId, pharmacyOrderId, IdempotencyKey, description,
+    effectiveAt, createdAt, updatedAt
+)
+SELECT
+    'PHARMACY' AS partnerType,
+    ct.RecipientId AS partnerId,
+    'EARNING' AS entryType,
+    CASE WHEN ct.Status = 'PENDING' THEN 'PENDING' ELSE 'VESTED' END AS status,
+    ct.NetAmount AS amount,
+    ct.TransactionId AS commissionTransactionId,
+    ct.AppointmentId,
+    ct.PharmacyOrderId,
+    'EARNING:CTX:' + CAST(ct.TransactionId AS VARCHAR) AS IdempotencyKey,
+    'Seed earning' AS description,
+    ct.CreatedAt AS effectiveAt,
+    ct.CreatedAt AS createdAt,
+    ct.CreatedAt AS updatedAt
+FROM CommissionTransactions ct
+WHERE ct.RecipientId = 'user-ph01';
+-- ponytail: no NOT EXISTS guard — seed runs on fresh DB, consistent with all other seed INSERTs
 
 -- 44. DOCTOR_SCHEDULE_CHANGE_REQUESTS (5 requests)
 SET IDENTITY_INSERT DoctorScheduleChangeRequest ON;
@@ -1032,6 +1061,89 @@ DELETE FROM Consultations WHERE AppointmentId >= 1000;
 DELETE FROM Appointments WHERE AppointmentID >= 1000;
 DELETE FROM Patients WHERE PatientID LIKE 'user-pa[0-9][0-9][0-9]';
 DELETE FROM Users WHERE Id LIKE 'user-pa[0-9][0-9][0-9]';
+GO
+
+-- =====================================================
+-- 47b. ANALYTICS DOCTORS (user-da001..035)
+-- Created early so Reviews (section 50b) can reference them
+-- without FK violations. Safe to re-run (DELETE + INSERT).
+-- =====================================================
+DELETE FROM Doctors WHERE DoctorID LIKE 'user-da[0-9][0-9][0-9]';
+DELETE FROM Users WHERE Id LIKE 'user-da[0-9][0-9][0-9]';
+GO
+INSERT INTO Users (Id, UserName, Email, EmailConfirmed, PasswordHash, PhoneNumber, AccessFailedCount, CreatedDate, Status, LastLoginAt, RoleId) VALUES
+(N'user-da001', N'doctor_da001', N'doctor.da001@analytics.healthlink.com', 1, N'$2a$10$analyticsSeedNoLoginHashXXXXXXXXXXXXXXXXXXXXXXXXXX', N'0940000001', 0, '2024-01-05 10:00:00', N'Active', NULL, N'doctor'),
+(N'user-da002', N'doctor_da002', N'doctor.da002@analytics.healthlink.com', 1, N'$2a$10$analyticsSeedNoLoginHashXXXXXXXXXXXXXXXXXXXXXXXXXX', N'0940000002', 0, '2024-01-15 10:00:00', N'Active', NULL, N'doctor'),
+(N'user-da003', N'doctor_da003', N'doctor.da003@analytics.healthlink.com', 1, N'$2a$10$analyticsSeedNoLoginHashXXXXXXXXXXXXXXXXXXXXXXXXXX', N'0940000003', 0, '2024-01-25 10:00:00', N'Active', NULL, N'doctor'),
+(N'user-da004', N'doctor_da004', N'doctor.da004@analytics.healthlink.com', 1, N'$2a$10$analyticsSeedNoLoginHashXXXXXXXXXXXXXXXXXXXXXXXXXX', N'0940000004', 0, '2024-02-10 10:00:00', N'Active', NULL, N'doctor'),
+(N'user-da005', N'doctor_da005', N'doctor.da005@analytics.healthlink.com', 1, N'$2a$10$analyticsSeedNoLoginHashXXXXXXXXXXXXXXXXXXXXXXXXXX', N'0940000005', 0, '2024-03-08 10:00:00', N'Active', NULL, N'doctor'),
+(N'user-da006', N'doctor_da006', N'doctor.da006@analytics.healthlink.com', 1, N'$2a$10$analyticsSeedNoLoginHashXXXXXXXXXXXXXXXXXXXXXXXXXX', N'0940000006', 0, '2024-03-22 10:00:00', N'Active', NULL, N'doctor'),
+(N'user-da007', N'doctor_da007', N'doctor.da007@analytics.healthlink.com', 1, N'$2a$10$analyticsSeedNoLoginHashXXXXXXXXXXXXXXXXXXXXXXXXXX', N'0940000007', 0, '2024-04-05 10:00:00', N'Active', NULL, N'doctor'),
+(N'user-da008', N'doctor_da008', N'doctor.da008@analytics.healthlink.com', 1, N'$2a$10$analyticsSeedNoLoginHashXXXXXXXXXXXXXXXXXXXXXXXXXX', N'0940000008', 0, '2024-04-15 10:00:00', N'Active', NULL, N'doctor'),
+(N'user-da009', N'doctor_da009', N'doctor.da009@analytics.healthlink.com', 1, N'$2a$10$analyticsSeedNoLoginHashXXXXXXXXXXXXXXXXXXXXXXXXXX', N'0940000009', 0, '2024-04-25 10:00:00', N'Active', NULL, N'doctor'),
+(N'user-da010', N'doctor_da010', N'doctor.da010@analytics.healthlink.com', 1, N'$2a$10$analyticsSeedNoLoginHashXXXXXXXXXXXXXXXXXXXXXXXXXX', N'0940000010', 0, '2024-05-10 10:00:00', N'Active', NULL, N'doctor'),
+(N'user-da011', N'doctor_da011', N'doctor.da011@analytics.healthlink.com', 1, N'$2a$10$analyticsSeedNoLoginHashXXXXXXXXXXXXXXXXXXXXXXXXXX', N'0940000011', 0, '2024-06-03 10:00:00', N'Active', NULL, N'doctor'),
+(N'user-da012', N'doctor_da012', N'doctor.da012@analytics.healthlink.com', 1, N'$2a$10$analyticsSeedNoLoginHashXXXXXXXXXXXXXXXXXXXXXXXXXX', N'0940000012', 0, '2024-06-11 10:00:00', N'Active', NULL, N'doctor'),
+(N'user-da013', N'doctor_da013', N'doctor.da013@analytics.healthlink.com', 1, N'$2a$10$analyticsSeedNoLoginHashXXXXXXXXXXXXXXXXXXXXXXXXXX', N'0940000013', 0, '2024-06-19 10:00:00', N'Active', NULL, N'doctor'),
+(N'user-da014', N'doctor_da014', N'doctor.da014@analytics.healthlink.com', 1, N'$2a$10$analyticsSeedNoLoginHashXXXXXXXXXXXXXXXXXXXXXXXXXX', N'0940000014', 0, '2024-06-27 10:00:00', N'Active', NULL, N'doctor'),
+(N'user-da015', N'doctor_da015', N'doctor.da015@analytics.healthlink.com', 1, N'$2a$10$analyticsSeedNoLoginHashXXXXXXXXXXXXXXXXXXXXXXXXXX', N'0940000015', 0, '2024-07-08 10:00:00', N'Active', NULL, N'doctor'),
+(N'user-da016', N'doctor_da016', N'doctor.da016@analytics.healthlink.com', 1, N'$2a$10$analyticsSeedNoLoginHashXXXXXXXXXXXXXXXXXXXXXXXXXX', N'0940000016', 0, '2024-07-22 10:00:00', N'Active', NULL, N'doctor'),
+(N'user-da017', N'doctor_da017', N'doctor.da017@analytics.healthlink.com', 1, N'$2a$10$analyticsSeedNoLoginHashXXXXXXXXXXXXXXXXXXXXXXXXXX', N'0940000017', 0, '2024-08-10 10:00:00', N'Active', NULL, N'doctor'),
+(N'user-da018', N'doctor_da018', N'doctor.da018@analytics.healthlink.com', 1, N'$2a$10$analyticsSeedNoLoginHashXXXXXXXXXXXXXXXXXXXXXXXXXX', N'0940000018', 0, '2024-09-05 10:00:00', N'Active', NULL, N'doctor'),
+(N'user-da019', N'doctor_da019', N'doctor.da019@analytics.healthlink.com', 1, N'$2a$10$analyticsSeedNoLoginHashXXXXXXXXXXXXXXXXXXXXXXXXXX', N'0940000019', 0, '2024-09-15 10:00:00', N'Active', NULL, N'doctor'),
+(N'user-da020', N'doctor_da020', N'doctor.da020@analytics.healthlink.com', 1, N'$2a$10$analyticsSeedNoLoginHashXXXXXXXXXXXXXXXXXXXXXXXXXX', N'0940000020', 0, '2024-09-25 10:00:00', N'Active', NULL, N'doctor'),
+(N'user-da021', N'doctor_da021', N'doctor.da021@analytics.healthlink.com', 1, N'$2a$10$analyticsSeedNoLoginHashXXXXXXXXXXXXXXXXXXXXXXXXXX', N'0940000021', 0, '2024-10-08 10:00:00', N'Active', NULL, N'doctor'),
+(N'user-da022', N'doctor_da022', N'doctor.da022@analytics.healthlink.com', 1, N'$2a$10$analyticsSeedNoLoginHashXXXXXXXXXXXXXXXXXXXXXXXXXX', N'0940000022', 0, '2024-10-22 10:00:00', N'Active', NULL, N'doctor'),
+(N'user-da023', N'doctor_da023', N'doctor.da023@analytics.healthlink.com', 1, N'$2a$10$analyticsSeedNoLoginHashXXXXXXXXXXXXXXXXXXXXXXXXXX', N'0940000023', 0, '2024-11-10 10:00:00', N'Active', NULL, N'doctor'),
+(N'user-da024', N'doctor_da024', N'doctor.da024@analytics.healthlink.com', 1, N'$2a$10$analyticsSeedNoLoginHashXXXXXXXXXXXXXXXXXXXXXXXXXX', N'0940000024', 0, '2024-12-15 10:00:00', N'Active', NULL, N'doctor'),
+(N'user-da025', N'doctor_da025', N'doctor.da025@analytics.healthlink.com', 1, N'$2a$10$analyticsSeedNoLoginHashXXXXXXXXXXXXXXXXXXXXXXXXXX', N'0940000025', 0, '2024-01-10 10:00:00', N'Active', NULL, N'doctor'),
+(N'user-da026', N'doctor_da026', N'doctor.da026@analytics.healthlink.com', 1, N'$2a$10$analyticsSeedNoLoginHashXXXXXXXXXXXXXXXXXXXXXXXXXX', N'0940000026', 0, '2024-01-20 10:00:00', N'Active', NULL, N'doctor'),
+(N'user-da027', N'doctor_da027', N'doctor.da027@analytics.healthlink.com', 1, N'$2a$10$analyticsSeedNoLoginHashXXXXXXXXXXXXXXXXXXXXXXXXXX', N'0940000027', 0, '2024-04-10 10:00:00', N'Active', NULL, N'doctor'),
+(N'user-da028', N'doctor_da028', N'doctor.da028@analytics.healthlink.com', 1, N'$2a$10$analyticsSeedNoLoginHashXXXXXXXXXXXXXXXXXXXXXXXXXX', N'0940000028', 0, '2024-04-20 10:00:00', N'Active', NULL, N'doctor'),
+(N'user-da029', N'doctor_da029', N'doctor.da029@analytics.healthlink.com', 1, N'$2a$10$analyticsSeedNoLoginHashXXXXXXXXXXXXXXXXXXXXXXXXXX', N'0940000029', 0, '2024-06-07 10:00:00', N'Active', NULL, N'doctor'),
+(N'user-da030', N'doctor_da030', N'doctor.da030@analytics.healthlink.com', 1, N'$2a$10$analyticsSeedNoLoginHashXXXXXXXXXXXXXXXXXXXXXXXXXX', N'0940000030', 0, '2024-06-15 10:00:00', N'Active', NULL, N'doctor'),
+(N'user-da031', N'doctor_da031', N'doctor.da031@analytics.healthlink.com', 1, N'$2a$10$analyticsSeedNoLoginHashXXXXXXXXXXXXXXXXXXXXXXXXXX', N'0940000031', 0, '2024-06-23 10:00:00', N'Active', NULL, N'doctor'),
+(N'user-da032', N'doctor_da032', N'doctor.da032@analytics.healthlink.com', 1, N'$2a$10$analyticsSeedNoLoginHashXXXXXXXXXXXXXXXXXXXXXXXXXX', N'0940000032', 0, '2024-07-14 10:00:00', N'Active', NULL, N'doctor'),
+(N'user-da033', N'doctor_da033', N'doctor.da033@analytics.healthlink.com', 1, N'$2a$10$analyticsSeedNoLoginHashXXXXXXXXXXXXXXXXXXXXXXXXXX', N'0940000033', 0, '2024-09-10 10:00:00', N'Active', NULL, N'doctor'),
+(N'user-da034', N'doctor_da034', N'doctor.da034@analytics.healthlink.com', 1, N'$2a$10$analyticsSeedNoLoginHashXXXXXXXXXXXXXXXXXXXXXXXXXX', N'0940000034', 0, '2024-09-20 10:00:00', N'Active', NULL, N'doctor'),
+(N'user-da035', N'doctor_da035', N'doctor.da035@analytics.healthlink.com', 1, N'$2a$10$analyticsSeedNoLoginHashXXXXXXXXXXXXXXXXXXXXXXXXXX', N'0940000035', 0, '2024-10-15 10:00:00', N'Active', NULL, N'doctor');
+GO
+INSERT INTO Doctors (DoctorID, FullName, qualifications, specialty, yearsOfExperience, languageSpoken, location, avatarUrl, bio, consultationFee, latitude, longitude, clinicName, clinicAddress, averageRating, totalReviews, verified, specialtyId, totalEarnings, pendingSettlement, paypalEmail, scheduleStatus, bankAccount, bankName, customCommissionRateOnline, customCommissionRateOffline, customCommissionRateOnlineEffectiveFrom, customCommissionRateOnlineEffectiveTo, customCommissionRateOfflineEffectiveFrom, customCommissionRateOfflineEffectiveTo, commissionTier) VALUES
+(N'user-da001', N'Dr. Kevin Anderson', N'MD - Analytics Seed Profile', N'Internal Medicine', 5, N'English', N'New York', N'http://localhost:8096/uploads/avatars/doctors/bacsi_01.png', N'Analytics seed doctor profile used to populate registration charts.', 50.00, 40.7128, -74.0060, N'New York Analytics Clinic', N'100 Analytics Avenue, New York', 4.0, 2, 1, 1, 0.00, 0.00, NULL, N'APPROVED', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, N'STANDARD'),
+(N'user-da002', N'Dr. Laura Bennett', N'MD - Analytics Seed Profile', N'Surgery', 5, N'English', N'Los Angeles', N'http://localhost:8096/uploads/avatars/doctors/bacsi_02.png', N'Analytics seed doctor profile used to populate registration charts.', 50.00, 34.0522, -118.2437, N'Los Angeles Analytics Clinic', N'100 Analytics Avenue, Los Angeles', 5.0, 2, 1, 2, 0.00, 0.00, NULL, N'APPROVED', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, N'STANDARD'),
+(N'user-da003', N'Dr. Marcus Cole', N'MD - Analytics Seed Profile', N'Pediatrics', 5, N'English', N'San Francisco', N'http://localhost:8096/uploads/avatars/doctors/bacsi_03.png', N'Analytics seed doctor profile used to populate registration charts.', 50.00, 37.7749, -122.4194, N'San Francisco Analytics Clinic', N'100 Analytics Avenue, San Francisco', 3.5, 2, 1, 3, 0.00, 0.00, NULL, N'APPROVED', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, N'STANDARD'),
+(N'user-da004', N'Dr. Natalie Diaz', N'MD - Analytics Seed Profile', N'Obstetrics & Gynecology', 5, N'English', N'Chicago', N'http://localhost:8096/uploads/avatars/doctors/bacsi_04.png', N'Analytics seed doctor profile used to populate registration charts.', 50.00, 41.8781, -87.6298, N'Chicago Analytics Clinic', N'100 Analytics Avenue, Chicago', 4.5, 2, 1, 4, 0.00, 0.00, NULL, N'APPROVED', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, N'STANDARD'),
+(N'user-da005', N'Dr. Oscar Evans', N'MD - Analytics Seed Profile', N'Dermatology', 5, N'English', N'Seattle', N'http://localhost:8096/uploads/avatars/doctors/bacsi_05.png', N'Analytics seed doctor profile used to populate registration charts.', 50.00, 47.6062, -122.3321, N'Seattle Analytics Clinic', N'100 Analytics Avenue, Seattle', 4.5, 2, 1, 5, 0.00, 0.00, NULL, N'APPROVED', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, N'STANDARD'),
+(N'user-da006', N'Dr. Priya Fisher', N'MD - Analytics Seed Profile', N'Cardiology', 5, N'English', N'Miami', N'http://localhost:8096/uploads/avatars/doctors/bacsi_06.png', N'Analytics seed doctor profile used to populate registration charts.', 50.00, 25.7617, -80.1918, N'Miami Analytics Clinic', N'100 Analytics Avenue, Miami', 4.0, 2, 1, 6, 0.00, 0.00, NULL, N'APPROVED', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, N'STANDARD'),
+(N'user-da007', N'Dr. Quentin Grant', N'MD - Analytics Seed Profile', N'Neurology', 5, N'English', N'Boston', N'http://localhost:8096/uploads/avatars/doctors/bacsi_07.png', N'Analytics seed doctor profile used to populate registration charts.', 50.00, 42.3601, -71.0589, N'Boston Analytics Clinic', N'100 Analytics Avenue, Boston', 5.0, 2, 1, 7, 0.00, 0.00, NULL, N'APPROVED', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, N'STANDARD'),
+(N'user-da008', N'Dr. Rachel Hayes', N'MD - Analytics Seed Profile', N'Ophthalmology', 5, N'English', N'Philadelphia', N'http://localhost:8096/uploads/avatars/doctors/bacsi_08.png', N'Analytics seed doctor profile used to populate registration charts.', 50.00, 39.9526, -75.1652, N'Philadelphia Analytics Clinic', N'100 Analytics Avenue, Philadelphia', 3.5, 2, 1, 8, 0.00, 0.00, NULL, N'APPROVED', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, N'STANDARD'),
+(N'user-da009', N'Dr. Samuel Irwin', N'MD - Analytics Seed Profile', N'ENT', 5, N'English', N'Houston', N'http://localhost:8096/uploads/avatars/doctors/bacsi_09.png', N'Analytics seed doctor profile used to populate registration charts.', 50.00, 29.7604, -95.3698, N'Houston Analytics Clinic', N'100 Analytics Avenue, Houston', 4.5, 2, 1, 9, 0.00, 0.00, NULL, N'APPROVED', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, N'STANDARD'),
+(N'user-da010', N'Dr. Tina Jacobs', N'MD - Analytics Seed Profile', N'Dentistry', 5, N'English', N'Phoenix', N'http://localhost:8096/uploads/avatars/doctors/bacsi_10.png', N'Analytics seed doctor profile used to populate registration charts.', 50.00, 33.4484, -112.0740, N'Phoenix Analytics Clinic', N'100 Analytics Avenue, Phoenix', 4.5, 2, 1, 10, 0.00, 0.00, NULL, N'APPROVED', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, N'STANDARD'),
+(N'user-da011', N'Dr. Umar Kessler', N'MD - Analytics Seed Profile', N'Internal Medicine', 5, N'English', N'New York', N'http://localhost:8096/uploads/avatars/doctors/bacsi_01.png', N'Analytics seed doctor profile used to populate registration charts.', 50.00, 40.7128, -74.0060, N'New York Analytics Clinic', N'100 Analytics Avenue, New York', 5.0, 2, 1, 1, 0.00, 0.00, NULL, N'APPROVED', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, N'STANDARD'),
+(N'user-da012', N'Dr. Victoria Lane', N'MD - Analytics Seed Profile', N'Surgery', 5, N'English', N'Los Angeles', N'http://localhost:8096/uploads/avatars/doctors/bacsi_02.png', N'Analytics seed doctor profile used to populate registration charts.', 50.00, 34.0522, -118.2437, N'Los Angeles Analytics Clinic', N'100 Analytics Avenue, Los Angeles', 4.0, 2, 1, 2, 0.00, 0.00, NULL, N'APPROVED', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, N'STANDARD'),
+(N'user-da013', N'Dr. Walter Mendez', N'MD - Analytics Seed Profile', N'Pediatrics', 5, N'English', N'San Francisco', N'http://localhost:8096/uploads/avatars/doctors/bacsi_03.png', N'Analytics seed doctor profile used to populate registration charts.', 50.00, 37.7749, -122.4194, N'San Francisco Analytics Clinic', N'100 Analytics Avenue, San Francisco', 4.0, 2, 1, 3, 0.00, 0.00, NULL, N'APPROVED', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, N'STANDARD'),
+(N'user-da014', N'Dr. Xiomara Nash', N'MD - Analytics Seed Profile', N'Obstetrics & Gynecology', 5, N'English', N'Chicago', N'http://localhost:8096/uploads/avatars/doctors/bacsi_04.png', N'Analytics seed doctor profile used to populate registration charts.', 50.00, 41.8781, -87.6298, N'Chicago Analytics Clinic', N'100 Analytics Avenue, Chicago', 4.5, 2, 1, 4, 0.00, 0.00, NULL, N'APPROVED', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, N'STANDARD'),
+(N'user-da015', N'Dr. Yusuf Ortiz', N'MD - Analytics Seed Profile', N'Dermatology', 5, N'English', N'Seattle', N'http://localhost:8096/uploads/avatars/doctors/bacsi_05.png', N'Analytics seed doctor profile used to populate registration charts.', 50.00, 47.6062, -122.3321, N'Seattle Analytics Clinic', N'100 Analytics Avenue, Seattle', 4.5, 2, 1, 5, 0.00, 0.00, NULL, N'APPROVED', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, N'STANDARD'),
+(N'user-da016', N'Dr. Zoe Palmer', N'MD - Analytics Seed Profile', N'Cardiology', 5, N'English', N'Miami', N'http://localhost:8096/uploads/avatars/doctors/bacsi_06.png', N'Analytics seed doctor profile used to populate registration charts.', 50.00, 25.7617, -80.1918, N'Miami Analytics Clinic', N'100 Analytics Avenue, Miami', 5.0, 2, 1, 6, 0.00, 0.00, NULL, N'APPROVED', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, N'STANDARD'),
+(N'user-da017', N'Dr. Adam Quinn', N'MD - Analytics Seed Profile', N'Neurology', 5, N'English', N'Boston', N'http://localhost:8096/uploads/avatars/doctors/bacsi_07.png', N'Analytics seed doctor profile used to populate registration charts.', 50.00, 42.3601, -71.0589, N'Boston Analytics Clinic', N'100 Analytics Avenue, Boston', 4.0, 2, 1, 7, 0.00, 0.00, NULL, N'APPROVED', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, N'STANDARD'),
+(N'user-da018', N'Dr. Bianca Reyes', N'MD - Analytics Seed Profile', N'Ophthalmology', 5, N'English', N'Philadelphia', N'http://localhost:8096/uploads/avatars/doctors/bacsi_08.png', N'Analytics seed doctor profile used to populate registration charts.', 50.00, 39.9526, -75.1652, N'Philadelphia Analytics Clinic', N'100 Analytics Avenue, Philadelphia', 3.5, 2, 1, 8, 0.00, 0.00, NULL, N'APPROVED', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, N'STANDARD'),
+(N'user-da019', N'Dr. Carlos Stewart', N'MD - Analytics Seed Profile', N'ENT', 5, N'English', N'Houston', N'http://localhost:8096/uploads/avatars/doctors/bacsi_09.png', N'Analytics seed doctor profile used to populate registration charts.', 50.00, 29.7604, -95.3698, N'Houston Analytics Clinic', N'100 Analytics Avenue, Houston', 4.5, 2, 1, 9, 0.00, 0.00, NULL, N'APPROVED', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, N'STANDARD'),
+(N'user-da020', N'Dr. Diana Turner', N'MD - Analytics Seed Profile', N'Dentistry', 5, N'English', N'Phoenix', N'http://localhost:8096/uploads/avatars/doctors/bacsi_10.png', N'Analytics seed doctor profile used to populate registration charts.', 50.00, 33.4484, -112.0740, N'Phoenix Analytics Clinic', N'100 Analytics Avenue, Phoenix', 4.5, 2, 1, 10, 0.00, 0.00, NULL, N'APPROVED', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, N'STANDARD'),
+(N'user-da021', N'Dr. Ethan Vaughn', N'MD - Analytics Seed Profile', N'Internal Medicine', 5, N'English', N'New York', N'http://localhost:8096/uploads/avatars/doctors/bacsi_01.png', N'Analytics seed doctor profile used to populate registration charts.', 50.00, 40.7128, -74.0060, N'New York Analytics Clinic', N'100 Analytics Avenue, New York', 5.0, 2, 1, 1, 0.00, 0.00, NULL, N'APPROVED', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, N'STANDARD'),
+(N'user-da022', N'Dr. Fiona Wells', N'MD - Analytics Seed Profile', N'Surgery', 5, N'English', N'Los Angeles', N'http://localhost:8096/uploads/avatars/doctors/bacsi_02.png', N'Analytics seed doctor profile used to populate registration charts.', 50.00, 34.0522, -118.2437, N'Los Angeles Analytics Clinic', N'100 Analytics Avenue, Los Angeles', 4.0, 2, 1, 2, 0.00, 0.00, NULL, N'APPROVED', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, N'STANDARD'),
+(N'user-da023', N'Dr. Gabriel Young', N'MD - Analytics Seed Profile', N'Pediatrics', 5, N'English', N'San Francisco', N'http://localhost:8096/uploads/avatars/doctors/bacsi_03.png', N'Analytics seed doctor profile used to populate registration charts.', 50.00, 37.7749, -122.4194, N'San Francisco Analytics Clinic', N'100 Analytics Avenue, San Francisco', 4.0, 2, 1, 3, 0.00, 0.00, NULL, N'APPROVED', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, N'STANDARD'),
+(N'user-da024', N'Dr. Helen Zimmerman', N'MD - Analytics Seed Profile', N'Obstetrics & Gynecology', 5, N'English', N'Chicago', N'http://localhost:8096/uploads/avatars/doctors/bacsi_04.png', N'Analytics seed doctor profile used to populate registration charts.', 50.00, 41.8781, -87.6298, N'Chicago Analytics Clinic', N'100 Analytics Avenue, Chicago', 4.5, 2, 1, 4, 0.00, 0.00, NULL, N'APPROVED', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, N'STANDARD'),
+(N'user-da025', N'Dr. Isaac Brooks', N'MD - Analytics Seed Profile', N'Dermatology', 5, N'English', N'Seattle', N'http://localhost:8096/uploads/avatars/doctors/bacsi_05.png', N'Analytics seed doctor profile used to populate registration charts.', 50.00, 47.6062, -122.3321, N'Seattle Analytics Clinic', N'100 Analytics Avenue, Seattle', 4.5, 2, 1, 5, 0.00, 0.00, NULL, N'APPROVED', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, N'STANDARD'),
+(N'user-da026', N'Dr. Julia Cross', N'MD - Analytics Seed Profile', N'Cardiology', 5, N'English', N'Miami', N'http://localhost:8096/uploads/avatars/doctors/bacsi_06.png', N'Analytics seed doctor profile used to populate registration charts.', 50.00, 25.7617, -80.1918, N'Miami Analytics Clinic', N'100 Analytics Avenue, Miami', 5.0, 2, 1, 6, 0.00, 0.00, NULL, N'APPROVED', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, N'STANDARD'),
+(N'user-da027', N'Dr. Miles Dawson', N'MD - Analytics Seed Profile', N'Neurology', 5, N'English', N'Boston', N'http://localhost:8096/uploads/avatars/doctors/bacsi_07.png', N'Analytics seed doctor profile used to populate registration charts.', 50.00, 42.3601, -71.0589, N'Boston Analytics Clinic', N'100 Analytics Avenue, Boston', 4.0, 2, 1, 7, 0.00, 0.00, NULL, N'APPROVED', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, N'STANDARD'),
+(N'user-da028', N'Dr. Nora Ellis', N'MD - Analytics Seed Profile', N'Ophthalmology', 5, N'English', N'Philadelphia', N'http://localhost:8096/uploads/avatars/doctors/bacsi_08.png', N'Analytics seed doctor profile used to populate registration charts.', 50.00, 39.9526, -75.1652, N'Philadelphia Analytics Clinic', N'100 Analytics Avenue, Philadelphia', 3.5, 2, 1, 8, 0.00, 0.00, NULL, N'APPROVED', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, N'STANDARD'),
+(N'user-da029', N'Dr. Owen Frost', N'MD - Analytics Seed Profile', N'ENT', 5, N'English', N'Houston', N'http://localhost:8096/uploads/avatars/doctors/bacsi_09.png', N'Analytics seed doctor profile used to populate registration charts.', 50.00, 29.7604, -95.3698, N'Houston Analytics Clinic', N'100 Analytics Avenue, Houston', 4.5, 2, 1, 9, 0.00, 0.00, NULL, N'APPROVED', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, N'STANDARD'),
+(N'user-da030', N'Dr. Paula Grimes', N'MD - Analytics Seed Profile', N'Dentistry', 5, N'English', N'Phoenix', N'http://localhost:8096/uploads/avatars/doctors/bacsi_10.png', N'Analytics seed doctor profile used to populate registration charts.', 50.00, 33.4484, -112.0740, N'Phoenix Analytics Clinic', N'100 Analytics Avenue, Phoenix', 4.5, 2, 1, 10, 0.00, 0.00, NULL, N'APPROVED', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, N'STANDARD'),
+(N'user-da031', N'Dr. Ryan Holt', N'MD - Analytics Seed Profile', N'Internal Medicine', 5, N'English', N'New York', N'http://localhost:8096/uploads/avatars/doctors/bacsi_01.png', N'Analytics seed doctor profile used to populate registration charts.', 50.00, 40.7128, -74.0060, N'New York Analytics Clinic', N'100 Analytics Avenue, New York', 5.0, 2, 1, 1, 0.00, 0.00, NULL, N'APPROVED', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, N'STANDARD'),
+(N'user-da032', N'Dr. Sara Ibarra', N'MD - Analytics Seed Profile', N'Surgery', 5, N'English', N'Los Angeles', N'http://localhost:8096/uploads/avatars/doctors/bacsi_02.png', N'Analytics seed doctor profile used to populate registration charts.', 50.00, 34.0522, -118.2437, N'Los Angeles Analytics Clinic', N'100 Analytics Avenue, Los Angeles', 4.0, 2, 1, 2, 0.00, 0.00, NULL, N'APPROVED', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, N'STANDARD'),
+(N'user-da033', N'Dr. Todd Jennings', N'MD - Analytics Seed Profile', N'Pediatrics', 5, N'English', N'San Francisco', N'http://localhost:8096/uploads/avatars/doctors/bacsi_03.png', N'Analytics seed doctor profile used to populate registration charts.', 50.00, 37.7749, -122.4194, N'San Francisco Analytics Clinic', N'100 Analytics Avenue, San Francisco', 3.5, 2, 1, 3, 0.00, 0.00, NULL, N'APPROVED', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, N'STANDARD'),
+(N'user-da034', N'Dr. Uma Keller', N'MD - Analytics Seed Profile', N'Obstetrics & Gynecology', 5, N'English', N'Chicago', N'http://localhost:8096/uploads/avatars/doctors/bacsi_04.png', N'Analytics seed doctor profile used to populate registration charts.', 50.00, 41.8781, -87.6298, N'Chicago Analytics Clinic', N'100 Analytics Avenue, Chicago', 4.5, 2, 1, 4, 0.00, 0.00, NULL, N'APPROVED', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, N'STANDARD'),
+(N'user-da035', N'Dr. Victor Lambert', N'MD - Analytics Seed Profile', N'Dermatology', 5, N'English', N'Seattle', N'http://localhost:8096/uploads/avatars/doctors/bacsi_05.png', N'Analytics seed doctor profile used to populate registration charts.', 50.00, 47.6062, -122.3321, N'Seattle Analytics Clinic', N'100 Analytics Avenue, Seattle', 4.5, 2, 1, 5, 0.00, 0.00, NULL, N'APPROVED', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, N'STANDARD');
 GO
 
 -- 48. ANALYTICS PATIENTS (90 users, registrations spread across 2024)
@@ -1998,11 +2110,11 @@ INSERT INTO ChatMessages (MessageID, ChatRoomId, SenderId, ReceiverId, content, 
 ('1df65e7e-7407-458e-bc09-93ddf9d2f3b2', N'chat-1245', N'user-p06', N'user-d01', N'Great, thank you! I will be there.', N'http://localhost:8096/uploads/avatars/patients/benhnhan_06.png', NULL, NULL, NULL, 1, '2026-07-12 11:10:00');
 GO
 
--- Enum type-safety Ä‘Ă£ Ä‘Æ°á»£c Ä‘áº£m báº£o á»Ÿ táº§ng Java (@Enumerated(EnumType.STRING)).
--- CHECK constraint dÆ°á»›i DB chá»‰ gĂ¢y lá»—i má»—i khi enum Java cĂ³ giĂ¡ trá»‹ má»›i (Hibernate
--- ddl-auto=update khĂ´ng tá»± ná»›i constraint) nĂªn xoĂ¡ háº³n toĂ n bá»™, khĂ´ng táº¡o láº¡i.
--- Äá»“ng bá»™ vá»›i db/migration-v12-drop-stale-enum-check-constraints.sql â€” sá»­a 1 trong 2
--- chá»— thĂ¬ nhá»› sá»­a luĂ´n chá»— cĂ²n láº¡i.
+-- Enum type-safety đã được đảm bảo ở tầng Java (@Enumerated(EnumType.STRING)).
+-- CHECK constraint dưới DB chỉ gây lỗi mỗi khi enum Java có giá trị mới (Hibernate
+-- ddl-auto=update không tự nới constraint) nên xoá hẳn toàn bộ, không tạo lại.
+-- Đồng bộ với db/migration-v12-drop-stale-enum-check-constraints.sql — sửa 1 trong 2
+-- chỗ thì nhớ sửa luôn chỗ còn lại.
 DECLARE @cc_table NVARCHAR(128);
 DECLARE @cc_column NVARCHAR(128);
 DECLARE @cc_constraintName NVARCHAR(128);
@@ -2053,21 +2165,13 @@ GO
 PRINT 'Extra doctor01 future appointments + chat conversations seed completed successfully!';
 
 -- =====================================================
--- 58. ANALYTICS DOCTOR & PHARMACY REGISTRATIONS (2024)
--- Adds non-login analytics Doctors (user-da001..035) and Pharmacies
--- (user-pha001..035) with CreatedDate spread across all 12 months of 2024
--- using a varied per-month count (with pronounced peaks/troughs, not a flat
--- rate) so the Admin "Partner Registrations" chart (Doctors vs Pharmacies)
--- shows a clear wave instead of a single January spike (base doctors
--- d01-d20), a single March spike (base pharmacies ph01-ph10), or a
--- monotonous flat line.
--- Doctors per month:    5,1,2,5,1,7,3,1,5,3,1,1 (Jan..Dec, peak Jun=7).
--- Pharmacies per month: 1,4,1,5,3,1,7,1,2,5,3,2 (Jan..Dec, peak Jul=7, offset from doctors).
+-- 58. ANALYTICS PHARMACY REGISTRATIONS (2024)
+-- Adds non-login analytics Pharmacies (user-pha001..035) with CreatedDate
+-- spread across all 12 months of 2024 using a varied per-month count:
+-- 1,4,1,5,3,1,7,1,2,5,3,2 (Jan..Dec, peak Jul=7, offset from doctors).
 -- Idempotent: safe to re-run.
 -- =====================================================
 
-DELETE FROM Doctors WHERE DoctorID LIKE 'user-da[0-9][0-9][0-9]';
-DELETE FROM Users WHERE Id LIKE 'user-da[0-9][0-9][0-9]';
 DELETE FROM Pharmacies WHERE PharmacyID LIKE 'user-pha[0-9][0-9][0-9]';
 DELETE FROM Users WHERE Id LIKE 'user-pha[0-9][0-9][0-9]';
 GO
@@ -2264,7 +2368,7 @@ INSERT INTO Users (Id, UserName, Email, EmailConfirmed, PasswordHash, PhoneNumbe
 (N'user-pha034', N'pharmacy_pha034', N'pharmacy.pha034@analytics.healthlink.com', 1, N'$2a$10$analyticsSeedNoLoginHashXXXXXXXXXXXXXXXXXXXXXXXXXX', N'0941000034', 0, '2024-10-20 10:00:00', N'Active', NULL, N'pharmacy'),
 (N'user-pha035', N'pharmacy_pha035', N'pharmacy.pha035@analytics.healthlink.com', 1, N'$2a$10$analyticsSeedNoLoginHashXXXXXXXXXXXXXXXXXXXXXXXXXX', N'0941000035', 0, '2024-11-15 10:00:00', N'Active', NULL, N'pharmacy');
 
--- 58d. Analytics pharmacy profiles (city cycle through 10 Vietnamese cities)
+-- 58b. Analytics pharmacy profiles (city cycle through 10 Vietnamese cities)
 INSERT INTO Pharmacies (PharmacyID, name, licenseNumber, address, city, district, ward, latitude, longitude, phoneNumber, email, description, avatarUrl, openTime, closeTime, Open24Hours, workingDays, Verified, Active, IsOnline, AverageRating, TotalReviews, DeliveryAvailable, DeliveryRadius, DeliveryFee, CreatedAt, updatedAt, totalEarnings, pendingSettlement, paypalEmail) VALUES
 (N'user-pha001', N'HealthLink Analytics Pharmacy 001', N'PH-AN-001', N'1 Analytics Street', N'Ho Chi Minh City', N'District 1', N'Ward 1', 10.7769, 106.7009, N'0941010000', N'pharmacy.pha001@analytics.healthlink.com', N'Analytics seed pharmacy profile used to populate registration charts.', N'http://localhost:8096/uploads/avatars/pharmacies/nhathuoc_01.png', N'08:00', N'21:00', 0, N'Mon-Sun', 1, 1, 1, 4.5, 0, 1, 5.0, 5.99, '2024-01-10', '2024-01-10', 0.00, 0.00, NULL),
 (N'user-pha002', N'HealthLink Analytics Pharmacy 002', N'PH-AN-002', N'1 Analytics Street', N'Ha Noi', N'District 1', N'Ward 1', 21.0285, 105.8542, N'0941020000', N'pharmacy.pha002@analytics.healthlink.com', N'Analytics seed pharmacy profile used to populate registration charts.', N'http://localhost:8096/uploads/avatars/pharmacies/nhathuoc_02.png', N'08:00', N'21:00', 0, N'Mon-Sun', 1, 1, 1, 4.5, 0, 1, 5.0, 5.99, '2024-02-08', '2024-02-08', 0.00, 0.00, NULL),

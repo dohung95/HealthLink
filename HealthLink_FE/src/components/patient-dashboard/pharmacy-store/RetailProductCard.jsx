@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { getMedicineDisplayName, getShortDescription, money } from './retailStoreUtils';
+import { getMedicineDisplayName, getShortDescription, money, getImageUrl } from './retailStoreUtils';
 
 export default function RetailProductCard({ medicine, inCartQuantity, onAdd, onOpenDetail }) {
   const [imgError, setImgError] = useState(false);
@@ -8,8 +8,8 @@ export default function RetailProductCard({ medicine, inCartQuantity, onAdd, onO
   return (
     <div className="card retail-product-card h-100 shadow-sm">
       <div className="retail-product-media">
-        {medicine?.imageUrl && !imgError ? (
-          <img src={medicine.imageUrl} alt={getMedicineDisplayName(medicine)} onError={() => setImgError(true)} />
+        {getImageUrl(medicine) && !imgError ? (
+          <img src={getImageUrl(medicine)} alt={getMedicineDisplayName(medicine)} onError={() => setImgError(true)} />
         ) : (
           <div className="retail-product-fallback">
             <i className="bi bi-capsule-pill"></i>
