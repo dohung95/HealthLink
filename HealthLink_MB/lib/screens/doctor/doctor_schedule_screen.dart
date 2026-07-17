@@ -632,48 +632,66 @@ class _ScheduleStatusBanner extends StatelessWidget {
     final Color accent;
     final Color bg;
     final Color border;
-    final IconData icon;
     final String title;
     switch (status) {
       case 'APPROVED':
         accent = const Color(0xFF16A34A);
         bg = const Color(0xFFDCFCE7);
         border = const Color(0xFF86EFAC);
-        icon = Icons.check_circle;
         title = 'Schedule Approved';
         break;
       case 'REJECTED':
         accent = const Color(0xFFDC2626);
         bg = const Color(0xFFFEF2F2);
         border = const Color(0xFFFCA5A5);
-        icon = Icons.cancel;
         title = 'Schedule Not Approved';
         break;
       default:
         accent = const Color(0xFFCA8A04);
         bg = const Color(0xFFFEFCE8);
         border = const Color(0xFFFDE047);
-        icon = Icons.schedule;
         title = 'Schedule Pending';
     }
 
-    final subtitle = needsReconfirm
-        ? 'Your schedule from last month carries over and still meets the ${required.toStringAsFixed(0)}h/month requirement — please reconfirm to stay visible to patients.'
-        : '${total.toStringAsFixed(1)}h / ${required.toStringAsFixed(0)}h per month'
-            '${status != 'APPROVED' ? ' (need ${(required - total).toStringAsFixed(1)}h more)' : ''}';
+    final meetsRequirement = total >= required;
 
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(14), border: Border.all(color: border)),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Icon(icon, color: accent, size: 22),
-          const SizedBox(width: 10),
           Expanded(
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Text(title, style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: accent)),
               const SizedBox(height: 2),
-              Text(subtitle, style: TextStyle(fontSize: 12.5, color: accent.withValues(alpha: 0.9), height: 1.4)),
+              if (needsReconfirm)
+                Text(
+                  'Your schedule from last month carries over and still meets the ${required.toStringAsFixed(1)}h/month requirement — please reconfirm to stay visible to patients.',
+                  style: TextStyle(fontSize: 12.5, color: accent.withValues(alpha: 0.9), height: 1.4),
+                )
+              else ...[
+                Text.rich(
+                  TextSpan(style: TextStyle(fontSize: 12.5, color: accent.withValues(alpha: 0.9), height: 1.4), children: [
+                    const TextSpan(text: 'Total consultation hours this month: '),
+                    TextSpan(text: '${total.toStringAsFixed(1)}h', style: const TextStyle(fontWeight: FontWeight.w700)),
+                  ]),
+                ),
+                const SizedBox(height: 3),
+                Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Expanded(
+                    child: Text(
+                      meetsRequirement
+                          ? 'Monthly working hours meet the requirement (${required.toStringAsFixed(1)}h/month)'
+                          : 'Monthly working hours do not meet the requirement yet (${required.toStringAsFixed(1)}h/month, need ${(required - total).toStringAsFixed(1)}h more)',
+                      style: TextStyle(fontSize: 12.5, color: accent.withValues(alpha: 0.9), height: 1.4),
+                    ),
+                  ),
+                  if (meetsRequirement) ...[
+                    const SizedBox(width: 4),
+                    const Icon(Icons.check, size: 14, color: Color(0xFF16A34A)),
+                  ],
+                ]),
+              ],
             ]),
           ),
         ]),

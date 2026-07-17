@@ -1631,14 +1631,16 @@ SET IDENTITY_INSERT DoctorSchedules ON;
 -- the analytics-only doctors. Each doctor gets >=20h/week (>=80h/month even in a 28-day month),
 -- using only the current flow's consultationType values: 'Online' or 'HomeVisit'.
 INSERT INTO DoctorSchedules (ScheduleID, DoctorId, dayOfWeek, startTime, endTime, SlotDuration, MaxPatients, Available, ScheduleStatus, consultationType, ShiftType, location, notes) VALUES
--- Dr. John Smith (user-d01): Mon/Wed/Fri online + Sat home visit -> 26h/week
+-- Dr. John Smith (user-d01): Mon/Wed/Fri online + Sat online all day (morning/afternoon/evening) -> 32h/week
 (191, N'user-d01', 1, '07:00', '10:30', 30, 2, 1, 'APPROVED', N'Online', NULL, NULL, N'Monday morning online'),
 (192, N'user-d01', 1, '13:00', '17:00', 30, 2, 1, 'APPROVED', N'Online', NULL, NULL, N'Monday afternoon online'),
 (193, N'user-d01', 3, '07:00', '10:30', 30, 2, 1, 'APPROVED', N'Online', NULL, NULL, N'Wednesday morning online'),
 (194, N'user-d01', 3, '13:00', '17:00', 30, 2, 1, 'APPROVED', N'Online', NULL, NULL, N'Wednesday afternoon online'),
 (195, N'user-d01', 5, '07:00', '10:30', 30, 2, 1, 'APPROVED', N'Online', NULL, NULL, N'Friday morning online'),
 (196, N'user-d01', 5, '13:00', '17:00', 30, 2, 1, 'APPROVED', N'Online', NULL, NULL, N'Friday afternoon online'),
-(197, N'user-d01', 6, '07:00', '10:30', 210, 1, 1, 'APPROVED', N'HomeVisit', 'MORNING', N'Patient home', N'Saturday morning home visit'),
+(197, N'user-d01', 6, '07:00', '10:30', 30, 1, 1, 'APPROVED', N'Online', NULL, NULL, N'Saturday morning online'),
+(261, N'user-d01', 6, '13:00', '17:00', 30, 1, 1, 'APPROVED', N'Online', NULL, NULL, N'Saturday afternoon online'),
+(262, N'user-d01', 6, '19:00', '21:00', 30, 1, 1, 'APPROVED', N'Online', NULL, NULL, N'Saturday evening online'),
 
 -- Dr. Sarah Johnson (user-d02): Mon/Wed/Fri online + Sat home visit -> 26h/week
 (198, N'user-d02', 1, '08:00', '10:30', 20, 2, 1, 'APPROVED', N'Online', NULL, NULL, N'Monday morning pediatric consultations'),
@@ -3193,7 +3195,35 @@ INSERT INTO Invoices (InvoiceID, AppointmentId, PharmacyOrderId, PatientID, amou
 SET IDENTITY_INSERT Invoices OFF;
 
 -- =====================================================
+-- 66. TOMORROW'S ONLINE APPOINTMENTS FOR DR. JOHN SMITH (user-d01)
+-- Adds 10 Online appointments scattered across 2026-07-18 (tomorrow, Saturday),
+-- matching his DoctorSchedules Saturday online slots added in section 51
+-- (ScheduleID 197/261/262: Morning 07:00-10:30, Afternoon 13:00-17:00,
+-- Evening 19:00-21:00, all 'Online', SlotDuration 30). One patient per slot
+-- (Online schedules are MaxPatients=1), cycling through user-p01..user-p10.
+-- Idempotent cleanup included.
+-- =====================================================
+
+DELETE FROM Appointments WHERE AppointmentID BETWEEN 3070 AND 3079;
+GO
+
+SET IDENTITY_INSERT Appointments ON;
+INSERT INTO Appointments (AppointmentID, AppointmentTime, ConsultationType, Status, symptoms, notes, fee, endTime, doctorReminderSent, reminderSent, confirmedAt, PatientID, DoctorID) VALUES
+(3070, '2026-07-18 07:00:00', N'Online', N'Confirmed', N'Persistent cough and mild fever for 4 days', NULL, 50.00, NULL, 0, 0, '2026-07-17 09:00:00', N'user-p01', N'user-d01'),
+(3071, '2026-07-18 08:00:00', N'Online', N'Scheduled', N'Follow-up on ongoing chronic condition', NULL, 50.00, NULL, 0, 0, NULL, N'user-p02', N'user-d01'),
+(3072, '2026-07-18 09:00:00', N'Online', N'Confirmed', N'New skin rash appeared on forearms', NULL, 50.00, NULL, 0, 0, '2026-07-17 10:00:00', N'user-p03', N'user-d01'),
+(3073, '2026-07-18 10:00:00', N'Online', N'Scheduled', N'Recurring headache and general fatigue', NULL, 50.00, NULL, 0, 0, NULL, N'user-p04', N'user-d01'),
+(3074, '2026-07-18 13:00:00', N'Online', N'Confirmed', N'Routine annual health screening', NULL, 50.00, NULL, 0, 0, '2026-07-17 11:00:00', N'user-p05', N'user-d01'),
+(3075, '2026-07-18 14:00:00', N'Online', N'Scheduled', N'Mild stomach discomfort after meals', NULL, 50.00, NULL, 0, 0, NULL, N'user-p06', N'user-d01'),
+(3076, '2026-07-18 15:30:00', N'Online', N'Confirmed', N'Blood pressure check-up', NULL, 50.00, NULL, 0, 0, '2026-07-17 11:30:00', N'user-p07', N'user-d01'),
+(3077, '2026-07-18 16:30:00', N'Online', N'Scheduled', N'Lower back pain after long work hours', NULL, 50.00, NULL, 0, 0, NULL, N'user-p08', N'user-d01'),
+(3078, '2026-07-18 19:00:00', N'Online', N'Confirmed', N'General check-up and consultation', NULL, 50.00, NULL, 0, 0, '2026-07-17 12:00:00', N'user-p09', N'user-d01'),
+(3079, '2026-07-18 20:00:00', N'Online', N'Scheduled', N'Seasonal allergy symptoms, sneezing and itchy eyes', NULL, 50.00, NULL, 0, 0, NULL, N'user-p10', N'user-d01');
+SET IDENTITY_INSERT Appointments OFF;
+GO
+
+-- =====================================================
 -- END SEED DATA
--- Total: 65 seed sections, mixed sample sizes
+-- Total: 66 seed sections, mixed sample sizes
 -- =====================================================
 PRINT 'Seed data completed successfully!';
