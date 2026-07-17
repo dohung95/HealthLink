@@ -73,14 +73,18 @@ const ReviewForm = ({ isOpen, onClose, appointment, onReviewSubmitted }) => {
         try {
             setLoading(true);
 
-            await patientReviewApi.create({
+            const created = await patientReviewApi.create({
                 appointmentId: appointment.appointmentId,
                 rating,
                 comment: comment.trim(),
                 anonymous,
             });
 
-            toast.success('Review submitted successfully!');
+            if (created?.visible === false) {
+                toast.info('Your review has been submitted and is pending moderation before it appears publicly.');
+            } else {
+                toast.success('Review submitted successfully!');
+            }
             resetForm();
             onReviewSubmitted?.();
             onClose();
@@ -162,6 +166,12 @@ const ReviewForm = ({ isOpen, onClose, appointment, onReviewSubmitted }) => {
                     ) : existingReview ? (
                         // Show existing review
                         <div className="existing-review">
+                            {existingReview.visible === false && (
+                                <div className="alert alert-warning py-2 px-3 mb-3" style={{ fontSize: '0.85rem' }}>
+                                    <i className="bi bi-hourglass-split me-1"></i>
+                                    Your review is pending moderation and is not visible to others yet.
+                                </div>
+                            )}
                             <div className="review-rating-display mb-3">
                                 {renderStars(existingReview.rating, false)}
                                 <span className="rating-text ms-2">{existingReview.rating}/5</span>

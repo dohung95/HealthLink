@@ -192,6 +192,26 @@ export default function ReviewManagement() {
         </div>
       </div>
 
+      {(!review.visible || review.aiFlagged) && (
+        <div className="review-status-badges">
+          {!review.visible && (
+            <span className="review-status-badge review-status-badge--hidden">
+              <i className="bi bi-eye-slash me-1"></i>
+              Hidden
+            </span>
+          )}
+          {review.aiFlagged && (
+            <span
+              className="review-status-badge review-status-badge--ai-flagged"
+              title={review.moderationReason || 'Flagged by AI moderation'}
+            >
+              <i className="bi bi-robot me-1"></i>
+              AI Flagged
+            </span>
+          )}
+        </div>
+      )}
+
       <div className="review-doctor-info">
         <i className="bi bi-person-badge me-1"></i>
         <span>Dr. {review.doctorName}</span>
@@ -202,10 +222,10 @@ export default function ReviewManagement() {
         <p>{review.comment}</p>
       </div>
 
-      {!review.visible && (
-        <div className="review-hidden-badge">
-          <i className="bi bi-eye-slash me-1"></i>
-          Hidden
+      {review.aiFlagged && review.moderationReason && (
+        <div className="review-ai-reason">
+          <i className="bi bi-robot me-1"></i>
+          <strong>AI reason:</strong> {review.moderationReason}
         </div>
       )}
 
@@ -281,11 +301,18 @@ export default function ReviewManagement() {
         </div>
       </td>
       <td>
-        {review.visible ? (
-          <span className="badge bg-success">Visible</span>
-        ) : (
-          <span className="badge bg-secondary">Hidden</span>
-        )}
+        <div className="d-flex flex-column gap-1 align-items-start">
+          {review.visible ? (
+            <span className="badge bg-success">Visible</span>
+          ) : (
+            <span className="badge bg-secondary">Hidden</span>
+          )}
+          {review.aiFlagged && (
+            <span className="badge bg-warning text-dark" title={review.moderationReason || ''}>
+              <i className="bi bi-robot me-1"></i>AI Flagged
+            </span>
+          )}
+        </div>
       </td>
       <td>
         <div className="d-flex gap-1">
@@ -517,6 +544,16 @@ export default function ReviewManagement() {
                       <span className="badge bg-success">Visible</span>
                     ) : (
                       <span className="badge bg-secondary">Hidden</span>
+                    )}
+                    {selectedReview.aiFlagged && (
+                      <span className="badge bg-warning text-dark ms-2">
+                        <i className="bi bi-robot me-1"></i>AI Flagged
+                      </span>
+                    )}
+                    {selectedReview.aiFlagged && selectedReview.moderationReason && (
+                      <p className="text-muted small mt-2 mb-0">
+                        AI reason: {selectedReview.moderationReason}
+                      </p>
                     )}
                   </div>
                   {selectedReview.doctorReply && (

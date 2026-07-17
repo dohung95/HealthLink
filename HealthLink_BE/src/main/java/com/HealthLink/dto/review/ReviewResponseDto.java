@@ -28,6 +28,8 @@ public class ReviewResponseDto {
     private String comment;
     private LocalDateTime reviewDate;
     private boolean visible;
+    private boolean aiFlagged;
+    private String moderationReason;
     private Integer helpfulCount;
 
     // Replies

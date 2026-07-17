@@ -19,7 +19,8 @@ from config import Config
 from models.schemas import (
     ModerationResult, OCRResult, CVParseResult,
     DocumentVerifyResult, ProfileVerifyResult, DocumentScreeningResult,
-    HomeVisitScanResult, HealthCheckResponse
+    HomeVisitScanResult, HealthCheckResponse,
+    ReviewModerationRequest, ReviewModerationResult
 )
 
 # Lazy imports for services
@@ -375,6 +376,14 @@ async def screen_document(
     content = await file.read()
     filename = file.filename.lower() if file.filename else "document.jpg"
     return await run_in_threadpool(_screen_document_sync, content, filename, expected_type)
+
+
+@app.post("/moderate-review-text", response_model=ReviewModerationResult)
+async def moderate_review_text(request: ReviewModerationRequest):
+    """Classify a patient review's text before it is published."""
+    from services.review_moderation_service import moderate
+
+    return await run_in_threadpool(moderate, request.comment, request.rating)
 
 
 @app.post("/parse-home-visit", response_model=HomeVisitScanResult)

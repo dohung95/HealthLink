@@ -2,6 +2,7 @@ package com.HealthLink.service.ai;
 
 import com.HealthLink.dto.ai.CVParseResult;
 import com.HealthLink.dto.ai.DocumentScreeningResult;
+import com.HealthLink.dto.ai.ReviewModerationResult;
 import com.HealthLink.dto.response.HomeVisitInfoScanResponse;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -34,6 +35,9 @@ public class LocalAIServiceImpl implements DocumentAiService {
 
     @Value("${ai.service.local.url:http://localhost:8097}")
     private String aiServiceUrl;
+
+    @Value("${review.moderation.fail-open:false}")
+    private boolean reviewModerationFailOpen;
 
     private final ObjectMapper objectMapper = new ObjectMapper();
     private final RestTemplate restTemplate;
@@ -267,6 +271,59 @@ public class LocalAIServiceImpl implements DocumentAiService {
             log.error("Error extracting text from DOCX: {}", e.getMessage());
             return "";
         }
+    }
+
+    @Override
+    public ReviewModerationResult moderateReviewText(String comment, int rating) {
+        try {
+            Map<String, Object> body = new HashMap<>();
+            body.put("comment", comment);
+            body.put("rating", rating);
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+
+            HttpEntity<Map<String, Object>> requestEntity = new HttpEntity<>(body, headers);
+
+            ResponseEntity<JsonNode> response = restTemplate.exchange(
+                    aiServiceUrl + "/moderate-review-text",
+                    HttpMethod.POST,
+                    requestEntity,
+                    JsonNode.class
+            );
+
+            JsonNode jsonNode = response.getBody();
+            if (jsonNode == null) {
+                log.warn("Review moderation call returned an empty response from the AI service");
+                return failClosedOrOpen();
+            }
+
+            return ReviewModerationResult.builder()
+                    .flagged(getBooleanValue(jsonNode, "flagged", false))
+                    .reason(getTextValue(jsonNode, "reason"))
+                    .build();
+
+        } catch (Exception e) {
+            // Full technical detail (host, connection error, etc.) stays in the server log only -
+            // the reason below is shown to admins/patients, so it must not leak internal infrastructure.
+            log.error("Error moderating review text with Local AI: {}", e.getMessage(), e);
+            return failClosedOrOpen();
+        }
+    }
+
+    /**
+     * Used when the AI moderation call could not be completed at all (service down, timeout,
+     * bad response). The reason text here is user-facing, so it deliberately omits technical
+     * detail - see the log line at the call site for diagnostics.
+     */
+    private ReviewModerationResult failClosedOrOpen() {
+        if (reviewModerationFailOpen) {
+            return ReviewModerationResult.builder().flagged(false).build();
+        }
+        return ReviewModerationResult.builder()
+                .flagged(true)
+                .reason("Automated review could not be completed - pending manual review by an admin.")
+                .build();
     }
 
     private String getFilenameFromMimeType(String mimeType) {

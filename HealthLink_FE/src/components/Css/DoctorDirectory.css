@@ -105,6 +105,40 @@
 
 .doctor-directory-list {
     min-width: 0;
+    position: relative;
+    min-height: 120px;
+}
+
+.doctor-directory-list.is-loading {
+    opacity: 0.5;
+    pointer-events: none;
+    transition: opacity 0.15s ease;
+}
+
+.doctor-directory-loading-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    display: flex;
+    justify-content: center;
+    padding-top: 32px;
+    z-index: 1;
+}
+
+.doctor-directory-spinner {
+    width: 32px;
+    height: 32px;
+    border: 3px solid #d7e1e1;
+    border-top-color: #0f8f87;
+    border-radius: 50%;
+    animation: doctor-directory-spin 0.7s linear infinite;
+}
+
+@keyframes doctor-directory-spin {
+    to {
+        transform: rotate(360deg);
+    }
 }
 
 .doctor-directory-item {
@@ -192,22 +226,28 @@
 
 .doctor-pagination {
     display: flex;
+    flex-wrap: wrap;
     justify-content: center;
     align-items: center;
     gap: 14px;
     margin-top: 20px;
 }
 
-.doctor-pagination button {
+.doctor-pagination-nav {
     border: none;
     background: #0f8f87;
     color: #fff;
     padding: 9px 14px;
     border-radius: 10px;
     cursor: pointer;
+    transition: background-color 0.15s ease, opacity 0.15s ease;
 }
 
-.doctor-pagination button:disabled {
+.doctor-pagination-nav:hover:not(:disabled) {
+    background: #0c7269;
+}
+
+.doctor-pagination-nav:disabled {
     opacity: 0.45;
     cursor: not-allowed;
 }
@@ -217,7 +257,9 @@
     color: #6b7b80;
 }
 
-.doctor-page-number {
+/* Base style (unselected) - must win over any generic button rule so the
+   active page stays visually distinct; see .doctor-page-number.active below. */
+button.doctor-page-number {
     border: 1px solid #d7e1e1;
     background: #fff;
     color: #0a2e2a;
@@ -225,12 +267,28 @@
     border-radius: 10px;
     cursor: pointer;
     min-width: 40px;
+    transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
 }
 
-.doctor-page-number.active {
+button.doctor-page-number:hover:not(.active) {
+    border-color: #0f8f87;
+    color: #0f8f87;
+}
+
+button.doctor-page-number.active {
     background: #0f8f87;
     color: #fff;
     border-color: #0f8f87;
+    font-weight: 700;
+    cursor: default;
+}
+
+.doctor-pagination-status {
+    width: 100%;
+    text-align: center;
+    font-size: 0.85rem;
+    color: #6b7b80;
+    order: 99;
 }
 
 @media (max-width: 900px) {

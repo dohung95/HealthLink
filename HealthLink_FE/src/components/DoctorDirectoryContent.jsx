@@ -240,10 +240,14 @@ const DoctorDirectoryContent = ({
                     </button>
                 </aside>
 
-                <main className="doctor-directory-list">
-                    {loading ? (
-                        <p className="doctor-directory-message">Loading doctors...</p>
-                    ) : doctors.length === 0 ? (
+                <main className={`doctor-directory-list ${loading ? 'is-loading' : ''}`}>
+                    {loading && (
+                        <div className="doctor-directory-loading-overlay">
+                            <span className="doctor-directory-spinner" />
+                        </div>
+                    )}
+
+                    {doctors.length === 0 && !loading ? (
                         <p className="doctor-directory-message">No doctors found.</p>
                     ) : (
                         doctors.map((doc) => {
@@ -298,6 +302,7 @@ const DoctorDirectoryContent = ({
                     {pagination.totalPages > 1 && (
                         <div className="doctor-pagination">
                             <button
+                                className="doctor-pagination-nav"
                                 disabled={pagination.page === 1}
                                 onClick={() => handlePageChange(pagination.page - 1)}
                             >
@@ -317,6 +322,7 @@ const DoctorDirectoryContent = ({
                                         key={item}
                                         className={`doctor-page-number ${item === pagination.page ? 'active' : ''
                                             }`}
+                                        aria-current={item === pagination.page ? 'page' : undefined}
                                         onClick={() => handlePageChange(item)}
                                     >
                                         {item}
@@ -325,11 +331,16 @@ const DoctorDirectoryContent = ({
                             )}
 
                             <button
+                                className="doctor-pagination-nav"
                                 disabled={pagination.page === pagination.totalPages}
                                 onClick={() => handlePageChange(pagination.page + 1)}
                             >
                                 Next
                             </button>
+
+                            <span className="doctor-pagination-status">
+                                Page {pagination.page} of {pagination.totalPages}
+                            </span>
                         </div>
                     )}
                 </main>
