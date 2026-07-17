@@ -98,9 +98,9 @@ class PartnerWalletEntryRepositoryTest {
                 "src/main/resources/db/migration-v21-add-partner-wallet-ledger.sql"));
 
         assertThat(migration)
-                .contains("dbo.partner_wallet_entries", "partner_type", "partner_id", "entry_type",
-                        "idempotency_key", "effective_at", "commission_transactions", "settlements")
-                .doesNotContain("dbo.PartnerWalletEntries");
+                .contains("dbo.PartnerWalletEntries", "partnerType", "partnerId", "entryType",
+                        "IdempotencyKey", "effectiveAt", "dbo.CommissionTransactions", "dbo.Settlements")
+                .doesNotContain("dbo.partner_wallet_entries");
     }
 
     private PartnerWalletEntry entry(String key, PartnerWalletEntryType type, BigDecimal amount,

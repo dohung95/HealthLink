@@ -229,11 +229,11 @@ class PartnerWalletFlowIntegrationTest {
         String migration = Files.readString(Path.of("src/main/resources/db/migration-v21-add-partner-wallet-ledger.sql"));
 
         assertThat(migration)
-                .contains("IF OBJECT_ID('dbo.partner_wallet_entries', 'U') IS NULL")
+                .contains("IF OBJECT_ID('dbo.PartnerWalletEntries', 'U') IS NULL")
                 .contains("IF NOT EXISTS (", "FROM sys.indexes")
                 .contains("WHERE ctx.status IN ('PENDING', 'VESTED')")
                 .doesNotContain("ctx.status IN ('PENDING', 'VESTED', 'SETTLED')");
-        assertThat(count(migration, "WHERE entry.idempotency_key = CONCAT("))
+        assertThat(count(migration, "WHERE entry.IdempotencyKey = CONCAT("))
                 .isEqualTo(3);
         assertThat(count(migration, "NOT EXISTS ("))
                 .isGreaterThanOrEqualTo(6);
