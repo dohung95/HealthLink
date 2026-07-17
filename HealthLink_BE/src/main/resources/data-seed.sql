@@ -181,16 +181,16 @@ SET IDENTITY_INSERT MedicineCategories OFF;
 -- 9. MEDICINES (10 medicines)
 SET IDENTITY_INSERT Medicines ON;
 INSERT INTO Medicines (MedicineID, name, genericName, brandName, category, CategoryID, dosageForm, strength, unit, manufacturer, countryOfOrigin, description, activeIngredients, indications, contraindications, sideEffects, precautions, interactions, storageConditions, prescriptionRequired, price, active, imageUrl, createdAt, updatedAt) VALUES
-(1, 'Paracetamol 500mg', 'Paracetamol', 'Tylenol', 'Pain Relief - Fever', 20, 'Tablet', '500mg', 'Tablet', 'Johnson & Johnson', 'USA', 'Common pain reliever and fever reducer', 'Paracetamol 500mg', 'Headache, fever, muscle pain', 'Allergy to paracetamol, severe liver disease', 'Nausea, rash (rare)', 'Do not exceed 4g per day', 'Increased toxicity with alcohol', 'Store below 30C', 0, 5.99, 1, '/medicines/paracetamol.jpg', '2024-01-01', NULL),
-(2, 'Amoxicillin 500mg', 'Amoxicillin', 'Amoxil', 'Antibiotic', 10, 'Capsule', '500mg', 'Capsule', 'Pfizer', 'USA', 'Broad spectrum antibiotic', 'Amoxicillin trihydrate', 'Respiratory infections, UTI', 'Penicillin allergy', 'Diarrhea, rash, nausea', 'Adjust dose for kidney disease', 'May reduce contraceptive efficacy', 'Store at 15-25C', 1, 12.99, 1, '/medicines/amoxicillin.jpg', '2024-01-01', NULL),
-(3, 'Omeprazole 20mg', 'Omeprazole', 'Prilosec', 'Gastrointestinal', 14, 'Capsule', '20mg', 'Capsule', 'AstraZeneca', 'Sweden', 'Proton pump inhibitor', 'Omeprazole', 'Gastric ulcer, GERD', 'Allergy to omeprazole', 'Headache, diarrhea, nausea', 'Not for long-term use', 'Reduces B12 absorption', 'Store below 25C, protect from moisture', 1, 15.99, 1, '/medicines/omeprazole.jpg', '2024-01-01', NULL),
-(4, 'Metformin 500mg', 'Metformin', 'Glucophage', 'Diabetes', 12, 'Tablet', '500mg', 'Tablet', 'Merck', 'Germany', 'Type 2 diabetes treatment', 'Metformin HCl', 'Type 2 diabetes', 'Kidney disease, acidosis', 'GI upset, B12 deficiency', 'Stop before CT scan with contrast', 'Increased hypoglycemia risk with other drugs', 'Store at 15-25C', 1, 8.99, 1, '/medicines/metformin.jpg', '2024-01-01', NULL),
-(5, 'Amlodipine 5mg', 'Amlodipine', 'Norvasc', 'Cardiovascular', 11, 'Tablet', '5mg', 'Tablet', 'Pfizer', 'USA', 'Blood pressure medication', 'Amlodipine besylate', 'Hypertension, angina', 'Hypotension, cardiogenic shock', 'Ankle swelling, headache', 'Monitor blood pressure regularly', 'Increased effect with grapefruit', 'Store below 30C', 1, 18.99, 1, '/medicines/amlodipine.jpg', '2024-01-01', NULL),
-(6, 'Cetirizine 10mg', 'Cetirizine', 'Zyrtec', 'Allergy', 21, 'Tablet', '10mg', 'Tablet', 'UCB', 'Belgium', 'Second generation antihistamine', 'Cetirizine HCl', 'Allergic rhinitis, urticaria', 'Severe kidney disease', 'Drowsiness, dry mouth', 'Caution when driving', 'Increased sedation with alcohol', 'Store below 25C', 0, 9.99, 1, '/medicines/cetirizine.jpg', '2024-01-01', NULL),
-(7, 'Vitamin C 1000mg', 'Ascorbic Acid', 'Emergen-C', 'Vitamin - Mineral', 30, 'Effervescent', '1000mg', 'Tablet', 'Pfizer', 'USA', 'Vitamin C supplement', 'Ascorbic acid', 'Vitamin C deficiency, immune support', 'Kidney stones (oxalate)', 'GI upset at high doses', 'Do not exceed 2000mg per day', 'Increases iron absorption', 'Store in dry place', 0, 12.99, 1, '/medicines/vitaminc.jpg', '2024-01-01', NULL),
-(8, 'Ibuprofen 400mg', 'Ibuprofen', 'Advil', 'Pain Relief - Anti-inflammatory', 20, 'Tablet', '400mg', 'Tablet', 'Pfizer', 'USA', 'NSAID pain reliever', 'Ibuprofen', 'Headache, muscle pain, arthritis', 'Gastric ulcer, kidney disease', 'Stomach pain, nausea', 'Take with food', 'Increased bleeding risk with aspirin', 'Store below 25C', 0, 7.99, 1, '/medicines/ibuprofen.jpg', '2024-01-01', NULL),
-(9, 'Salbutamol 100mcg', 'Salbutamol', 'Ventolin', 'Respiratory', 13, 'Inhaler', '100mcg', 'Puff', 'GSK', 'UK', 'Bronchodilator inhaler', 'Salbutamol sulfate', 'Asthma, bronchospasm', 'Heart arrhythmia', 'Rapid heartbeat, tremor', 'Do not overuse', 'Increased effect with theophylline', 'Store below 30C', 1, 35.99, 1, '/medicines/salbutamol.jpg', '2024-01-01', NULL),
-(10, 'Allopurinol 300mg', 'Allopurinol', 'Zyloprim', 'Gout', 15, 'Tablet', '300mg', 'Tablet', 'Takeda', 'Japan', 'Uric acid reducer', 'Allopurinol', 'Gout, hyperuricemia', 'Allopurinol allergy', 'Rash, liver problems', 'Drink plenty of water', 'Increased azathioprine toxicity', 'Store below 25C, protect from moisture', 1, 14.99, 1, '/medicines/allopurinol.jpg', '2024-01-01', NULL);
+(1, 'Paracetamol 500mg', 'Paracetamol', 'Tylenol', 'Pain Relief - Fever', 20, 'Tablet', '500mg', 'Tablet', 'Johnson & Johnson', 'USA', 'Common pain reliever and fever reducer', 'Paracetamol 500mg', 'Headache, fever, muscle pain', 'Allergy to paracetamol, severe liver disease', 'Nausea, rash (rare)', 'Do not exceed 4g per day', 'Increased toxicity with alcohol', 'Store below 30C', 0, 5.99, 1, '/uploads/medicinces/Paracetamol.webp', '2024-01-01', NULL),
+(2, 'Amoxicillin 500mg', 'Amoxicillin', 'Amoxil', 'Antibiotic', 10, 'Capsule', '500mg', 'Capsule', 'Pfizer', 'USA', 'Broad spectrum antibiotic', 'Amoxicillin trihydrate', 'Respiratory infections, UTI', 'Penicillin allergy', 'Diarrhea, rash, nausea', 'Adjust dose for kidney disease', 'May reduce contraceptive efficacy', 'Store at 15-25C', 1, 12.99, 1, '/uploads/medicinces/Amoxicillin.jpg', '2024-01-01', NULL),
+(3, 'Omeprazole 20mg', 'Omeprazole', 'Prilosec', 'Gastrointestinal', 14, 'Capsule', '20mg', 'Capsule', 'AstraZeneca', 'Sweden', 'Proton pump inhibitor', 'Omeprazole', 'Gastric ulcer, GERD', 'Allergy to omeprazole', 'Headache, diarrhea, nausea', 'Not for long-term use', 'Reduces B12 absorption', 'Store below 25C, protect from moisture', 1, 15.99, 1, '/uploads/medicinces/Omeprazole.jpg', '2024-01-01', NULL),
+(4, 'Metformin 500mg', 'Metformin', 'Glucophage', 'Diabetes', 12, 'Tablet', '500mg', 'Tablet', 'Merck', 'Germany', 'Type 2 diabetes treatment', 'Metformin HCl', 'Type 2 diabetes', 'Kidney disease, acidosis', 'GI upset, B12 deficiency', 'Stop before CT scan with contrast', 'Increased hypoglycemia risk with other drugs', 'Store at 15-25C', 1, 8.99, 1, '/uploads/medicinces/Metformin.webp', '2024-01-01', NULL),
+(5, 'Amlodipine 5mg', 'Amlodipine', 'Norvasc', 'Cardiovascular', 11, 'Tablet', '5mg', 'Tablet', 'Pfizer', 'USA', 'Blood pressure medication', 'Amlodipine besylate', 'Hypertension, angina', 'Hypotension, cardiogenic shock', 'Ankle swelling, headache', 'Monitor blood pressure regularly', 'Increased effect with grapefruit', 'Store below 30C', 1, 18.99, 1, '/uploads/medicinces/Amlodipine.webp', '2024-01-01', NULL),
+(6, 'Cetirizine 10mg', 'Cetirizine', 'Zyrtec', 'Allergy', 21, 'Tablet', '10mg', 'Tablet', 'UCB', 'Belgium', 'Second generation antihistamine', 'Cetirizine HCl', 'Allergic rhinitis, urticaria', 'Severe kidney disease', 'Drowsiness, dry mouth', 'Caution when driving', 'Increased sedation with alcohol', 'Store below 25C', 0, 9.99, 1, '/uploads/medicinces/Cetirizine.webp', '2024-01-01', NULL),
+(7, 'Vitamin C 1000mg', 'Ascorbic Acid', 'Emergen-C', 'Vitamin - Mineral', 30, 'Effervescent', '1000mg', 'Tablet', 'Pfizer', 'USA', 'Vitamin C supplement', 'Ascorbic acid', 'Vitamin C deficiency, immune support', 'Kidney stones (oxalate)', 'GI upset at high doses', 'Do not exceed 2000mg per day', 'Increases iron absorption', 'Store in dry place', 0, 12.99, 1, '/uploads/medicinces/Ascorbic Acid.jpg', '2024-01-01', NULL),
+(8, 'Ibuprofen 400mg', 'Ibuprofen', 'Advil', 'Pain Relief - Anti-inflammatory', 20, 'Tablet', '400mg', 'Tablet', 'Pfizer', 'USA', 'NSAID pain reliever', 'Ibuprofen', 'Headache, muscle pain, arthritis', 'Gastric ulcer, kidney disease', 'Stomach pain, nausea', 'Take with food', 'Increased bleeding risk with aspirin', 'Store below 25C', 0, 7.99, 1, '/uploads/medicinces/Ibuprofen.webp', '2024-01-01', NULL),
+(9, 'Salbutamol 100mcg', 'Salbutamol', 'Ventolin', 'Respiratory', 13, 'Inhaler', '100mcg', 'Puff', 'GSK', 'UK', 'Bronchodilator inhaler', 'Salbutamol sulfate', 'Asthma, bronchospasm', 'Heart arrhythmia', 'Rapid heartbeat, tremor', 'Do not overuse', 'Increased effect with theophylline', 'Store below 30C', 1, 35.99, 1, '/uploads/medicinces/Salbutamol.webp', '2024-01-01', NULL),
+(10, 'Allopurinol 300mg', 'Allopurinol', 'Zyloprim', 'Gout', 15, 'Tablet', '300mg', 'Tablet', 'Takeda', 'Japan', 'Uric acid reducer', 'Allopurinol', 'Gout, hyperuricemia', 'Allopurinol allergy', 'Rash, liver problems', 'Drink plenty of water', 'Increased azathioprine toxicity', 'Store below 25C, protect from moisture', 1, 14.99, 1, '/uploads/medicinces/Allopurinol.webp', '2024-01-01', NULL);
 SET IDENTITY_INSERT Medicines OFF;
 
 -- 10. PHARMACY_INVENTORY (28 inventory rows)
@@ -827,10 +827,6 @@ INSERT INTO CommissionTransactions (TransactionId, transactionNumber, sourceType
 (13, 'CTX-202405-00013', 'PHARMACY_ORDER', NULL, 14, 'PHARMACY', 'user-ph04', 'CVS Pharmacy - SF', 'PHARMACY_ORDER', 82.99, 0.0800, 6.64, 76.35, 'REFUNDED', NULL, '2024-05-22 12:30:00'),
 (14, 'CTX-202405-00014', 'PHARMACY_ORDER', NULL, 15, 'PHARMACY', 'user-ph06', 'Hospital Pharmacy - NYC', 'PHARMACY_ORDER', 40.00, 0.0800, 3.20, 36.80, 'PENDING', NULL, '2024-05-23 09:10:00'),
 (15, 'CTX-202405-00015', 'APPOINTMENT', 14, NULL, 'DOCTOR', 'user-d01', 'Dr. John Smith', 'CONSULTATION_HOME_VISIT', 103.00, 0.1000, 8.80, 94.20, 'PENDING', NULL, '2024-05-27 20:45:00');
--- â”€â”€ Pharmacy revenue history demo rows (IDs 16-51) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
--- Ledger-only dashboard fixtures. Order/Appointment/Settlement FK are all NULL.
--- Statuses rotate across PENDING, VESTED, and SETTLED (never REFUNDED).
-
 -- 16-22: Seven daily transactions ending today (D0..D6)
 INSERT INTO CommissionTransactions (TransactionId, transactionNumber, sourceType, appointmentId, pharmacyOrderId, recipientType, recipientId, recipientName, serviceType, grossAmount, commissionRate, commissionAmount, netAmount, status, SettlementId, CreatedAt) VALUES
 (16, 'CTX-DEMO-PH01-D0', 'PHARMACY_ORDER', NULL, NULL, 'PHARMACY', 'user-ph01', 'HealthLink Pharmacy - Ben Thanh', 'PHARMACY_ORDER', 32.61, 0.0800, 2.61, 30.00, 'SETTLED', NULL, DATEADD(DAY, -6, GETDATE())),
@@ -841,56 +837,65 @@ INSERT INTO CommissionTransactions (TransactionId, transactionNumber, sourceType
 (21, 'CTX-DEMO-PH01-D5', 'PHARMACY_ORDER', NULL, NULL, 'PHARMACY', 'user-ph01', 'HealthLink Pharmacy - Ben Thanh', 'PHARMACY_ORDER', 32.61, 0.0800, 2.61, 30.00, 'SETTLED', NULL, DATEADD(DAY, -1, GETDATE())),
 (22, 'CTX-DEMO-PH01-D6', 'PHARMACY_ORDER', NULL, NULL, 'PHARMACY', 'user-ph01', 'HealthLink Pharmacy - Ben Thanh', 'PHARMACY_ORDER', 16.30, 0.0800, 1.30, 15.00, 'PENDING', NULL, GETDATE());
 
--- 23-34: One transaction on day 15 for each current-year month (CM01..CM12)
+-- 23-52: Thirty daily transactions spanning last 30 days
 INSERT INTO CommissionTransactions (TransactionId, transactionNumber, sourceType, appointmentId, pharmacyOrderId, recipientType, recipientId, recipientName, serviceType, grossAmount, commissionRate, commissionAmount, netAmount, status, SettlementId, CreatedAt)
-SELECT 23, 'CTX-DEMO-PH01-CM01', 'PHARMACY_ORDER', NULL, NULL, 'PHARMACY', 'user-ph01', 'HealthLink Pharmacy - Ben Thanh', 'PHARMACY_ORDER', 54.35, 0.0800, 4.35, 50.00, 'SETTLED', NULL, DATEFROMPARTS(YEAR(GETDATE()), 1, 15) WHERE 1 <= MONTH(GETDATE());
-INSERT INTO CommissionTransactions (TransactionId, transactionNumber, sourceType, appointmentId, pharmacyOrderId, recipientType, recipientId, recipientName, serviceType, grossAmount, commissionRate, commissionAmount, netAmount, status, SettlementId, CreatedAt)
-SELECT 24, 'CTX-DEMO-PH01-CM02', 'PHARMACY_ORDER', NULL, NULL, 'PHARMACY', 'user-ph01', 'HealthLink Pharmacy - Ben Thanh', 'PHARMACY_ORDER', 43.48, 0.0800, 3.48, 40.00, 'VESTED', NULL, DATEFROMPARTS(YEAR(GETDATE()), 2, 15) WHERE 2 <= MONTH(GETDATE());
-INSERT INTO CommissionTransactions (TransactionId, transactionNumber, sourceType, appointmentId, pharmacyOrderId, recipientType, recipientId, recipientName, serviceType, grossAmount, commissionRate, commissionAmount, netAmount, status, SettlementId, CreatedAt)
-SELECT 25, 'CTX-DEMO-PH01-CM03', 'PHARMACY_ORDER', NULL, NULL, 'PHARMACY', 'user-ph01', 'HealthLink Pharmacy - Ben Thanh', 'PHARMACY_ORDER', 65.22, 0.0800, 5.22, 60.00, 'SETTLED', NULL, DATEFROMPARTS(YEAR(GETDATE()), 3, 15) WHERE 3 <= MONTH(GETDATE());
-INSERT INTO CommissionTransactions (TransactionId, transactionNumber, sourceType, appointmentId, pharmacyOrderId, recipientType, recipientId, recipientName, serviceType, grossAmount, commissionRate, commissionAmount, netAmount, status, SettlementId, CreatedAt)
-SELECT 26, 'CTX-DEMO-PH01-CM04', 'PHARMACY_ORDER', NULL, NULL, 'PHARMACY', 'user-ph01', 'HealthLink Pharmacy - Ben Thanh', 'PHARMACY_ORDER', 32.61, 0.0800, 2.61, 30.00, 'PENDING', NULL, DATEFROMPARTS(YEAR(GETDATE()), 4, 15) WHERE 4 <= MONTH(GETDATE());
-INSERT INTO CommissionTransactions (TransactionId, transactionNumber, sourceType, appointmentId, pharmacyOrderId, recipientType, recipientId, recipientName, serviceType, grossAmount, commissionRate, commissionAmount, netAmount, status, SettlementId, CreatedAt)
-SELECT 27, 'CTX-DEMO-PH01-CM05', 'PHARMACY_ORDER', NULL, NULL, 'PHARMACY', 'user-ph01', 'HealthLink Pharmacy - Ben Thanh', 'PHARMACY_ORDER', 76.09, 0.0800, 6.09, 70.00, 'VESTED', NULL, DATEFROMPARTS(YEAR(GETDATE()), 5, 15) WHERE 5 <= MONTH(GETDATE());
-INSERT INTO CommissionTransactions (TransactionId, transactionNumber, sourceType, appointmentId, pharmacyOrderId, recipientType, recipientId, recipientName, serviceType, grossAmount, commissionRate, commissionAmount, netAmount, status, SettlementId, CreatedAt)
-SELECT 28, 'CTX-DEMO-PH01-CM06', 'PHARMACY_ORDER', NULL, NULL, 'PHARMACY', 'user-ph01', 'HealthLink Pharmacy - Ben Thanh', 'PHARMACY_ORDER', 54.35, 0.0800, 4.35, 50.00, 'SETTLED', NULL, DATEFROMPARTS(YEAR(GETDATE()), 6, 15) WHERE 6 <= MONTH(GETDATE());
-INSERT INTO CommissionTransactions (TransactionId, transactionNumber, sourceType, appointmentId, pharmacyOrderId, recipientType, recipientId, recipientName, serviceType, grossAmount, commissionRate, commissionAmount, netAmount, status, SettlementId, CreatedAt)
-SELECT 29, 'CTX-DEMO-PH01-CM07', 'PHARMACY_ORDER', NULL, NULL, 'PHARMACY', 'user-ph01', 'HealthLink Pharmacy - Ben Thanh', 'PHARMACY_ORDER', 43.48, 0.0800, 3.48, 40.00, 'VESTED', NULL, DATEFROMPARTS(YEAR(GETDATE()), 7, 15) WHERE 7 <= MONTH(GETDATE());
-INSERT INTO CommissionTransactions (TransactionId, transactionNumber, sourceType, appointmentId, pharmacyOrderId, recipientType, recipientId, recipientName, serviceType, grossAmount, commissionRate, commissionAmount, netAmount, status, SettlementId, CreatedAt)
-SELECT 30, 'CTX-DEMO-PH01-CM08', 'PHARMACY_ORDER', NULL, NULL, 'PHARMACY', 'user-ph01', 'HealthLink Pharmacy - Ben Thanh', 'PHARMACY_ORDER', 32.61, 0.0800, 2.61, 30.00, 'PENDING', NULL, DATEFROMPARTS(YEAR(GETDATE()), 8, 15) WHERE 8 <= MONTH(GETDATE());
-INSERT INTO CommissionTransactions (TransactionId, transactionNumber, sourceType, appointmentId, pharmacyOrderId, recipientType, recipientId, recipientName, serviceType, grossAmount, commissionRate, commissionAmount, netAmount, status, SettlementId, CreatedAt)
-SELECT 31, 'CTX-DEMO-PH01-CM09', 'PHARMACY_ORDER', NULL, NULL, 'PHARMACY', 'user-ph01', 'HealthLink Pharmacy - Ben Thanh', 'PHARMACY_ORDER', 54.35, 0.0800, 4.35, 50.00, 'SETTLED', NULL, DATEFROMPARTS(YEAR(GETDATE()), 9, 15) WHERE 9 <= MONTH(GETDATE());
-INSERT INTO CommissionTransactions (TransactionId, transactionNumber, sourceType, appointmentId, pharmacyOrderId, recipientType, recipientId, recipientName, serviceType, grossAmount, commissionRate, commissionAmount, netAmount, status, SettlementId, CreatedAt)
-SELECT 32, 'CTX-DEMO-PH01-CM10', 'PHARMACY_ORDER', NULL, NULL, 'PHARMACY', 'user-ph01', 'HealthLink Pharmacy - Ben Thanh', 'PHARMACY_ORDER', 65.22, 0.0800, 5.22, 60.00, 'VESTED', NULL, DATEFROMPARTS(YEAR(GETDATE()), 10, 15) WHERE 10 <= MONTH(GETDATE());
-INSERT INTO CommissionTransactions (TransactionId, transactionNumber, sourceType, appointmentId, pharmacyOrderId, recipientType, recipientId, recipientName, serviceType, grossAmount, commissionRate, commissionAmount, netAmount, status, SettlementId, CreatedAt)
-SELECT 33, 'CTX-DEMO-PH01-CM11', 'PHARMACY_ORDER', NULL, NULL, 'PHARMACY', 'user-ph01', 'HealthLink Pharmacy - Ben Thanh', 'PHARMACY_ORDER', 43.48, 0.0800, 3.48, 40.00, 'SETTLED', NULL, DATEFROMPARTS(YEAR(GETDATE()), 11, 15) WHERE 11 <= MONTH(GETDATE());
-INSERT INTO CommissionTransactions (TransactionId, transactionNumber, sourceType, appointmentId, pharmacyOrderId, recipientType, recipientId, recipientName, serviceType, grossAmount, commissionRate, commissionAmount, netAmount, status, SettlementId, CreatedAt)
-SELECT 34, 'CTX-DEMO-PH01-CM12', 'PHARMACY_ORDER', NULL, NULL, 'PHARMACY', 'user-ph01', 'HealthLink Pharmacy - Ben Thanh', 'PHARMACY_ORDER', 32.61, 0.0800, 2.61, 30.00, 'PENDING', NULL, DATEFROMPARTS(YEAR(GETDATE()), 12, 15) WHERE 12 <= MONTH(GETDATE());
+SELECT
+    22 + v.n,
+    'CTX-DEMO-PH01-D' + RIGHT('0' + CAST(v.n AS VARCHAR), 2),
+    'PHARMACY_ORDER', NULL, NULL, 'PHARMACY', 'user-ph01', 'HealthLink Pharmacy - Ben Thanh', 'PHARMACY_ORDER',
+    CASE v.n % 5
+        WHEN 0 THEN 54.35 WHEN 1 THEN 32.61
+        WHEN 2 THEN 43.48 WHEN 3 THEN 21.74
+        ELSE 65.22
+    END,
+    0.0800,
+    CASE v.n % 5
+        WHEN 0 THEN 4.35 WHEN 1 THEN 2.61
+        WHEN 2 THEN 3.48 WHEN 3 THEN 1.74
+        ELSE 5.22
+    END,
+    CASE v.n % 5
+        WHEN 0 THEN 50.00 WHEN 1 THEN 30.00
+        WHEN 2 THEN 40.00 WHEN 3 THEN 20.00
+        ELSE 60.00
+    END,
+    CASE v.n % 3
+        WHEN 0 THEN 'SETTLED' WHEN 1 THEN 'VESTED'
+        ELSE 'PENDING'
+    END,
+    NULL,
+    DATEADD(DAY, -v.n, GETDATE())
+FROM (VALUES (1),(2),(3),(4),(5),(6),(7),(8),(9),(10),(11),(12),(13),(14),(15),(16),(17),(18),(19),(20),(21),(22),(23),(24),(25),(26),(27),(28),(29),(30)) v(n);
 
--- 35-46: One transaction on day 15 for all twelve previous-year months (PY01..PY12)
-INSERT INTO CommissionTransactions (TransactionId, transactionNumber, sourceType, appointmentId, pharmacyOrderId, recipientType, recipientId, recipientName, serviceType, grossAmount, commissionRate, commissionAmount, netAmount, status, SettlementId, CreatedAt) VALUES
-(35, 'CTX-DEMO-PH01-PY01', 'PHARMACY_ORDER', NULL, NULL, 'PHARMACY', 'user-ph01', 'HealthLink Pharmacy - Ben Thanh', 'PHARMACY_ORDER', 43.48, 0.0800, 3.48, 40.00, 'SETTLED', NULL, DATEFROMPARTS(YEAR(GETDATE())-1, 1, 15)),
-(36, 'CTX-DEMO-PH01-PY02', 'PHARMACY_ORDER', NULL, NULL, 'PHARMACY', 'user-ph01', 'HealthLink Pharmacy - Ben Thanh', 'PHARMACY_ORDER', 32.61, 0.0800, 2.61, 30.00, 'VESTED', NULL, DATEFROMPARTS(YEAR(GETDATE())-1, 2, 15)),
-(37, 'CTX-DEMO-PH01-PY03', 'PHARMACY_ORDER', NULL, NULL, 'PHARMACY', 'user-ph01', 'HealthLink Pharmacy - Ben Thanh', 'PHARMACY_ORDER', 54.35, 0.0800, 4.35, 50.00, 'SETTLED', NULL, DATEFROMPARTS(YEAR(GETDATE())-1, 3, 15)),
-(38, 'CTX-DEMO-PH01-PY04', 'PHARMACY_ORDER', NULL, NULL, 'PHARMACY', 'user-ph01', 'HealthLink Pharmacy - Ben Thanh', 'PHARMACY_ORDER', 65.22, 0.0800, 5.22, 60.00, 'PENDING', NULL, DATEFROMPARTS(YEAR(GETDATE())-1, 4, 15)),
-(39, 'CTX-DEMO-PH01-PY05', 'PHARMACY_ORDER', NULL, NULL, 'PHARMACY', 'user-ph01', 'HealthLink Pharmacy - Ben Thanh', 'PHARMACY_ORDER', 43.48, 0.0800, 3.48, 40.00, 'VESTED', NULL, DATEFROMPARTS(YEAR(GETDATE())-1, 5, 15)),
-(40, 'CTX-DEMO-PH01-PY06', 'PHARMACY_ORDER', NULL, NULL, 'PHARMACY', 'user-ph01', 'HealthLink Pharmacy - Ben Thanh', 'PHARMACY_ORDER', 32.61, 0.0800, 2.61, 30.00, 'SETTLED', NULL, DATEFROMPARTS(YEAR(GETDATE())-1, 6, 15)),
-(41, 'CTX-DEMO-PH01-PY07', 'PHARMACY_ORDER', NULL, NULL, 'PHARMACY', 'user-ph01', 'HealthLink Pharmacy - Ben Thanh', 'PHARMACY_ORDER', 76.09, 0.0800, 6.09, 70.00, 'SETTLED', NULL, DATEFROMPARTS(YEAR(GETDATE())-1, 7, 15)),
-(42, 'CTX-DEMO-PH01-PY08', 'PHARMACY_ORDER', NULL, NULL, 'PHARMACY', 'user-ph01', 'HealthLink Pharmacy - Ben Thanh', 'PHARMACY_ORDER', 54.35, 0.0800, 4.35, 50.00, 'PENDING', NULL, DATEFROMPARTS(YEAR(GETDATE())-1, 8, 15)),
-(43, 'CTX-DEMO-PH01-PY09', 'PHARMACY_ORDER', NULL, NULL, 'PHARMACY', 'user-ph01', 'HealthLink Pharmacy - Ben Thanh', 'PHARMACY_ORDER', 43.48, 0.0800, 3.48, 40.00, 'VESTED', NULL, DATEFROMPARTS(YEAR(GETDATE())-1, 9, 15)),
-(44, 'CTX-DEMO-PH01-PY10', 'PHARMACY_ORDER', NULL, NULL, 'PHARMACY', 'user-ph01', 'HealthLink Pharmacy - Ben Thanh', 'PHARMACY_ORDER', 32.61, 0.0800, 2.61, 30.00, 'SETTLED', NULL, DATEFROMPARTS(YEAR(GETDATE())-1, 10, 15)),
-(45, 'CTX-DEMO-PH01-PY11', 'PHARMACY_ORDER', NULL, NULL, 'PHARMACY', 'user-ph01', 'HealthLink Pharmacy - Ben Thanh', 'PHARMACY_ORDER', 65.22, 0.0800, 5.22, 60.00, 'SETTLED', NULL, DATEFROMPARTS(YEAR(GETDATE())-1, 11, 15)),
-(46, 'CTX-DEMO-PH01-PY12', 'PHARMACY_ORDER', NULL, NULL, 'PHARMACY', 'user-ph01', 'HealthLink Pharmacy - Ben Thanh', 'PHARMACY_ORDER', 54.35, 0.0800, 4.35, 50.00, 'PENDING', NULL, DATEFROMPARTS(YEAR(GETDATE())-1, 12, 15));
-
--- 47-50: Current-month week-boundary dates (W1..W4)
+-- 53-64: Twelve monthly transactions spanning last 12 months
 INSERT INTO CommissionTransactions (TransactionId, transactionNumber, sourceType, appointmentId, pharmacyOrderId, recipientType, recipientId, recipientName, serviceType, grossAmount, commissionRate, commissionAmount, netAmount, status, SettlementId, CreatedAt)
-SELECT 47, 'CTX-DEMO-PH01-W1', 'PHARMACY_ORDER', NULL, NULL, 'PHARMACY', 'user-ph01', 'HealthLink Pharmacy - Ben Thanh', 'PHARMACY_ORDER', 43.48, 0.0800, 3.48, 40.00, 'SETTLED', NULL, DATEFROMPARTS(YEAR(GETDATE()), MONTH(GETDATE()), 3) WHERE 3 <= DAY(GETDATE());
-INSERT INTO CommissionTransactions (TransactionId, transactionNumber, sourceType, appointmentId, pharmacyOrderId, recipientType, recipientId, recipientName, serviceType, grossAmount, commissionRate, commissionAmount, netAmount, status, SettlementId, CreatedAt)
-SELECT 48, 'CTX-DEMO-PH01-W2', 'PHARMACY_ORDER', NULL, NULL, 'PHARMACY', 'user-ph01', 'HealthLink Pharmacy - Ben Thanh', 'PHARMACY_ORDER', 65.22, 0.0800, 5.22, 60.00, 'VESTED', NULL, DATEFROMPARTS(YEAR(GETDATE()), MONTH(GETDATE()), 10) WHERE 10 <= DAY(GETDATE());
-INSERT INTO CommissionTransactions (TransactionId, transactionNumber, sourceType, appointmentId, pharmacyOrderId, recipientType, recipientId, recipientName, serviceType, grossAmount, commissionRate, commissionAmount, netAmount, status, SettlementId, CreatedAt)
-SELECT 49, 'CTX-DEMO-PH01-W3', 'PHARMACY_ORDER', NULL, NULL, 'PHARMACY', 'user-ph01', 'HealthLink Pharmacy - Ben Thanh', 'PHARMACY_ORDER', 32.61, 0.0800, 2.61, 30.00, 'PENDING', NULL, DATEFROMPARTS(YEAR(GETDATE()), MONTH(GETDATE()), 17) WHERE 17 <= DAY(GETDATE());
-INSERT INTO CommissionTransactions (TransactionId, transactionNumber, sourceType, appointmentId, pharmacyOrderId, recipientType, recipientId, recipientName, serviceType, grossAmount, commissionRate, commissionAmount, netAmount, status, SettlementId, CreatedAt)
-SELECT 50, 'CTX-DEMO-PH01-W4', 'PHARMACY_ORDER', NULL, NULL, 'PHARMACY', 'user-ph01', 'HealthLink Pharmacy - Ben Thanh', 'PHARMACY_ORDER', 54.35, 0.0800, 4.35, 50.00, 'SETTLED', NULL, DATEFROMPARTS(YEAR(GETDATE()), MONTH(GETDATE()), 24) WHERE 24 <= DAY(GETDATE());
+SELECT
+    52 + v.n,
+    'CTX-DEMO-PH01-M' + RIGHT('0' + CAST(v.n AS VARCHAR), 2),
+    'PHARMACY_ORDER', NULL, NULL, 'PHARMACY', 'user-ph01', 'HealthLink Pharmacy - Ben Thanh', 'PHARMACY_ORDER',
+    CASE v.n % 5
+        WHEN 0 THEN 54.35 WHEN 1 THEN 32.61
+        WHEN 2 THEN 43.48 WHEN 3 THEN 21.74
+        ELSE 65.22
+    END,
+    0.0800,
+    CASE v.n % 5
+        WHEN 0 THEN 4.35 WHEN 1 THEN 2.61
+        WHEN 2 THEN 3.48 WHEN 3 THEN 1.74
+        ELSE 5.22
+    END,
+    CASE v.n % 5
+        WHEN 0 THEN 50.00 WHEN 1 THEN 30.00
+        WHEN 2 THEN 40.00 WHEN 3 THEN 20.00
+        ELSE 60.00
+    END,
+    CASE v.n % 3
+        WHEN 0 THEN 'SETTLED' WHEN 1 THEN 'VESTED'
+        ELSE 'PENDING'
+    END,
+    NULL,
+    DATEADD(MONTH, -v.n + 1, DATEFROMPARTS(YEAR(GETDATE()), MONTH(GETDATE()), 15))
+FROM (VALUES (1),(2),(3),(4),(5),(6),(7),(8),(9),(10),(11),(12)) v(n);
 
 -- Reconcile user-ph01 wallet totals
 UPDATE p

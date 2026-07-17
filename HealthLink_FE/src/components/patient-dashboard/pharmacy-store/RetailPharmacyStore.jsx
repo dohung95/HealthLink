@@ -5,7 +5,7 @@ import medicineApi from '../../../api/medicineApi';
 import RetailCartPanel from './RetailCartPanel';
 import RetailCheckoutWizard from './RetailCheckoutWizard';
 import RetailProductCard from './RetailProductCard';
-import { cartSubtotal, getMedicineDisplayName, getShortDescription, money } from './retailStoreUtils';
+import { cartSubtotal, getMedicineDisplayName, getShortDescription, money, getImageUrl } from './retailStoreUtils';
 import './RetailPharmacyStore.css';
 
 function deriveOptions(products, field) {
@@ -278,11 +278,11 @@ export default function RetailPharmacyStore({ navigate }) {
               </div>
               <div className="row g-3">
                 <div className="col-md-5">
-                  {selectedMedicine.imageUrl ? (
+                  {getImageUrl(selectedMedicine) ? (
                     <>
                       <img 
                         className="img-fluid rounded" 
-                        src={selectedMedicine.imageUrl} 
+                        src={getImageUrl(selectedMedicine)} 
                         alt={getMedicineDisplayName(selectedMedicine)} 
                         onError={(e) => {
                           e.target.style.display = 'none';
