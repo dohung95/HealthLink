@@ -162,6 +162,20 @@ class _PharmacyQuoteEditorScreenState
       _estimatedDeliveryMinutes = null;
       _etaCtrl.clear();
     }
+
+    final prescriptions = context.read<PharmacyRequestProvider>().prescriptions;
+    for (final rx in prescriptions) {
+      final headerId = rx['prescriptionHeaderId'] as int?;
+      if (headerId == null) continue;
+      final rxItems = rx['items'] as List<dynamic>? ?? [];
+      for (final item in rxItems) {
+        _items.add(PharmacyQuoteMapper.fromPrescriptionItem(
+          item as Map<String, dynamic>,
+          headerId,
+        ));
+      }
+    }
+    if (_items.isNotEmpty) _isDirty = true;
   }
 
   void _addItem(QuoteLineItem item) {
