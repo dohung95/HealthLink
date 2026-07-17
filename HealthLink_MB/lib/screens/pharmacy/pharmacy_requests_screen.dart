@@ -359,7 +359,8 @@ class _PharmacyRequestsScreenState extends State<PharmacyRequestsScreen> {
                       ],
                     ),
                   ),
-                  _workTypeChip(item.sourceType),
+                  if (item.sourceType != WorkItemSourceType.consultation)
+                    _workTypeChip(item.sourceType),
                 ],
               ),
               const SizedBox(height: 4),
@@ -396,15 +397,6 @@ class _PharmacyRequestsScreenState extends State<PharmacyRequestsScreen> {
                   ),
                   const SizedBox(width: 4),
                   Text(timeStr, style: theme.textTheme.bodySmall),
-                  if (item.availableActions.isNotEmpty) ...[
-                    const SizedBox(width: 12),
-                    Text(
-                      item.availableActions.join(', '),
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: theme.colorScheme.onSurfaceVariant,
-                      ),
-                    ),
-                  ],
                 ],
               ),
             ],

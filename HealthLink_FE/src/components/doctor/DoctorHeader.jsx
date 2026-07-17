@@ -1,6 +1,4 @@
-import React, { memo, useEffect, useRef, useState } from 'react';
-import { toast } from 'sonner';
-import { doctorService as doctorApi } from '../../api/doctorApi';
+import { memo, useEffect, useRef, useState } from 'react';
 
 const getInitials = (name) => {
   if (!name) return 'DR';
@@ -33,12 +31,6 @@ const DoctorHeader = memo(({
   onClearNewNotification,
 }) => {
   const [showProfileDropdown, setShowProfileDropdown] = useState(false);
-  const [servicesExpanded, setServicesExpanded] = useState(false);
-  const [services, setServices] = useState({
-    online: doctorData?.availableTypes?.includes('Online') ?? false,
-    homeVisit: doctorData?.availableTypes?.includes('HomeVisit') ?? false,
-  });
-  const [serviceLoading, setServiceLoading] = useState({});
   const profileDropdownRef = useRef(null);
 
   useEffect(() => {
@@ -46,7 +38,6 @@ const DoctorHeader = memo(({
     const handleClick = (e) => {
       if (profileDropdownRef.current && !profileDropdownRef.current.contains(e.target)) {
         setShowProfileDropdown(false);
-        setServicesExpanded(false);
       }
     };
     document.addEventListener('mousedown', handleClick);
@@ -61,39 +52,6 @@ const DoctorHeader = memo(({
   const handleChangePassword = () => {
     setShowProfileDropdown(false);
     onChangePassword();
-  };
-
-  // Sync services from doctorData when availableTypes changes
-  const prevTypesRef = useRef('');
-  useEffect(() => {
-    const types = doctorData?.availableTypes?.join(',') ?? '';
-    if (types && types !== prevTypesRef.current) {
-      prevTypesRef.current = types;
-      setServices({
-        online: doctorData.availableTypes.includes('Online'),
-        homeVisit: doctorData.availableTypes.includes('HomeVisit'),
-      });
-    }
-  }, [doctorData]);
-
-  const handleServiceToggle = async (key) => {
-    const newValue = !services[key];
-    const otherKeys = Object.keys(services).filter(k => k !== key);
-    const allOff = otherKeys.every(k => !services[k]) && !newValue;
-    if (allOff) {
-      toast.error('At least one service must be active');
-      return;
-    }
-    setServiceLoading(prev => ({ ...prev, [key]: true }));
-    try {
-      const result = await doctorApi.updateServices({ [key]: newValue });
-      setServices(prev => ({ ...prev, ...result }));
-    } catch (err) {
-      setServices(prev => ({ ...prev, [key]: !newValue }));
-      toast.error(err.response?.data?.message || 'Update failed');
-    } finally {
-      setServiceLoading(prev => ({ ...prev, [key]: false }));
-    }
   };
 
   const avatarUrl = doctorData?.avatarUrl || doctorData?.profileImage || doctorData?.imageUrl;
@@ -315,59 +273,6 @@ const DoctorHeader = memo(({
                     <span className="material-symbols-outlined" style={{ fontSize: '1.125rem', color: 'var(--text-muted)' }}>lock</span>
                     Change Password
                   </button>
-                </div>
-
-                {/* Services section */}
-                <div style={{ borderBottom: '1px solid var(--border)' }}>
-                  <button
-                    className="d-flex align-items-center gap-3 w-100 px-3 py-2 border-0 bg-transparent text-start"
-                    onClick={() => setServicesExpanded((prev) => !prev)}
-                    type="button"
-                    style={{ fontSize: '0.8125rem', color: 'var(--text-primary)', transition: 'background 0.1s ease' }}
-                    onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--surface-muted)'; }}
-                    onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
-                  >
-                    <span className="material-symbols-outlined" style={{ fontSize: '1.125rem', color: 'var(--text-muted)' }}>tune</span>
-                    <span className="flex-grow-1">Services</span>
-                    <span className="material-symbols-outlined" style={{ fontSize: '1rem', color: 'var(--text-muted)' }}>
-                      {servicesExpanded ? 'expand_less' : 'chevron_right'}
-                    </span>
-                  </button>
-                  {/* Nested Service Toggles */}
-                  {servicesExpanded && (
-                    <div style={{ animation: 'fadeIn 0.12s ease-out' }}>
-                      <div
-                        className="d-flex align-items-center gap-3 w-100 py-2 border-0 bg-transparent text-start"
-                        style={{ paddingLeft: '4rem', paddingRight: '1rem', fontSize: '0.8125rem', color: 'var(--text-primary)', cursor: serviceLoading.online ? 'not-allowed' : 'pointer' }}
-                        onMouseEnter={(e) => { if (!serviceLoading.online) e.currentTarget.style.background = 'var(--surface-muted)'; }}
-                        onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
-                        onClick={() => !serviceLoading.online && handleServiceToggle('online')}
-                      >
-                        <span className="material-symbols-outlined" style={{ fontSize: '1.125rem', color: services.online ? 'var(--doctor-primary)' : 'var(--text-muted)' }}>public</span>
-                        <span>Online</span>
-                        <div className="form-check form-switch mb-0 ms-auto">
-                          <input className="form-check-input" type="checkbox" role="switch"
-                            checked={!!services.online} disabled={serviceLoading.online}
-                            onChange={() => {}} />
-                        </div>
-                      </div>
-                      <div
-                        className="d-flex align-items-center gap-3 w-100 py-2 border-0 bg-transparent text-start"
-                        style={{ paddingLeft: '4rem', paddingRight: '1rem', fontSize: '0.8125rem', color: 'var(--text-primary)', cursor: serviceLoading.homeVisit ? 'not-allowed' : 'pointer' }}
-                        onMouseEnter={(e) => { if (!serviceLoading.homeVisit) e.currentTarget.style.background = 'var(--surface-muted)'; }}
-                        onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
-                        onClick={() => !serviceLoading.homeVisit && handleServiceToggle('homeVisit')}
-                      >
-                        <span className="material-symbols-outlined" style={{ fontSize: '1.125rem', color: services.homeVisit ? 'var(--doctor-primary)' : 'var(--text-muted)' }}>home</span>
-                        <span>HomeVisit</span>
-                        <div className="form-check form-switch mb-0 ms-auto">
-                          <input className="form-check-input" type="checkbox" role="switch"
-                            checked={!!services.homeVisit} disabled={serviceLoading.homeVisit}
-                            onChange={() => {}} />
-                        </div>
-                      </div>
-                    </div>
-                  )}
                 </div>
 
                 {/* Wallet */}

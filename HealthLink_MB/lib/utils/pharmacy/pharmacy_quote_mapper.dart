@@ -45,6 +45,31 @@ class PharmacyQuoteMapper {
     return items.map(toSubmissionItem).toList();
   }
 
+  static QuoteLineItem fromPrescriptionItem(
+    Map<String, dynamic> item,
+    int prescriptionHeaderId,
+  ) {
+    return QuoteLineItem(
+      medicineId: item['medicineId'] as int?,
+      sourcePrescriptionHeaderId: prescriptionHeaderId,
+      sourcePrescriptionItemId: item['prescriptionItemId'] as int?,
+      medicationName: item['medicationName'] as String? ?? '',
+      unit: item['unit'] as String?,
+      unitPrice: (item['unitPrice'] as num?)?.toDouble(),
+      quantity: item['quantity'] as int? ?? 1,
+      totalSupplyDays: item['totalSupplyDays'] as int? ?? 30,
+      route: item['route'] as String?,
+      frequency: item['frequency'] as String?,
+      timing: item['timings'] != null
+          ? (item['timings'] as List).cast<String>()
+          : (item['timing'] != null
+              ? [item['timing'] as String]
+              : <String>[]),
+      notes: item['notes'] as String?,
+      locked: true,
+    );
+  }
+
   static QuoteLineItem fromInventoryItem(PharmacyInventoryItem inventory) {
     return QuoteLineItem(
       medicineId: inventory.medicineId,

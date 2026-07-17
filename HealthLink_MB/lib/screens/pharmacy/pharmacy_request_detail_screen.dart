@@ -380,25 +380,45 @@ class _PharmacyRequestDetailScreenState
     final actions = <Widget>[];
 
     if (request.status == 'PENDING') {
-      actions.addAll([
-        Expanded(
-          child: OutlinedButton.icon(
-            onPressed: () => _updateStatus('CANCELLED'),
-            icon: const Icon(Icons.close),
-            label: const Text('Reject'),
-            style:
-                OutlinedButton.styleFrom(foregroundColor: Colors.red),
+      if (request.requestType?.toUpperCase() == 'ORDER_REQUEST') {
+        actions.addAll([
+          Expanded(
+            child: OutlinedButton.icon(
+              onPressed: () => _updateStatus('CANCELLED'),
+              icon: const Icon(Icons.close),
+              label: const Text('Reject'),
+              style: OutlinedButton.styleFrom(foregroundColor: Colors.red),
+            ),
           ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: FilledButton.icon(
-            onPressed: () => _updateStatus('IN_REVIEW'),
-            icon: const Icon(Icons.check),
-            label: const Text('Accept'),
+          const SizedBox(width: 12),
+          Expanded(
+            child: FilledButton.icon(
+              onPressed: _showCreateOrderDialog,
+              icon: const Icon(Icons.add_shopping_cart),
+              label: const Text('Create Order'),
+            ),
           ),
-        ),
-      ]);
+        ]);
+      } else {
+        actions.addAll([
+          Expanded(
+            child: OutlinedButton.icon(
+              onPressed: () => _updateStatus('CANCELLED'),
+              icon: const Icon(Icons.close),
+              label: const Text('Reject'),
+              style: OutlinedButton.styleFrom(foregroundColor: Colors.red),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: FilledButton.icon(
+              onPressed: () => _updateStatus('IN_REVIEW'),
+              icon: const Icon(Icons.check),
+              label: const Text('Accept'),
+            ),
+          ),
+        ]);
+      }
     } else if (request.status == 'IN_REVIEW' &&
         request.requestType?.toUpperCase() == 'CONSULTATION') {
       final workflowItem = _matchingWorkflowItem(context);

@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import '../../models/pharmacy/pharmacy_quote_draft.dart';
 import '../../utils/pharmacy/pharmacy_medication_schedule.dart';
 
-const List<String> _routeOptions = ['ORAL', 'TOPICAL', 'IV', 'IM', 'SUBCUTANEOUS', 'INHALATION', 'RECTAL', 'OPHTHALMIC', 'OTIC'];
+const List<String> _routeOptions = ['Oral', 'Topical', 'Injection', 'Inhalation'];
 
 class PharmacyOrderItemEditor extends StatefulWidget {
   final QuoteLineItem item;
