@@ -70,6 +70,15 @@ public interface ScheduleComplianceService {
     java.math.BigDecimal calculateScheduledHours(String doctorId, String month);
 
     /**
+     * Get the required monthly hours for a doctor for a specific month, honoring
+     * specialty-specific overrides in ScheduleComplianceConfig (falls back to the
+     * global config, then to a hardcoded default). This is the single source of
+     * truth for the hours threshold — used by both the admin compliance dashboard
+     * and the doctor-facing schedule status calculation, so the two never diverge.
+     */
+    int getRequiredHoursForDoctor(String doctorId, String month);
+
+    /**
      * Update compliance record after schedule change
      */
     DoctorScheduleCompliance updateComplianceAfterScheduleChange(String doctorId);

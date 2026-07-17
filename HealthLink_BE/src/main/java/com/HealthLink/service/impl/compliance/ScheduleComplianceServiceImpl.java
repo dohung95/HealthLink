@@ -3,6 +3,7 @@ package com.HealthLink.service.impl.compliance;
 import com.HealthLink.dto.compliance.*;
 import com.HealthLink.entity.*;
 import com.HealthLink.entity.enums.ComplianceStatus;
+import com.HealthLink.entity.enums.DoctorScheduleStatus;
 import com.HealthLink.entity.enums.NotificationPriority;
 import com.HealthLink.entity.enums.NotificationType;
 import com.HealthLink.entity.enums.ScheduleExceptionType;
@@ -257,6 +258,18 @@ public class ScheduleComplianceServiceImpl implements ScheduleComplianceService 
         log.info("Admin {} exempted doctor {} from compliance for {}: {}",
                 adminUserId, doctorId, month, request.getReason());
 
+        // The compliance record alone doesn't control patient-facing visibility —
+        // Doctor.scheduleStatus does (see DoctorRepository's booking search query).
+        // Without this, an exemption granted here would leave a REJECTED/PENDING
+        // doctor still invisible to patients despite the dashboard showing "Exempted".
+        String currentMonth = LocalDate.now().format(MONTH_FORMATTER);
+        if (month.equals(currentMonth) && doctor.getScheduleStatus() != DoctorScheduleStatus.APPROVED) {
+            doctor.setScheduleStatus(DoctorScheduleStatus.APPROVED);
+            doctor.setNeedsScheduleReconfirmation(false);
+            doctorRepository.save(doctor);
+            log.info("Doctor {} schedule status set to APPROVED due to compliance exemption", doctorId);
+        }
+
         // Notify doctor
         if (doctor.getUser() != null) {
             notificationService.sendWebSocketNotification(
@@ -348,6 +361,14 @@ public class ScheduleComplianceServiceImpl implements ScheduleComplianceService 
     }
 
     // ========== Internal/Scheduler Methods ==========
+
+    @Override
+    @Transactional(readOnly = true)
+    public int getRequiredHoursForDoctor(String doctorId, String month) {
+        validateMonthFormat(month);
+        Doctor doctor = findDoctor(doctorId);
+        return getRequiredHoursForDoctor(doctor, month);
+    }
 
     @Override
     public BigDecimal calculateScheduledHours(String doctorId, String month) {
