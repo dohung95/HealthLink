@@ -248,12 +248,6 @@ const WeeklyScheduleBuilder = ({
         border: `1px solid ${doctorStatus === 'APPROVED' ? '#86efac' : doctorStatus === 'REJECTED' ? '#fca5a5' : '#fde047'}`,
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-          <span className="material-symbols-outlined" style={{
-            fontSize: '1.5rem',
-            color: doctorStatus === 'APPROVED' ? '#16a34a' : doctorStatus === 'REJECTED' ? '#dc2626' : '#ca8a04',
-          }}>
-            {doctorStatus === 'APPROVED' ? 'check_circle' : doctorStatus === 'REJECTED' ? 'cancel' : 'schedule'}
-          </span>
           <div>
             <div style={{ fontWeight: 600, color: doctorStatus === 'APPROVED' ? '#166534' : doctorStatus === 'REJECTED' ? '#991b1b' : '#854d0e' }}>
               {doctorStatus === 'APPROVED' ? 'Schedule Approved' :
@@ -261,10 +255,30 @@ const WeeklyScheduleBuilder = ({
             </div>
             <div style={{ fontSize: '0.875rem', color: doctorStatus === 'APPROVED' ? '#15803d' : doctorStatus === 'REJECTED' ? '#b91c1c' : '#a16207' }}>
               {needsReconfirmation
-                ? `Your schedule from last month carries over and still meets the ${requiredHours}h/month requirement — please reconfirm to stay visible to patients.`
+                ? `Your schedule from last month carries over and still meets the ${requiredHours.toFixed(1)}h/month requirement — please reconfirm to stay visible to patients.`
                 : <>
-                    {totalHours.toFixed(1)}h / {requiredHours}h per month
-                    {doctorStatus !== 'APPROVED' && ` (need ${(requiredHours - totalHours).toFixed(1)}h more)`}
+                    <div>
+                      Total consultation hours this month: <strong>{totalHours.toFixed(1)}h</strong>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', marginTop: '0.25rem' }}>
+                      <span>
+                        {totalHours >= requiredHours
+                          ? `Monthly working hours meet the requirement (${requiredHours.toFixed(1)}h/month)`
+                          : `Monthly working hours do not meet the requirement yet (${requiredHours.toFixed(1)}h/month, need ${(requiredHours - totalHours).toFixed(1)}h more)`}
+                      </span>
+                      {totalHours >= requiredHours && (
+                        <span
+                          className="material-symbols-outlined"
+                          style={{
+                            fontSize: '1rem',
+                            color: '#16a34a',
+                            fontVariationSettings: "'FILL' 0, 'wght' 700, 'GRAD' 0, 'opsz' 24",
+                          }}
+                        >
+                          check
+                        </span>
+                      )}
+                    </div>
                   </>}
             </div>
           </div>

@@ -67,9 +67,6 @@ public class DoctorScheduleServiceImpl implements DoctorScheduleService {
 
     private static final String[] DAY_NAMES = {"Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"};
 
-    // Minimum required working hours per MONTH for APPROVED status
-    private static final double MIN_MONTHLY_HOURS = 80.0;
-
     // Số tháng không đạt chỉ tiêu trong CÙNG MỘT NĂM trước khi tự động ban tài khoản
     private static final int NON_COMPLIANT_MONTHS_BEFORE_BAN = 3;
 
@@ -91,17 +88,30 @@ public class DoctorScheduleServiceImpl implements DoctorScheduleService {
     public WeeklyScheduleResponse getMySchedule(String doctorId) {
         Doctor doctor = findDoctor(doctorId);
 
+        // Self-heal: Doctor.scheduleStatus is a cached field only refreshed on schedule
+        // writes or the monthly cron, so it can go stale (seed data, or any path that
+        // changed the doctor's hours without going through create/deleteSchedule) and
+        // contradict the hours calculated below — e.g. banner says "Approved" while the
+        // text says "0h, need 80h more". Recompute here so the two can never disagree.
+        // Skipped while a reconfirmation prompt is pending, since that flag must only be
+        // cleared by an explicit doctor action, not by opening the page.
+        if (!Boolean.TRUE.equals(doctor.getNeedsScheduleReconfirmation())) {
+            updateDoctorScheduleStatus(doctorId);
+            doctor = findDoctor(doctorId);
+        }
+
         List<DoctorSchedule> schedules = scheduleRepository.findByDoctor_DoctorId(doctorId);
         List<DoctorScheduleException> exceptions = exceptionRepository.findByDoctor_DoctorId(doctorId);
 
         double monthlyHours = calculateMonthlyHours(doctorId);
+        int requiredHours = getRequiredHours(doctorId, YearMonth.now());
 
         return WeeklyScheduleResponse.builder()
                 .doctorId(doctorId)
                 .doctorName(doctor.getFullName())
                 .doctorScheduleStatus(doctor.getScheduleStatus())
                 .totalMonthlyHours(monthlyHours)
-                .requiredMonthlyHours(MIN_MONTHLY_HOURS)
+                .requiredMonthlyHours((double) requiredHours)
                 .needsScheduleReconfirmation(Boolean.TRUE.equals(doctor.getNeedsScheduleReconfirmation()))
                 .schedules(schedules.stream().map(this::mapScheduleToItem).collect(Collectors.toList()))
                 .exceptions(exceptions.stream().map(this::mapExceptionToItem).collect(Collectors.toList()))
@@ -117,7 +127,8 @@ public class DoctorScheduleServiceImpl implements DoctorScheduleService {
         }
 
         double monthlyHours = calculateMonthlyHours(doctorId);
-        if (monthlyHours < MIN_MONTHLY_HOURS) {
+        int requiredHours = getRequiredHours(doctorId, YearMonth.now());
+        if (monthlyHours < requiredHours) {
             throw new BadRequestException("Your schedule no longer meets the minimum required hours. Please add more working hours instead.");
         }
 
@@ -149,11 +160,14 @@ public class DoctorScheduleServiceImpl implements DoctorScheduleService {
                     continue; // No schedule to carry over
                 }
 
+                int requiredPreviousMonthHours = getRequiredHours(doctor.getDoctorId(), previousMonth);
+                int requiredCurrentMonthHours = getRequiredHours(doctor.getDoctorId(), currentMonth);
+
                 double previousMonthHours = calculateHoursForMonth(doctor.getDoctorId(), previousMonth);
                 double currentMonthHours = calculateHoursForMonth(doctor.getDoctorId(), currentMonth);
 
-                boolean metQuotaLastMonth = previousMonthHours >= MIN_MONTHLY_HOURS;
-                boolean carriesOverAndQualifies = currentMonthHours >= MIN_MONTHLY_HOURS;
+                boolean metQuotaLastMonth = previousMonthHours >= requiredPreviousMonthHours;
+                boolean carriesOverAndQualifies = currentMonthHours >= requiredCurrentMonthHours;
 
                 if (metQuotaLastMonth && carriesOverAndQualifies) {
                     // Schedule carried over and still qualifies: force reconfirmation instead of auto-approving
@@ -167,8 +181,8 @@ public class DoctorScheduleServiceImpl implements DoctorScheduleService {
                                 doctor.getUser(),
                                 NotificationType.SCHEDULE_MONTHLY_RECONFIRM_REQUIRED,
                                 "Please Reconfirm Your Schedule",
-                                String.format("Your working schedule carries over into %s and still meets the %.0fh/month requirement. Please reconfirm to keep it active for patient bookings.",
-                                        currentMonthLabel, MIN_MONTHLY_HOURS),
+                                String.format("Your working schedule carries over into %s and still meets the %dh/month requirement. Please reconfirm to keep it active for patient bookings.",
+                                        currentMonthLabel, requiredCurrentMonthHours),
                                 null,
                                 "/doctor/schedule"
                         );
@@ -181,15 +195,15 @@ public class DoctorScheduleServiceImpl implements DoctorScheduleService {
                     int failedMonths = registerNonCompliantMonth(doctor, currentMonth.getYear());
 
                     if (failedMonths >= NON_COMPLIANT_MONTHS_BEFORE_BAN) {
-                        banDoctorForNonCompliance(doctor, currentMonth.getYear(), currentMonthLabel, failedMonths);
+                        banDoctorForNonCompliance(doctor, currentMonth.getYear(), currentMonthLabel, failedMonths, requiredPreviousMonthHours);
                         bannedCount++;
                     } else if (doctor.getUser() != null) {
                         String message = failedMonths == NON_COMPLIANT_MONTHS_BEFORE_BAN - 1
-                                ? String.format("You did not meet the %.0fh/month requirement last month — that is %d month(s) missed in %d. "
+                                ? String.format("You did not meet the %dh/month requirement last month — that is %d month(s) missed in %d. "
                                         + "If you miss the requirement one more time this year, your account will be automatically banned.",
-                                        MIN_MONTHLY_HOURS, failedMonths, currentMonth.getYear())
-                                : String.format("You did not meet the %.0fh/month requirement last month. Please add more working hours for %s so patients can book with you.",
-                                        MIN_MONTHLY_HOURS, currentMonthLabel);
+                                        requiredPreviousMonthHours, failedMonths, currentMonth.getYear())
+                                : String.format("You did not meet the %dh/month requirement last month. Please add more working hours for %s so patients can book with you.",
+                                        requiredPreviousMonthHours, currentMonthLabel);
 
                         notificationService.sendWebSocketNotification(
                                 doctor.getUser(),
@@ -235,7 +249,7 @@ public class DoctorScheduleServiceImpl implements DoctorScheduleService {
      * Tự động ban tài khoản (giống Admin ban thủ công trong trang quản lý bác sĩ) khi bác sĩ
      * không đạt chỉ tiêu giờ làm việc {@value #NON_COMPLIANT_MONTHS_BEFORE_BAN} tháng trong cùng một năm.
      */
-    private void banDoctorForNonCompliance(Doctor doctor, int year, String currentMonthLabel, int failedMonths) {
+    private void banDoctorForNonCompliance(Doctor doctor, int year, String currentMonthLabel, int failedMonths, int requiredHours) {
         User user = doctor.getUser();
         if (user == null) {
             return;
@@ -252,8 +266,8 @@ public class DoctorScheduleServiceImpl implements DoctorScheduleService {
                 user,
                 NotificationType.DOCTOR_ACCOUNT_BANNED_NON_COMPLIANCE,
                 "Account Banned",
-                String.format("Your account has been automatically banned for not meeting the %.0fh/month working-hours requirement in %d months of %d (as of %s).",
-                        MIN_MONTHLY_HOURS, failedMonths, year, currentMonthLabel),
+                String.format("Your account has been automatically banned for not meeting the %dh/month working-hours requirement in %d months of %d (as of %s).",
+                        requiredHours, failedMonths, year, currentMonthLabel),
                 null,
                 "/doctor/schedule"
         );
@@ -261,8 +275,8 @@ public class DoctorScheduleServiceImpl implements DoctorScheduleService {
         adminNotificationService.notifyAllAdmins(
                 NotificationType.DOCTOR_ACCOUNT_BANNED_NON_COMPLIANCE,
                 "Doctor Auto-Banned: " + doctor.getFullName(),
-                String.format("Dr. %s (%s) was automatically banned after failing to meet the %.0fh/month requirement for %d months in %d. Review in Doctor Management if needed.",
-                        doctor.getFullName(), doctor.getDoctorId(), MIN_MONTHLY_HOURS, failedMonths, year),
+                String.format("Dr. %s (%s) was automatically banned after failing to meet the %dh/month requirement for %d months in %d. Review in Doctor Management if needed.",
+                        doctor.getFullName(), doctor.getDoctorId(), requiredHours, failedMonths, year),
                 NotificationPriority.HIGH,
                 null,
                 "/admin/doctors?doctorId=" + doctor.getDoctorId()
@@ -835,6 +849,15 @@ public class DoctorScheduleServiceImpl implements DoctorScheduleService {
     }
 
     /**
+     * Required monthly hours for this doctor/month. Delegates to ScheduleComplianceService
+     * so the doctor-facing schedule status and the admin compliance dashboard always agree
+     * (specialty-specific overrides live in ScheduleComplianceConfig, not a local constant).
+     */
+    private int getRequiredHours(String doctorId, YearMonth month) {
+        return complianceService.getRequiredHoursForDoctor(doctorId, month.toString());
+    }
+
+    /**
      * Update compliance status asynchronously after schedule changes.
      * Wrapped in try-catch to prevent compliance errors from affecting schedule operations.
      */
@@ -936,8 +959,8 @@ public class DoctorScheduleServiceImpl implements DoctorScheduleService {
     /**
      * Update Doctor.scheduleStatus based on total monthly hours.
      * - PENDING: No schedules
-     * - APPROVED: >= 80 hours/month
-     * - REJECTED: < 80 hours/month but has schedules
+     * - APPROVED: >= required hours/month (specialty-specific, see ScheduleComplianceConfig)
+     * - REJECTED: < required hours/month but has schedules
      */
     private void updateDoctorScheduleStatus(String doctorId) {
         Doctor doctor = findDoctor(doctorId);
@@ -952,13 +975,14 @@ public class DoctorScheduleServiceImpl implements DoctorScheduleService {
             newStatus = DoctorScheduleStatus.PENDING;
         } else {
             double monthlyHours = calculateMonthlyHours(doctorId);
-            if (monthlyHours >= MIN_MONTHLY_HOURS) {
+            int requiredHours = getRequiredHours(doctorId, YearMonth.now());
+            if (monthlyHours >= requiredHours) {
                 newStatus = DoctorScheduleStatus.APPROVED;
             } else {
                 newStatus = DoctorScheduleStatus.REJECTED;
             }
             log.info("Doctor {} monthly hours: {}h (required: {}h) -> {}",
-                    doctorId, String.format("%.1f", monthlyHours), MIN_MONTHLY_HOURS, newStatus);
+                    doctorId, String.format("%.1f", monthlyHours), requiredHours, newStatus);
         }
 
         // Any manual schedule edit resolves a pending monthly reconfirmation prompt
@@ -981,18 +1005,19 @@ public class DoctorScheduleServiceImpl implements DoctorScheduleService {
     private void notifyDoctorScheduleStatusChange(Doctor doctor, DoctorScheduleStatus oldStatus, DoctorScheduleStatus newStatus) {
         if (doctor.getUser() == null) return;
 
+        int requiredHours = getRequiredHours(doctor.getDoctorId(), YearMonth.now());
         String title;
         String message;
 
         switch (newStatus) {
             case APPROVED:
                 title = "Schedule Approved";
-                message = "Your schedule meets the minimum requirement (80 hours/month). You are now visible to patients for booking.";
+                message = String.format("Your schedule meets the minimum requirement (%d hours/month). You are now visible to patients for booking.", requiredHours);
                 break;
             case REJECTED:
                 double currentHours = calculateMonthlyHours(doctor.getDoctorId());
                 title = "Schedule Not Approved";
-                message = String.format("Your current schedule is %.1f hours/month. You need at least 80 hours/month to be visible to patients.", currentHours);
+                message = String.format("Your current schedule is %.1f hours/month. You need at least %d hours/month to be visible to patients.", currentHours, requiredHours);
                 break;
             case PENDING:
                 title = "Schedule Pending";

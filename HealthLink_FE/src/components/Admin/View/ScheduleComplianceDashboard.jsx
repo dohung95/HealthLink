@@ -400,19 +400,6 @@ export default function ScheduleComplianceDashboard() {
                   <p className="compliance-page-subtitle mb-0">Monitor schedules and compliance status</p>
                 </div>
               </div>
-              <select
-                className="compliance-filter-select"
-                style={{ width: '160px' }}
-                value={selectedMonth}
-                onChange={(e) => {
-                  setSelectedMonth(e.target.value);
-                  setPageNumber(1);
-                }}
-              >
-                {monthOptions.map((opt) => (
-                  <option key={opt.value} value={opt.value}>{opt.label}</option>
-                ))}
-              </select>
             </div>
           </div>
 
@@ -524,7 +511,20 @@ export default function ScheduleComplianceDashboard() {
                 <i className="bi bi-x-circle"></i>
                 Clear
               </button>
-              <div style={{ marginLeft: 'auto' }}>
+              <div style={{ marginLeft: 'auto', display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'flex-end' }}>
+                <select
+                  className="compliance-filter-select"
+                  style={{ width: '160px' }}
+                  value={selectedMonth}
+                  onChange={(e) => {
+                    setSelectedMonth(e.target.value);
+                    setPageNumber(1);
+                  }}
+                >
+                  {monthOptions.map((opt) => (
+                    <option key={opt.value} value={opt.value}>{opt.label}</option>
+                  ))}
+                </select>
                 <button className="compliance-btn primary" onClick={fetchData}>
                   <i className="bi bi-arrow-clockwise"></i>
                   Refresh
