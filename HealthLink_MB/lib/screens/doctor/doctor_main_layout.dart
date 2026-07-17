@@ -78,8 +78,7 @@ class _DoctorMainLayoutState extends State<DoctorMainLayout> {
   void initState() {
     super.initState();
     _screens = [
-      DoctorHomeScreen(
-          onViewAllAppointments: () => setState(() => _currentIndex = 1)),
+      const DoctorHomeScreen(),
       const DoctorChatScreen(),
       const DoctorPatientsScreen(),
       const DoctorPrescriptionsScreen(),
@@ -195,6 +194,7 @@ class _DoctorMainLayoutState extends State<DoctorMainLayout> {
   @override
   Widget build(BuildContext context) {
     final auth = context.watch<AuthProvider>();
+    final chatUnreadCount = context.watch<ChatProvider>().totalUnreadCount;
 
     final isHomeTab = _currentIndex == 0;
 
@@ -242,6 +242,7 @@ class _DoctorMainLayoutState extends State<DoctorMainLayout> {
       bottomNavigationBar: _BottomNav(
         tabs: _tabs,
         currentIndex: _currentIndex,
+        chatUnreadCount: chatUnreadCount,
         onTap: (i) => setState(() => _currentIndex = i),
       ),
     );
@@ -529,11 +530,13 @@ class _WhiteIconButton extends StatelessWidget {
 class _BottomNav extends StatelessWidget {
   final List<_TabItem> tabs;
   final int currentIndex;
+  final int chatUnreadCount;
   final ValueChanged<int> onTap;
 
   const _BottomNav({
     required this.tabs,
     required this.currentIndex,
+    required this.chatUnreadCount,
     required this.onTap,
   });
 
@@ -561,6 +564,7 @@ class _BottomNav extends StatelessWidget {
           children: List.generate(tabs.length, (index) {
             final tab = tabs[index];
             final isActive = currentIndex == index;
+            final showChatBadge = tab.label == 'Chat' && chatUnreadCount > 0;
 
             return Expanded(
               child: GestureDetector(
@@ -569,12 +573,39 @@ class _BottomNav extends StatelessWidget {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Icon(
-                      isActive ? tab.activeIcon : tab.icon,
-                      size: 33,
-                      color: isActive
-                          ? DoctorStyles.primary
-                          : DoctorStyles.mutedForeground,
+                    Stack(
+                      clipBehavior: Clip.none,
+                      children: [
+                        Icon(
+                          isActive ? tab.activeIcon : tab.icon,
+                          size: 33,
+                          color: isActive
+                              ? DoctorStyles.primary
+                              : DoctorStyles.mutedForeground,
+                        ),
+                        if (showChatBadge)
+                          Positioned(
+                            right: -6,
+                            top: -4,
+                            child: Container(
+                              padding: const EdgeInsets.all(3),
+                              constraints: const BoxConstraints(minWidth: 17, minHeight: 17),
+                              decoration: const BoxDecoration(
+                                color: Color(0xFFFF4444),
+                                shape: BoxShape.circle,
+                              ),
+                              child: Text(
+                                chatUnreadCount > 99 ? '99+' : '$chatUnreadCount',
+                                style: const TextStyle(
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                            ),
+                          ),
+                      ],
                     ),
                     const SizedBox(height: 3),
                     Text(

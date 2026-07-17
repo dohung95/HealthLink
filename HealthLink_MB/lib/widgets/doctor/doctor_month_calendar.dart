@@ -31,9 +31,9 @@ class _DoctorMonthCalendarState extends State<DoctorMonthCalendar> {
   bool _loading = false;
   Map<String, CalendarDay> _dayMap = {};
 
-  /// Mặc định thu gọn — chỉ hiện dòng tóm tắt ngày đang chọn, bấm vào mới xổ
-  /// ra lưới chọn ngày đầy đủ.
-  bool _expanded = false;
+  /// Mở sẵn cả tháng — Doctor Home cần thấy toàn bộ lịch ngay, không phải bấm
+  /// mới xổ ra.
+  bool _expanded = true;
 
   String get _selectedDateLabel {
     final today = _dateOnly(DateTime.now());
@@ -293,14 +293,35 @@ class _DayCell extends StatelessWidget {
       border = Border.all(color: DS.primary, width: 1.5);
     }
 
+    // Chấm nhỏ dưới số ngày — đánh dấu rõ ràng ngày có cuộc hẹn (BOOKED/HELD),
+    // không phụ thuộc vào nền tint (dễ bỏ sót khi màu nhạt). Xếp bằng Column
+    // (không phải Stack tuyệt đối) và luôn chừa chỗ cho chấm ở MỌI ô — tránh
+    // chấm đè lên số ngày và tránh số ngày bị lệch dòng giữa các ô có/không
+    // có cuộc hẹn.
+    final dotColor = cell.isSelected ? DS.primaryForeground : DS.primary;
+
     return GestureDetector(
       onTap: onTap,
       child: Container(
         decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(8), border: border),
         alignment: Alignment.center,
-        child: Text(
-          '${cell.date!.day}',
-          style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: fg),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(
+              '${cell.date!.day}',
+              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: fg),
+            ),
+            const SizedBox(height: 3),
+            SizedBox(
+              width: 4,
+              height: 4,
+              child: cell.isScheduled
+                  ? DecoratedBox(decoration: BoxDecoration(shape: BoxShape.circle, color: dotColor))
+                  : null,
+            ),
+          ],
         ),
       ),
     );

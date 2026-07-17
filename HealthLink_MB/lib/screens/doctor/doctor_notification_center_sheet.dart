@@ -224,6 +224,7 @@ class _NotificationCard extends StatelessWidget {
       case 'NEW_APPOINTMENT':
       case 'APPOINTMENT_CONFIRMED':
       case 'APPOINTMENT_CANCELLED':
+      case 'ADMIN_APPOINTMENT_CANCEL':
         bgColor = DS.primary.withOpacity(0.15);
         iconColor = DS.primary;
         icon = Icons.calendar_today_outlined;

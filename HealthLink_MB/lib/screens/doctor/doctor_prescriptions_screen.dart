@@ -81,13 +81,27 @@ class _DoctorPrescriptionsScreenState
   List<Map<String, dynamic>> get _filtered {
     return _all.where((p) {
       final status = (p['status'] as String? ?? '').toUpperCase();
-      final patientName =
-          (p['patientName'] as String? ?? '').toLowerCase();
       final matchFilter = _filter == 'ALL' || status == _filter;
-      final matchSearch =
-          _search.isEmpty || patientName.contains(_search.toLowerCase());
+      final matchSearch = _search.isEmpty || _searchHaystack(p).contains(_search.toLowerCase());
       return matchFilter && matchSearch;
     }).toList();
+  }
+
+  /// Khớp `DoctorPrescriptionsView.jsx` (web): tìm theo tên bệnh nhân, mã đơn
+  /// (RX-ID), và tên thuốc — không chỉ tên bệnh nhân như trước.
+  String _searchHaystack(Map<String, dynamic> p) {
+    final headerId = p['prescriptionHeaderId'];
+    final rxId = headerId != null ? 'rx-${headerId.toString().padLeft(4, '0')}' : '';
+    final items = p['items'] as List<dynamic>? ?? [];
+    final medicationNames = items
+        .map((e) => (e as Map)['medicationName']?.toString() ?? '')
+        .where((s) => s.isNotEmpty);
+    return [
+      p['patientName']?.toString() ?? '',
+      headerId?.toString() ?? '',
+      rxId,
+      ...medicationNames,
+    ].join(' ').toLowerCase();
   }
 
   Color _statusColor(String? status) {
@@ -138,7 +152,7 @@ class _DoctorPrescriptionsScreenState
         onChanged: (v) => setState(() => _search = v),
         style: const TextStyle(fontSize: 14, color: DS.foreground),
         decoration: InputDecoration(
-          hintText: 'Search by patient name...',
+          hintText: 'Search by ID, patient, or medication...',
           hintStyle: const TextStyle(color: DS.mutedForeground, fontSize: 14),
           prefixIcon:
               const Icon(Icons.search, color: DS.mutedForeground, size: 20),
