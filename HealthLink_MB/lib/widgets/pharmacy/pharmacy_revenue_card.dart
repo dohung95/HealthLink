@@ -46,10 +46,6 @@ class PharmacyRevenueCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   header,
-                  if (provider.range != PharmacyRevenueRange.week) ...[
-                    const SizedBox(height: 4),
-                    _buildPeriodSelector(theme, provider),
-                  ],
                   const SizedBox(height: 8),
                   _buildBarChart(theme, provider),
                   const SizedBox(height: 4),
@@ -169,71 +165,6 @@ class PharmacyRevenueCard extends StatelessWidget {
         ),
       ),
     );
-  }
-
-  Widget _buildPeriodSelector(
-    ThemeData theme,
-    PharmacyRevenueProvider provider,
-  ) {
-    final isMonth = provider.range == PharmacyRevenueRange.month;
-    final label = isMonth
-        ? '${_monthName(provider.selectedMonth)} ${provider.selectedYear}'
-        : '${provider.selectedYear}';
-
-    return SizedBox(
-      height: 44,
-      child: Row(
-        children: [
-          IconButton(
-            icon: const Icon(Icons.chevron_left),
-            tooltip: isMonth ? 'Previous month' : 'Previous year',
-            onPressed: () => _selectPreviousPeriod(provider),
-          ),
-          Expanded(
-            child: Text(
-              label,
-              textAlign: TextAlign.center,
-              style: theme.textTheme.labelLarge?.copyWith(
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-          IconButton(
-            icon: const Icon(Icons.chevron_right),
-            tooltip: isMonth ? 'Next month' : 'Next year',
-            onPressed: () => _selectNextPeriod(provider),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _selectPreviousPeriod(PharmacyRevenueProvider provider) {
-    if (provider.range == PharmacyRevenueRange.month) {
-      final month = provider.selectedMonth == 1
-          ? 12
-          : provider.selectedMonth - 1;
-      final year = provider.selectedMonth == 1
-          ? provider.selectedYear - 1
-          : provider.selectedYear;
-      provider.selectMonth(month, year);
-      return;
-    }
-    provider.selectYear(provider.selectedYear - 1);
-  }
-
-  void _selectNextPeriod(PharmacyRevenueProvider provider) {
-    if (provider.range == PharmacyRevenueRange.month) {
-      final month = provider.selectedMonth == 12
-          ? 1
-          : provider.selectedMonth + 1;
-      final year = provider.selectedMonth == 12
-          ? provider.selectedYear + 1
-          : provider.selectedYear;
-      provider.selectMonth(month, year);
-      return;
-    }
-    provider.selectYear(provider.selectedYear + 1);
   }
 
   Widget _buildBarChart(ThemeData theme, PharmacyRevenueProvider provider) {
@@ -400,24 +331,6 @@ class PharmacyRevenueCard extends StatelessWidget {
     }
 
     return const SizedBox(height: 0);
-  }
-
-  static String _monthName(int month) {
-    const names = [
-      'Jan',
-      'Feb',
-      'Mar',
-      'Apr',
-      'May',
-      'Jun',
-      'Jul',
-      'Aug',
-      'Sep',
-      'Oct',
-      'Nov',
-      'Dec',
-    ];
-    return names[month - 1];
   }
 
   static String _timeAgo(DateTime value) {

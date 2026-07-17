@@ -17,8 +17,6 @@ class PharmacyRevenueCalculator {
     required List<PartnerTransaction> transactions,
     required PharmacyRevenueRange range,
     required DateTime now,
-    int? selectedMonth,
-    int? selectedYear,
   }) {
     final eligible = transactions
         .where((t) => t.status.toUpperCase() != 'REFUNDED')
@@ -28,13 +26,13 @@ class PharmacyRevenueCalculator {
       case PharmacyRevenueRange.week:
         return _buildWeek(eligible, now);
       case PharmacyRevenueRange.month:
-        return _buildMonth(eligible, now, selectedMonth ?? now.month);
+        return _buildMonth(eligible, now);
       case PharmacyRevenueRange.year:
-        return _buildYear(eligible, now, selectedYear ?? now.year);
+        return _buildYear(eligible, now);
     }
   }
 
-  /// ── Week ──────────────────────────────────────────────────────────────
+  /// ── Week: last 7 days ─────────────────────────────────────────────────
 
   static PharmacyRevenueSeries _buildWeek(
     List<PartnerTransaction> eligible,
@@ -42,7 +40,6 @@ class PharmacyRevenueCalculator {
   ) {
     final today = DateTime(now.year, now.month, now.day);
 
-    // Current week: 7 days ending at today
     final weekStart = today.subtract(const Duration(days: 6));
     final buckets = <PharmacyRevenueBucket>[];
 
@@ -55,7 +52,7 @@ class PharmacyRevenueCalculator {
       }).toList();
 
       buckets.add(PharmacyRevenueBucket(
-        label: _shortWeekday(day),
+        label: _shortDate(day),
         start: day,
         end: day,
         amount: isFutureDay ? null : _sumNet(dayTransactions),
@@ -82,57 +79,42 @@ class PharmacyRevenueCalculator {
     );
   }
 
-  /// ── Month ─────────────────────────────────────────────────────────────
+  /// ── Month: last 30 days ───────────────────────────────────────────────
 
   static PharmacyRevenueSeries _buildMonth(
     List<PartnerTransaction> eligible,
     DateTime now,
-    int month,
   ) {
-    final year = now.month >= month ? now.year : now.year - 1;
     final today = DateTime(now.year, now.month, now.day);
-    final monthStart = DateTime(year, month, 1);
-    final monthEnd = DateTime(year, month + 1, 0);
 
-    final isCurrentMonth = year == now.year && month == now.month;
-
-    // W1 = days 1-7, W2 = 8-14, W3 = 15-21, W4 = 22-end
-    final weekDefs = [
-      (label: 'W1', start: monthStart, end: DateTime(year, month, 7)),
-      (label: 'W2', start: DateTime(year, month, 8), end: DateTime(year, month, 14)),
-      (label: 'W3', start: DateTime(year, month, 15), end: DateTime(year, month, 21)),
-      (label: 'W4', start: DateTime(year, month, 22), end: monthEnd),
-    ];
-
+    final start = today.subtract(const Duration(days: 29));
     final buckets = <PharmacyRevenueBucket>[];
-    for (final def in weekDefs) {
-      final isFutureWeek = isCurrentMonth && def.start.isAfter(today);
-      final weekTransactions = eligible.where((t) {
-        final d = DateTime(t.createdAt.year, t.createdAt.month, t.createdAt.day);
-        return !d.isBefore(def.start) && !d.isAfter(def.end) && !d.isAfter(today);
+
+    for (int i = 0; i < 30; i++) {
+      final day = start.add(Duration(days: i));
+      final isFutureDay = day.isAfter(today);
+      final dayTransactions = eligible.where((t) {
+        final txDate = DateTime(t.createdAt.year, t.createdAt.month, t.createdAt.day);
+        return txDate == day;
       }).toList();
 
-      final amount = isFutureWeek
-          ? null
-          : (weekTransactions.isEmpty ? 0.0 : _sumNet(weekTransactions));
-
       buckets.add(PharmacyRevenueBucket(
-        label: def.label,
-        start: def.start,
-        end: def.end,
-        amount: amount,
-        transactionCount: isFutureWeek ? 0 : weekTransactions.length,
+        label: _shortDate(day),
+        start: day,
+        end: day,
+        amount: isFutureDay ? null : _sumNet(dayTransactions),
+        transactionCount: isFutureDay ? 0 : dayTransactions.length,
       ));
     }
 
     final total = _sumNonNull(buckets);
 
-    // Previous month
-    final prevMonthStart = monthStart.subtract(const Duration(days: 1));
-    final prevMonthFirst = DateTime(prevMonthStart.year, prevMonthStart.month, 1);
+    // Previous 30 days: 30 days before start
+    final prevEnd = start.subtract(const Duration(days: 1));
+    final prevStart = prevEnd.subtract(const Duration(days: 29));
     final previousTotal = _sumNet(eligible.where((t) {
       final d = DateTime(t.createdAt.year, t.createdAt.month, t.createdAt.day);
-      return !d.isBefore(prevMonthFirst) && !d.isAfter(prevMonthStart);
+      return !d.isBefore(prevStart) && !d.isAfter(prevEnd);
     }).toList());
 
     return PharmacyRevenueSeries(
@@ -140,26 +122,34 @@ class PharmacyRevenueCalculator {
       buckets: buckets,
       total: total,
       previousTotal: previousTotal,
-      transactionCount: _countInRange(eligible, monthStart, isCurrentMonth ? today : monthEnd),
+      transactionCount: _countInRange(eligible, start, today),
     );
   }
 
-  /// ── Year ──────────────────────────────────────────────────────────────
+  /// ── Year: last 12 months ──────────────────────────────────────────────
 
   static PharmacyRevenueSeries _buildYear(
     List<PartnerTransaction> eligible,
     DateTime now,
-    int year,
   ) {
     final today = DateTime(now.year, now.month, now.day);
-    final isCurrentYear = year == now.year;
+    final currentMonth = DateTime(today.year, today.month, 1);
 
     final buckets = <PharmacyRevenueBucket>[];
-    for (int m = 1; m <= 12; m++) {
-      final monthStart = DateTime(year, m, 1);
-      final monthEnd = DateTime(year, m + 1, 0);
-      final isFutureMonth = isCurrentYear && m > now.month;
-      final cutoffEnd = isCurrentYear && m == now.month ? today : monthEnd;
+    for (int i = 11; i >= 0; i--) {
+      final monthStart = DateTime(
+        currentMonth.year,
+        currentMonth.month - i,
+        1,
+      );
+      final monthEnd = DateTime(
+        monthStart.year,
+        monthStart.month + 1,
+        0,
+      );
+      final isCurrentMonthBucket = i == 0;
+      final isFutureMonth = monthStart.isAfter(today);
+      final cutoffEnd = isCurrentMonthBucket ? today : monthEnd;
 
       final monthTx = eligible.where((t) {
         final d = DateTime(t.createdAt.year, t.createdAt.month, t.createdAt.day);
@@ -167,7 +157,7 @@ class PharmacyRevenueCalculator {
       }).toList();
 
       buckets.add(PharmacyRevenueBucket(
-        label: _shortMonth(m),
+        label: _shortMonth(monthStart.month),
         start: monthStart,
         end: monthEnd,
         amount: isFutureMonth ? null : (monthTx.isEmpty ? 0.0 : _sumNet(monthTx)),
@@ -177,18 +167,21 @@ class PharmacyRevenueCalculator {
 
     final total = _sumNonNull(buckets);
 
-    // Previous year same date range
-    final prevYear = year - 1;
-    final currentElapsedEnd = isCurrentYear ? today : DateTime(year, 12, 31);
-    final prevElapsedEnd = DateTime(
-      prevYear,
-      currentElapsedEnd.month,
-      currentElapsedEnd.day,
+    // Previous 12 months
+    final prevAnchor = DateTime(
+      currentMonth.year,
+      currentMonth.month - 12,
+      1,
     );
-    final prevYearStart = DateTime(prevYear, 1, 1);
+    final prevStart = prevAnchor;
+    final prevEnd = DateTime(
+      prevAnchor.year,
+      prevAnchor.month + 12,
+      0,
+    );
     final previousTotal = _sumNet(eligible.where((t) {
       final d = DateTime(t.createdAt.year, t.createdAt.month, t.createdAt.day);
-      return !d.isBefore(prevYearStart) && !d.isAfter(prevElapsedEnd);
+      return !d.isBefore(prevStart) && !d.isAfter(prevEnd);
     }).toList());
 
     return PharmacyRevenueSeries(
@@ -198,8 +191,8 @@ class PharmacyRevenueCalculator {
       previousTotal: previousTotal,
       transactionCount: _countInRange(
         eligible,
-        DateTime(year, 1, 1),
-        isCurrentYear ? today : DateTime(year, 12, 31),
+        buckets.first.start,
+        buckets.last.end,
       ),
     );
   }
@@ -237,10 +230,12 @@ class PharmacyRevenueCalculator {
     return count;
   }
 
-  static String _shortWeekday(DateTime d) {
-    const labels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-    // DateTime.weekday: 1=Monday … 7=Sunday
-    return labels[d.weekday - 1];
+  static String _shortDate(DateTime d) {
+    const months = [
+      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+    ];
+    return '${months[d.month - 1]} ${d.day}';
   }
 
   static String _shortMonth(int m) {
