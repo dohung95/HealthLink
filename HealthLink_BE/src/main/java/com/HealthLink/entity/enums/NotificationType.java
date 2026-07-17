@@ -44,6 +44,7 @@ public enum NotificationType {
     // Review notifications
     NEW_REVIEW,                     // Doctor: Có review mới
     REVIEW_REPLY,                    // Patient: Doctor/Admin đã phản hồi review
+    REVIEW_PENDING_MODERATION,       // Admin: review bị AI flag hoặc AI không xử lý được, cần duyệt thủ công
 
     CLINICAL_RESULT_PUBLISHED,   // Patient: doctor published a lab/clinical result
 

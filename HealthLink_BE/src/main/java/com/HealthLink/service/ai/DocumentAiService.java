@@ -2,6 +2,7 @@ package com.HealthLink.service.ai;
 
 import com.HealthLink.dto.ai.CVParseResult;
 import com.HealthLink.dto.ai.DocumentScreeningResult;
+import com.HealthLink.dto.ai.ReviewModerationResult;
 import com.HealthLink.dto.response.HomeVisitInfoScanResponse;
 
 /**
@@ -48,4 +49,12 @@ public interface DocumentAiService {
     String extractTextFromDOCX(byte[] fileContent);
 
     HomeVisitInfoScanResponse parseHomeVisitInfo(String fileContent, String mimeType);
+
+    /**
+     * Classify a patient review's text before it is published.
+     * @param comment Review text
+     * @param rating Star rating (1-5), given for context
+     * @return Moderation result (flagged + reason)
+     */
+    ReviewModerationResult moderateReviewText(String comment, int rating);
 }

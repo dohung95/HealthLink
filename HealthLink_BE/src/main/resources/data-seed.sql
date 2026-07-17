@@ -3,6 +3,25 @@
 -- Sample records per table (following FK dependencies order)
 -- =====================================================
 
+-- Schema safety net for migration-v24-add-review-ai-moderation.sql: Hibernate's
+-- ddl-auto=update creates the Reviews.AiFlagged/ModerationReason columns on first
+-- app startup, but WITHOUT a DEFAULT constraint on AiFlagged - so the INSERT INTO
+-- Reviews below (which doesn't list these columns) would fail/insert NULL into a
+-- primitive boolean field. Run this once here so a fresh DB + reseed never needs
+-- migration-v24 run separately.
+IF COL_LENGTH('dbo.Reviews', 'AiFlagged') IS NULL
+    ALTER TABLE dbo.Reviews ADD AiFlagged BIT NOT NULL CONSTRAINT DF_Reviews_AiFlagged DEFAULT 0;
+ELSE IF NOT EXISTS (SELECT 1 FROM sys.default_constraints WHERE parent_object_id = OBJECT_ID('dbo.Reviews') AND name = 'DF_Reviews_AiFlagged')
+BEGIN
+    UPDATE dbo.Reviews SET AiFlagged = 0 WHERE AiFlagged IS NULL;
+    ALTER TABLE dbo.Reviews ALTER COLUMN AiFlagged BIT NOT NULL;
+    ALTER TABLE dbo.Reviews ADD CONSTRAINT DF_Reviews_AiFlagged DEFAULT 0 FOR AiFlagged;
+END
+
+IF COL_LENGTH('dbo.Reviews', 'ModerationReason') IS NULL
+    ALTER TABLE dbo.Reviews ADD ModerationReason NVARCHAR(1000) NULL;
+GO
+
 -- 1. ROLES (4 basic roles)
 INSERT INTO Roles (Id, Name) VALUES
 ('admin', 'ADMIN'),

@@ -61,4 +61,11 @@ public class Review {
 
     @Column(name = "AdminReplyDate")
     private LocalDateTime adminReplyDate;
+
+    @Column(name = "AiFlagged")
+    @Builder.Default
+    private boolean aiFlagged = false;
+
+    @Column(name = "ModerationReason", length = 1000)
+    private String moderationReason;
 }

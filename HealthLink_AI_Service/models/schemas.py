@@ -78,6 +78,16 @@ class HomeVisitScanResult(BaseModel):
     error: Optional[str] = None
 
 
+class ReviewModerationRequest(BaseModel):
+    comment: str
+    rating: int
+
+
+class ReviewModerationResult(BaseModel):
+    flagged: bool
+    reason: str = ""
+
+
 class HealthCheckResponse(BaseModel):
     status: str
     service: str

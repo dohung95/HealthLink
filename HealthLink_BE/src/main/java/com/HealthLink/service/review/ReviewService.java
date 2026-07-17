@@ -1,5 +1,6 @@
 package com.HealthLink.service.review;
 
+import com.HealthLink.dto.ai.ReviewModerationResult;
 import com.HealthLink.dto.review.*;
 import com.HealthLink.entity.*;
 import com.HealthLink.entity.enums.NotificationPriority;
@@ -8,8 +9,11 @@ import com.HealthLink.repository.appointment.AppointmentRepository;
 import com.HealthLink.repository.doctor.DoctorRepository;
 import com.HealthLink.repository.patient.PatientRepository;
 import com.HealthLink.repository.review.ReviewRepository;
+import com.HealthLink.service.admin.AdminNotificationService;
+import com.HealthLink.service.ai.DocumentAiService;
 import com.HealthLink.service.notification.NotificationService;
 import com.HealthLink.dto.chat.MessageDTO;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -38,6 +42,11 @@ public class ReviewService {
     private final DoctorRepository doctorRepository;
     private final NotificationService notificationService;
     private final SimpMessagingTemplate messagingTemplate;
+    private final DocumentAiService documentAiService;
+    private final AdminNotificationService adminNotificationService;
+
+    @Value("${review.moderation.enabled:true}")
+    private boolean reviewModerationEnabled;
 
     // =========================================================================
     // PATIENT METHODS
@@ -91,6 +100,16 @@ public class ReviewService {
             throw new IllegalStateException("Appointment has already been reviewed");
         }
 
+        // AI moderation - runs synchronously before the review is ever visible. On failure this
+        // fails closed (flagged=true) so nothing unmoderated slips through; see LocalAIServiceImpl.
+        boolean flagged = false;
+        String moderationReason = null;
+        if (reviewModerationEnabled) {
+            ReviewModerationResult moderation = documentAiService.moderateReviewText(dto.getComment(), dto.getRating());
+            flagged = moderation.isFlagged();
+            moderationReason = moderation.getReason();
+        }
+
         // Create review
         Review review = Review.builder()
                 .patient(appointment.getPatient())
@@ -100,13 +119,15 @@ public class ReviewService {
                 .comment(dto.getComment())
                 .anonymous(dto.isAnonymous())
                 .reviewDate(LocalDateTime.now())
-                .visible(true)
+                .visible(!flagged)
+                .aiFlagged(flagged)
+                .moderationReason(moderationReason)
                 .helpfulCount(0)
                 .build();
 
         review = reviewRepository.save(review);
-        log.info("Review created: id={}, appointmentId={}, doctorId={}",
-                review.getReviewId(), dto.getAppointmentId(), appointment.getDoctor().getDoctorId());
+        log.info("Review created: id={}, appointmentId={}, doctorId={}, flagged={}",
+                review.getReviewId(), dto.getAppointmentId(), appointment.getDoctor().getDoctorId(), flagged);
 
         try {
             MessageDTO sysMsg = MessageDTO.builder()
@@ -120,11 +141,17 @@ public class ReviewService {
             log.error("Failed to send STOMP message for review submission", e);
         }
 
-        // Update doctor's average rating
+        // Update doctor's average rating (hidden/flagged reviews are excluded by the query itself)
         updateDoctorRating(appointment.getDoctor().getDoctorId());
 
-        // Send notification to doctor
-        sendNewReviewNotification(review);
+        // Only notify the doctor once the review is actually public - a flagged review is still
+        // pending admin review and shouldn't be announced yet. Instead, alert admins so the
+        // moderation queue doesn't rely on someone remembering to check it.
+        if (!flagged) {
+            sendNewReviewNotification(review);
+        } else {
+            notifyAdminReviewPendingModeration(review);
+        }
 
         return mapToResponseDto(review);
     }
@@ -391,6 +418,29 @@ public class ReviewService {
         }
     }
 
+    private void notifyAdminReviewPendingModeration(Review review) {
+        try {
+            String patientName = review.isAnonymous() ? "Anonymous Patient" : review.getPatient().getFullName();
+            String title = "Review Flagged for Moderation";
+            String message = String.format(
+                    "A %d-star review from %s for Dr. %s was hidden pending manual review. Reason: %s",
+                    review.getRating(), patientName, review.getDoctor().getFullName(),
+                    review.getModerationReason() != null ? review.getModerationReason() : "Unknown"
+            );
+
+            adminNotificationService.notifyAllAdmins(
+                    NotificationType.REVIEW_PENDING_MODERATION,
+                    title,
+                    message,
+                    NotificationPriority.HIGH,
+                    review.getReviewId(),
+                    "/admin/reviews"
+            );
+        } catch (Exception e) {
+            log.error("Failed to notify admins about pending review moderation: reviewId={}", review.getReviewId(), e);
+        }
+    }
+
     private void sendReplyNotification(Review review, String replier) {
         try {
             Patient patient = review.getPatient();
@@ -423,6 +473,8 @@ public class ReviewService {
                 .comment(review.getComment())
                 .reviewDate(review.getReviewDate())
                 .visible(review.isVisible())
+                .aiFlagged(review.isAiFlagged())
+                .moderationReason(review.getModerationReason())
                 .helpfulCount(review.getHelpfulCount())
                 .doctorReply(review.getDoctorReply())
                 .doctorReplyDate(review.getDoctorReplyDate())
