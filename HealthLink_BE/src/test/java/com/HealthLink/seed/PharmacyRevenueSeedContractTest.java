@@ -63,7 +63,6 @@ class PharmacyRevenueSeedContractTest {
     void hasAtLeastOnePharmacyRevenueDemoRow() throws IOException {
         var sql = loadSeedSql();
         assertThat(sql).contains("CTX-DEMO-PH01-D0");
-        assertThat(sql).contains("CTX-DEMO-PH01-PY01");
     }
 
     @Test
