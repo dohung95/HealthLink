@@ -120,6 +120,7 @@ class ChatbotProvider extends ChangeNotifier {
     String? reply;
     String? actionLabel;
     String? actionRoute;
+    String? detectedSpecialty; // Lưu specialty raw từ Gemini để dùng lọc doctor
 
     // Load all doctors if not loaded
     await _ensureDoctorsLoaded(accessToken);
@@ -145,6 +146,27 @@ class ChatbotProvider extends ChangeNotifier {
         reply = geminiRes.text;
         actionLabel = geminiRes.actionLabel;
         actionRoute = geminiRes.actionUrl;
+
+        // Bóc tách specialty từ raw actionUrl của Gemini (trước khi bị remap)
+        if (geminiRes.actionUrl != null) {
+          final rawUrl = geminiRes.actionUrl!;
+          if (rawUrl.contains('specialty=')) {
+            final uri = Uri.tryParse(rawUrl);
+            final sp = uri?.queryParameters['specialty'];
+            if (sp != null && sp.isNotEmpty) {
+              detectedSpecialty = sp.trim(); // e.g. "Internal Medicine"
+            }
+          }
+
+          // Bóc tách location từ Gemini nếu có
+          if (rawUrl.contains('location=')) {
+            final uri = Uri.tryParse(rawUrl);
+            final loc = uri?.queryParameters['location'];
+            if (loc != null && loc.isNotEmpty) {
+              targetLocation = Uri.decodeComponent(loc);
+            }
+          }
+        }
       }
     } catch (e) {
       debugPrint('Gemini failed: $e');
@@ -162,6 +184,7 @@ class ChatbotProvider extends ChangeNotifier {
             : "${specialtyMatch.icon} Based on your symptoms, I recommend seeing a **$specName** specialist! Here are some available doctors:";
         actionRoute = "/booking?specialty=${Uri.encodeComponent(specialtyMatch.specialty)}";
         actionLabel = isVi ? "📅 Xem tất cả bác sĩ $specName" : "📅 View all $specName doctors";
+        detectedSpecialty ??= specialtyMatch.specialty;
       }
     }
 
@@ -177,7 +200,7 @@ class ChatbotProvider extends ChangeNotifier {
 
     // 4. Fallback cuối cùng nếu cả 3 đều không có kết quả
     if (reply == null || reply.isEmpty) {
-      reply = BotBrain.getBotResponse(text); // This function might also need bilingual updates if it's hardcoded
+      reply = BotBrain.getBotResponse(text);
     }
     
     reply ??= isVi 
@@ -193,12 +216,12 @@ class ChatbotProvider extends ChangeNotifier {
       }
     }
 
-    // 6. Xây dựng danh sách bác sĩ gợi ý từ local data (giống web)
+    // 6. Xây dựng danh sách bác sĩ gợi ý (có lọc theo specialty)
     List<BookingDoctor> suggestedDoctors = [];
     if (actionRoute != null) {
       final matchedSpecialties = <String>{};
-      
-      // Override location if AI provided one in the URL
+
+      // Parse location từ actionRoute
       if (actionRoute!.contains('location=')) {
         final locMatch = RegExp(r'location=([^&]+)').firstMatch(actionRoute!);
         if (locMatch != null) {
@@ -216,6 +239,12 @@ class ChatbotProvider extends ChangeNotifier {
               .toList()
           : _availableDoctors;
 
+      // Ưu tiên specialty đã detect từ Gemini
+      if (detectedSpecialty != null && detectedSpecialty!.isNotEmpty) {
+        matchedSpecialties.add(detectedSpecialty!.toLowerCase());
+      }
+
+      // Parse specialty từ actionRoute (backup)
       if (actionRoute!.contains('specialty=')) {
         final specMatch = RegExp(r'specialty=([^&]+)').firstMatch(actionRoute!);
         if (specMatch != null) {
@@ -230,6 +259,7 @@ class ChatbotProvider extends ChangeNotifier {
         }
       }
 
+      // Thêm từ offline BotBrain symptom matching
       final allSymptoms = BotBrain.checkSymptomsAndGetAllSpecialties(text);
       for (final symp in allSymptoms) {
         matchedSpecialties.add(symp.specialty.toLowerCase());
@@ -237,7 +267,11 @@ class ChatbotProvider extends ChangeNotifier {
 
       if (matchedSpecialties.isNotEmpty) {
         for (final spec in matchedSpecialties) {
-          final docs = availableByLocation.where((d) => d.specialtyName.toLowerCase() == spec).toList();
+          // Dùng contains thay vì == để bắt trường hợp tên lệch nhau ("Internal Medicine" vs "Nội tổng quát")
+          final docs = availableByLocation.where((d) {
+            final docSpec = d.specialtyName.toLowerCase();
+            return docSpec.contains(spec) || spec.contains(docSpec);
+          }).toList();
           suggestedDoctors.addAll(docs);
         }
         // Deduplicate
@@ -245,18 +279,15 @@ class ChatbotProvider extends ChangeNotifier {
         suggestedDoctors = suggestedDoctors.where((d) => seen.add(d.doctorId)).toList();
       }
 
-      // If no specific specialty was requested but we have a valid actionRoute
-      // If we filtered by location and found NO ONE, we SHOULD NOT fallback to all doctors.
+      // Chỉ fallback toàn bộ danh sách khi không có specialty và không có location cụ thể
       if (suggestedDoctors.isEmpty && targetLocation == null && matchedSpecialties.isEmpty) {
         suggestedDoctors = List.from(availableByLocation);
-      } else if (suggestedDoctors.isEmpty && targetLocation != null && matchedSpecialties.isEmpty) {
-         suggestedDoctors = List.from(availableByLocation); // Might be empty if no doctors in that location
       }
 
-      // Sort by rating
+      // Sắp xếp theo rating
       suggestedDoctors.sort((a, b) => b.averageRating.compareTo(a.averageRating));
       
-      // Giới hạn hiển thị 50 bác sĩ
+      // Giới hạn hiển thị
       if (suggestedDoctors.length > 50) {
         suggestedDoctors = suggestedDoctors.take(50).toList();
       }
