@@ -322,12 +322,17 @@ extension _BookingActions on _BookingScreenState {
         await _ensureManualSelectionFeeLoaded();
 
         // Nếu bác sĩ đã chọn sẵn từ chat + Online:
-        // Giữ nguyên full step list để stepper hiển thị đủ các bước,
-        // nhưng nhảy thẳng đến dateTime (bỏ qua doctorOption)
+        // Đặt mode là MANUAL_SELECTED để lấy phí rẻ hơn (phí tự chọn thay vì hệ thống chọn)
+        // Sau đó nhảy thẳng đến dateTime
         if (widget.initialDoctorId != null && _selectedDoctor != null) {
           await _loadSlots();
           if (!mounted) return;
           
+          setState(() {
+            _doctorSelectionMode = 'MANUAL_SELECTED';
+          });
+          
+          // Lấy index mới của dateTime sau khi _stepKeys đã có thêm bước doctor
           final dateTimeIdx = _stepKeys.indexOf(BookingStepKey.dateTime);
           if (dateTimeIdx >= 0) {
             setState(() => _step = dateTimeIdx);
