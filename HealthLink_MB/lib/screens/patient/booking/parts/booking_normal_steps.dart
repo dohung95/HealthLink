@@ -158,7 +158,13 @@ extension _BookingNormalSteps on _BookingScreenState {
 
           setState(() {
             _consultationType = type;
-            _selectedDoctor = null;
+            
+            // Chỉ clear bác sĩ nếu KHÔNG PHẢI là bác sĩ chọn từ chat
+            if (widget.initialDoctorId == null) {
+              _selectedDoctor = null;
+              _doctorSchedules = [];
+            }
+            
             _selectedDate = DateTime.now();
             _selectedSlot = null;
             _slots = [];
@@ -166,7 +172,6 @@ extension _BookingNormalSteps on _BookingScreenState {
             _recommendedDoctor = null;
             _manualSelectionFee = 0;
             _loadingRecommendedDoctor = false;
-            _doctorSchedules = [];
             _weekIndex = 0;
             _homeVisitDraft = const HomeVisitBookingDraft();
 

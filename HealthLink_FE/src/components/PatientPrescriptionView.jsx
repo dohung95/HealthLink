@@ -295,7 +295,7 @@ const PatientPrescriptionView = () => {
                         </div>
                       </div>
                     </div>
-                    
+
                     {(selectedPrescription.symptoms || selectedPrescription.medicalHistory) && (
                       <div className="col-12 col-md-12 print-col-4 mt-md-4 mt-print-0">
                         <p className="text-gray-900 fs-6 fw-semibold mb-2 print-mb-1"><i className="bi bi-clipboard2-pulse me-2"></i>Clinical Notes</p>
@@ -449,7 +449,7 @@ const PatientPrescriptionView = () => {
                     >
                       <i className="bi bi-cart-plus me-2"></i>Order from pharmacy
                     </button>
-                    {getStatus(selectedPrescription.issueDate) !== 'Expired' && (
+                    {/* {getStatus(selectedPrescription.issueDate) !== 'Expired' && (
                       <button
                         className="btn btn-outline-success px-4"
                         onClick={async () => {
@@ -465,7 +465,7 @@ const PatientPrescriptionView = () => {
                       >
                         <i className="bi bi-arrow-repeat me-2"></i>Refill
                       </button>
-                    )}
+                    )} */}
                     <button
                       className="btn btn-outline-primary px-4"
                       onClick={() => window.print()}

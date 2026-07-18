@@ -35,11 +35,16 @@ extension _BookingActions on _BookingScreenState {
           setState(() {
             _selectedDoctor = doctor;
             _selectedSpecialty = doctor.specialtyName;
-            _doctors = [doctor]; // Ensure Step 1 is not empty
+            _doctors = [doctor];
             _doctorSchedules = schedules;
-            _step = 2; // Jump to Date & Time
             _loading = false;
           });
+
+          // Nhảy đến bước Visit Type (bỏ qua Specialty)
+          final visitTypeIndex = _stepKeys.indexOf(BookingStepKey.visitType);
+          if (visitTypeIndex >= 0) {
+            setState(() => _step = visitTypeIndex);
+          }
         } else {
           setState(() {
             _selectedSpecialty = doctor.specialtyName;
@@ -312,8 +317,24 @@ extension _BookingActions on _BookingScreenState {
 
     final key = _currentStepKey;
 
-    if (key == BookingStepKey.visitType && _consultationType == 'Online') {
-      await _ensureManualSelectionFeeLoaded();
+    if (key == BookingStepKey.visitType) {
+      if (_consultationType == 'Online') {
+        await _ensureManualSelectionFeeLoaded();
+
+        // Nếu bác sĩ đã chọn sẵn từ chat + Online:
+        // Giữ nguyên full step list để stepper hiển thị đủ các bước,
+        // nhưng nhảy thẳng đến dateTime (bỏ qua doctorOption)
+        if (widget.initialDoctorId != null && _selectedDoctor != null) {
+          await _loadSlots();
+          if (!mounted) return;
+          
+          final dateTimeIdx = _stepKeys.indexOf(BookingStepKey.dateTime);
+          if (dateTimeIdx >= 0) {
+            setState(() => _step = dateTimeIdx);
+          }
+          return;
+        }
+      }
     }
 
     if (key == BookingStepKey.doctorOption &&
@@ -333,6 +354,29 @@ extension _BookingActions on _BookingScreenState {
     if (key == BookingStepKey.homeVisitLocation) {
       await _searchHomeVisitDoctors();
       if (_homeVisitDraft.doctorOptions.isEmpty) return;
+
+      // Nếu bác sĩ đã chọn từ chat, kiểm tra hỗ trợ home visit
+      if (widget.initialDoctorId != null) {
+        final isVi = Localizations.localeOf(context).languageCode == 'vi';
+        final matchedDoc = _homeVisitDraft.doctorOptions
+            .where((d) => d.doctorId == widget.initialDoctorId)
+            .firstOrNull;
+
+        if (matchedDoc != null) {
+          // Bác sĩ có hỗ trợ home visit → chọn sẵn
+          setState(() {
+            _homeVisitDraft = _homeVisitDraft.copyWith(selectedDoctor: matchedDoc);
+          });
+          _snack(isVi
+              ? 'Đã chọn bác sĩ ${matchedDoc.fullName}. Bấm Tiếp tục để xác nhận.'
+              : 'Dr. ${matchedDoc.fullName} has been pre-selected. Press Continue to confirm.');
+        } else {
+          // Bác sĩ không hỗ trợ home visit → thông báo song ngữ
+          _snack(isVi
+              ? 'Bác sĩ bạn chọn không hỗ trợ khám tại nhà. Vui lòng chọn bác sĩ khác bên dưới.'
+              : 'Your selected doctor does not support home visits. Please choose another doctor below.');
+        }
+      }
     }
 
     if (key == BookingStepKey.homeVisitServices) {

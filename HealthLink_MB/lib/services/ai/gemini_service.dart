@@ -119,12 +119,14 @@ Reply: "Bạn có thể tìm mua thuốc hạ sốt tại các nhà thuốc uy t
       actionLabel = '💊 Xem nhà thuốc';
     }
 
-    // App mobile hiện tại dùng '/booking' thay vì '/schedule', tự động map lại
-    final finalRoute = (baseRoute == '/schedule') ? '/booking' : baseRoute;
+    // App mobile dùng '/booking' thay vì '/schedule', remap và giữ nguyên query string
+    final queryString = actionUrl.contains('?') ? actionUrl.substring(actionUrl.indexOf('?')) : '';
+    final finalBaseRoute = (baseRoute == '/schedule') ? '/booking' : baseRoute;
+    final finalRoute = '$finalBaseRoute$queryString';
 
     return GeminiResponse(
       text: cleanText,
-      actionUrl: finalRoute, // Đưa route chuẩn vào
+      actionUrl: finalRoute, // Đưa route chuẩn vào kèm query params
       actionLabel: actionLabel ?? '📅 Thực hiện',
     );
   }
