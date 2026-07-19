@@ -7,9 +7,16 @@ class Config:
     # Ollama
     OLLAMA_HOST = os.getenv("OLLAMA_HOST", "http://localhost:11434")
     OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "llama3.2:3b")
-    OLLAMA_TEMPERATURE = 0.1
-    OLLAMA_NUM_PREDICT = 768  # CV/document JSON schemas need well under 1k tokens; caps worst-case generation time
-    OLLAMA_TIMEOUT = 45  # seconds; fail fast instead of hanging if Ollama is stuck/overloaded
+    OLLAMA_TEMPERATURE = float(os.getenv("OLLAMA_TEMPERATURE", "0.1"))
+    OLLAMA_NUM_PREDICT = int(os.getenv("OLLAMA_NUM_PREDICT", "768"))
+    OLLAMA_TIMEOUT = int(os.getenv("OLLAMA_TIMEOUT_SECONDS", "45"))
+
+    # Private AI worker endpoints. This is intentionally supplied only by the
+    # ignored local environment, never by a request body or source file.
+    AI_SERVICE_KEY = os.getenv("AI_SERVICE_KEY", "")
+    MINIO_ENDPOINT = os.getenv("MINIO_ENDPOINT", "http://127.0.0.1:9000")
+    QDRANT_URL = os.getenv("QDRANT_URL", "http://127.0.0.1:6333")
+    DEPENDENCY_HEALTH_TIMEOUT = float(os.getenv("AI_DEPENDENCY_HEALTH_TIMEOUT_SECONDS", "2"))
 
     # OCR — Vietnamese + English (both Latin-based, compatible in EasyOCR)
     OCR_LANGUAGES = ["vi", "en"]

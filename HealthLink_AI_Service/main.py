@@ -5,17 +5,20 @@ Run: python main.py
 
 import os
 import sys
+from urllib.error import URLError
+from urllib.request import urlopen
 from contextlib import asynccontextmanager
 from pathlib import Path
 
 # Add current directory to path
 sys.path.insert(0, str(Path(__file__).parent))
 
-from fastapi import FastAPI, UploadFile, File, Form, HTTPException
+from fastapi import Depends, FastAPI, File, Form, HTTPException, Response, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.concurrency import run_in_threadpool
 
 from config import Config
+from services.internal_auth import correlation_id, require_worker_key
 from models.schemas import (
     ModerationResult, OCRResult, CVParseResult,
     DocumentVerifyResult, ProfileVerifyResult, DocumentScreeningResult,
@@ -158,6 +161,38 @@ async def health_check():
         "service": "HealthLink Local AI Service",
         "version": "1.0.0",
         "dependencies": dependencies,
+    }
+
+
+def _http_dependency_available(base_url: str, path: str) -> bool:
+    """Return dependency reachability without authenticating or exposing configuration."""
+    try:
+        with urlopen(
+            f"{base_url.rstrip('/')}{path}",
+            timeout=Config.DEPENDENCY_HEALTH_TIMEOUT,
+        ) as response:
+            return 200 <= response.status < 300
+    except (OSError, URLError):
+        return False
+
+
+@app.get("/internal/health/dependencies")
+async def internal_dependency_health(
+    response: Response,
+    correlation_id: str = Depends(correlation_id),
+    _: None = Depends(require_worker_key),
+):
+    """Authenticated dependency health for the Spring job worker integration."""
+    from services.ollama_service import check_ollama_connection
+
+    ollama_connected, _, _ = check_ollama_connection()
+    response.headers["X-Correlation-ID"] = correlation_id
+    return {
+        "dependencies": {
+            "ollama": ollama_connected,
+            "minio": _http_dependency_available(Config.MINIO_ENDPOINT, "/minio/health/live"),
+            "qdrant": _http_dependency_available(Config.QDRANT_URL, "/healthz"),
+        }
     }
 
 
