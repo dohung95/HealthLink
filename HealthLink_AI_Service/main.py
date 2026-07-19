@@ -25,6 +25,7 @@ from models.schemas import (
     HomeVisitScanResult, HealthCheckResponse,
     ReviewModerationRequest, ReviewModerationResult
 )
+from models.lab_ocr_schemas import LabOcrRequest, LabOcrResponse
 
 # Lazy imports for services
 nudenet_detector = None
@@ -194,6 +195,28 @@ async def internal_dependency_health(
             "qdrant": _http_dependency_available(Config.QDRANT_URL, "/healthz"),
         }
     }
+
+
+@app.post("/internal/v1/ocr/lab-reports", response_model=LabOcrResponse, response_model_by_alias=True)
+async def extract_lab_report_ocr(
+    request: LabOcrRequest,
+    response: Response,
+    request_correlation_id: str = Depends(correlation_id),
+    _: None = Depends(require_worker_key),
+):
+    """Run deterministic, review-only OCR for a short-lived private object grant."""
+    from services.lab_ocr_pipeline import process_lab_report
+
+    try:
+        result = await run_in_threadpool(process_lab_report, request)
+    except ValueError as exc:
+        # Do not expose object grants, document bytes, or OCR text in failures.
+        raise HTTPException(status_code=422, detail={"code": "LAB_OCR_REQUEST_REJECTED"}) from exc
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail={"code": "LAB_OCR_WORKER_FAILED"}) from exc
+
+    response.headers["X-Correlation-ID"] = request_correlation_id
+    return result
 
 
 @app.post("/moderate-image", response_model=ModerationResult)

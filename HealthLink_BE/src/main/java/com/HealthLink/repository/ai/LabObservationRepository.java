@@ -11,4 +11,6 @@ import java.util.UUID;
 public interface LabObservationRepository extends JpaRepository<LabObservation, UUID> {
 
     List<LabObservation> findByReport_ReportIdOrderByRowOrderAsc(UUID reportId);
+
+    void deleteByReport_ReportIdAndVerificationStatus(UUID reportId, String verificationStatus);
 }
