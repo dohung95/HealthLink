@@ -6,7 +6,7 @@ BEGIN
     CREATE TABLE dbo.LabReportUploadIdempotencies (
         UploadId UNIQUEIDENTIFIER NOT NULL,
         AppointmentID INT NOT NULL,
-        DoctorID NVARCHAR(450) NOT NULL,
+        DoctorID VARCHAR(450) NOT NULL,
         IdempotencyKey NVARCHAR(200) NOT NULL,
         ReportID UNIQUEIDENTIFIER NOT NULL,
         JobID UNIQUEIDENTIFIER NOT NULL,

@@ -16,9 +16,9 @@ BEGIN
         PageCount INT NOT NULL,
         Status VARCHAR(32) NOT NULL CONSTRAINT CK_LabReports_Status CHECK (Status IN (
             'UPLOADED', 'OCR_PENDING', 'OCR_RUNNING', 'NEEDS_VERIFICATION', 'VERIFIED', 'OCR_FAILED', 'CANCELLED')),
-        UploadedByDoctorID NVARCHAR(450) NOT NULL,
+        UploadedByDoctorID VARCHAR(450) NOT NULL,
         UploadedAt DATETIME2 NOT NULL CONSTRAINT DF_LabReports_UploadedAt DEFAULT SYSUTCDATETIME(),
-        VerifiedByDoctorID NVARCHAR(450) NULL,
+        VerifiedByDoctorID VARCHAR(450) NULL,
         VerifiedAt DATETIME2 NULL,
         RowVersion BIGINT NOT NULL CONSTRAINT DF_LabReports_RowVersion DEFAULT 0,
         CONSTRAINT PK_LabReports PRIMARY KEY (ReportID),

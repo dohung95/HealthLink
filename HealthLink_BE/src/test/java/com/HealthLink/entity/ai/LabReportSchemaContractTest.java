@@ -32,6 +32,10 @@ class LabReportSchemaContractTest {
                 "IX_LabReports_AppointmentID_UploadedAt", "IX_LabObservations_ReportID_RowOrder",
                 "UPLOADED", "OCR_PENDING", "OCR_RUNNING", "NEEDS_VERIFICATION", "VERIFIED", "OCR_FAILED", "CANCELLED",
                 "UNVERIFIED", "REJECTED");
+
+        assertThat(sql).contains(
+                "UploadedByDoctorID VARCHAR(450)",
+                "VerifiedByDoctorID VARCHAR(450)");
     }
 
     @Test
