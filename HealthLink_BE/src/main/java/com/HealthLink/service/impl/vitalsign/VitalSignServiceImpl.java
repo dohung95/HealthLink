@@ -11,6 +11,7 @@ import com.HealthLink.repository.appointment.AppointmentRepository;
 import com.HealthLink.repository.patient.PatientRepository;
 import com.HealthLink.repository.vitalsign.VitalSignRepository;
 import com.HealthLink.service.vitalsign.VitalSignService;
+import com.HealthLink.utility.DoctorSecurityUtils;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -26,30 +27,32 @@ public class VitalSignServiceImpl implements VitalSignService {
     private final VitalSignRepository vitalSignRepository;
     private final PatientRepository patientRepository;
     private final AppointmentRepository appointmentRepository;
+    private final DoctorSecurityUtils doctorSecurityUtils;
 
     @Override
     @Transactional
     public VitalSignResponse createVitalSign(VitalSignRequest request) {
         validateRequest(request);
 
+        if (request.getAppointmentId() == null) {
+            throw new BusinessException("Appointment ID is required");
+        }
+
+        Appointment appointment = appointmentRepository.findById(request.getAppointmentId())
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Appointment not found: " + request.getAppointmentId()
+                ));
+        doctorSecurityUtils.requireAppointmentAccess(appointment);
+
         Patient patient = patientRepository.findById(request.getPatientId())
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Patient not found: " + request.getPatientId()
                 ));
 
-        Appointment appointment = null;
-
-        if (request.getAppointmentId() != null) {
-            appointment = appointmentRepository.findById(request.getAppointmentId())
-                    .orElseThrow(() -> new ResourceNotFoundException(
-                            "Appointment not found: " + request.getAppointmentId()
-                    ));
-
-            if (!appointment.getPatient().getPatientId().equals(patient.getPatientId())) {
-                throw new BusinessException(
-                        "This appointment does not belong to the selected patient"
-                );
-            }
+        if (!appointment.getPatient().getPatientId().equals(patient.getPatientId())) {
+            throw new BusinessException(
+                    "This appointment does not belong to the selected patient"
+            );
         }
 
         VitalSign vitalSign = VitalSign.builder()
@@ -74,10 +77,11 @@ public class VitalSignServiceImpl implements VitalSignService {
     @Override
     @Transactional(readOnly = true)
     public List<VitalSignResponse> getByAppointment(Integer appointmentId) {
-        appointmentRepository.findById(appointmentId)
+        Appointment appointment = appointmentRepository.findById(appointmentId)
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Appointment not found: " + appointmentId
                 ));
+        doctorSecurityUtils.requireAppointmentAccess(appointment);
 
         return vitalSignRepository
                 .findByAppointment_AppointmentIdOrderByMeasuredAtDesc(appointmentId)
@@ -89,10 +93,11 @@ public class VitalSignServiceImpl implements VitalSignService {
     @Override
     @Transactional(readOnly = true)
     public VitalSignResponse getLatestByAppointment(Integer appointmentId) {
-        appointmentRepository.findById(appointmentId)
+        Appointment appointment = appointmentRepository.findById(appointmentId)
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Appointment not found: " + appointmentId
                 ));
+        doctorSecurityUtils.requireAppointmentAccess(appointment);
 
         return vitalSignRepository
                 .findTopByAppointment_AppointmentIdOrderByMeasuredAtDesc(appointmentId)
@@ -103,6 +108,7 @@ public class VitalSignServiceImpl implements VitalSignService {
     @Override
     @Transactional(readOnly = true)
     public List<VitalSignResponse> getByPatient(String patientId) {
+        doctorSecurityUtils.requirePatientAccess(patientId);
         patientRepository.findById(patientId)
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Patient not found: " + patientId
