@@ -13,7 +13,6 @@ import lombok.Setter;
 
 import java.time.Instant;
 import java.time.LocalDate;
-import java.util.UUID;
 
 @Entity
 @Table(name = "GuidelineDocuments")
@@ -23,8 +22,8 @@ import java.util.UUID;
 public class GuidelineDocument {
     public static final String ACTIVE_STUDENT_DEMO = "ACTIVE_STUDENT_DEMO";
 
-    @Id @Column(name = "DocumentID", nullable = false, updatable = false)
-    private UUID documentId;
+    @Id @Column(name = "DocumentID", nullable = false, updatable = false, length = 160)
+    private String documentId;
     @Column(name = "Title", nullable = false, length = 500, updatable = false)
     private String title;
     @Column(name = "Issuer", nullable = false, length = 200, updatable = false)

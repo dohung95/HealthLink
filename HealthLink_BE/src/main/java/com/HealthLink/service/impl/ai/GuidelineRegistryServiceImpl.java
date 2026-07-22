@@ -6,8 +6,6 @@ import com.HealthLink.repository.ai.GuidelineDocumentRepository;
 import com.HealthLink.service.ai.GuidelineRegistryService;
 import org.springframework.stereotype.Service;
 
-import java.util.UUID;
-
 @Service
 public class GuidelineRegistryServiceImpl implements GuidelineRegistryService {
     private final GuidelineDocumentRepository documents;
@@ -20,8 +18,9 @@ public class GuidelineRegistryServiceImpl implements GuidelineRegistryService {
     }
 
     @Override
-    public boolean isActiveStudentDemoCitation(UUID documentId, String version, String checksum, String corpusVersion) {
-        if (documentId == null || blank(version) || checksum == null || !checksum.matches("[0-9a-f]{64}") || blank(corpusVersion)) {
+    public boolean isActiveStudentDemoCitation(String documentId, String version, String checksum, String corpusVersion) {
+        if (!canonicalDocumentId(documentId) || blank(version) || checksum == null
+                || !checksum.matches("[0-9a-f]{64}") || blank(corpusVersion)) {
             return false;
         }
         return documents.findByDocumentIdAndVersionAndChecksumAndCorpusVersionAndStatus(
@@ -30,5 +29,9 @@ public class GuidelineRegistryServiceImpl implements GuidelineRegistryService {
 
     private static boolean blank(String value) {
         return value == null || value.isBlank();
+    }
+
+    private static boolean canonicalDocumentId(String value) {
+        return value != null && value.matches("[a-z0-9]+(?:-[a-z0-9]+)*");
     }
 }

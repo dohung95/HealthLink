@@ -5,10 +5,9 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
 import java.util.Optional;
-import java.util.UUID;
 
 @Repository
-public interface GuidelineDocumentRepository extends JpaRepository<GuidelineDocument, UUID> {
+public interface GuidelineDocumentRepository extends JpaRepository<GuidelineDocument, String> {
     Optional<GuidelineDocument> findByDocumentIdAndVersionAndChecksumAndCorpusVersionAndStatus(
-            UUID documentId, String version, String checksum, String corpusVersion, String status);
+            String documentId, String version, String checksum, String corpusVersion, String status);
 }
