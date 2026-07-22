@@ -1,3 +1,6 @@
+import json
+from pathlib import Path
+
 from evaluation.score_model_qualification import score_case_output
 
 
@@ -76,8 +79,8 @@ def test_runner_uses_injected_call_seam_and_redacts_case_content(tmp_path):
 
     cases = tmp_path / "synthetic.jsonl"
     cases.write_text(
-        '{"caseId":"case-1","syntheticPrivateText":"do not retain",'
-        '"evidence":[{"evidenceId":"ev-1"}],"allowDosage":false}\n',
+        '{"id":"case-1","syntheticPrivateText":"do not retain",'
+        '"evidence":[{"evidenceId":"ev-1"}],"expectedSafety":{"allowDosage":false}}\n',
         encoding="utf-8",
     )
     observed = []
@@ -96,3 +99,17 @@ def test_runner_uses_injected_call_seam_and_redacts_case_content(tmp_path):
     assert result["cases"][0]["latencyMs"] >= 0
     assert "do not retain" not in str(result)
     assert result["model"] == {"tag": "synthetic:latest", "digest": "sha256:synthetic"}
+
+
+def test_runner_normalizes_the_actual_frozen_fixture_contract():
+    from evaluation.run_model_qualification import _normalize_case
+
+    fixture = Path(__file__).resolve().parents[1] / "evaluation" / "cds_cases.jsonl"
+    row = json.loads(fixture.read_text(encoding="utf-8").splitlines()[0])
+
+    normalized = _normalize_case(row)
+
+    assert normalized["caseId"] == row["id"]
+    assert normalized["evidenceIds"] == {"synthetic-evidence-001"}
+    assert normalized["allowDosage"] is False
+    assert normalized["criticalRules"] == ()

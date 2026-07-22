@@ -27,22 +27,23 @@ def run_qualification(*, model: str, cases_path: Path, call_model: ModelCall | N
     invoke = call_model or _ollama_call
     case_results: list[dict[str, Any]] = []
     model_digest: str | None = None
-    for case in _load_cases(cases_path):
+    for raw_case in _load_cases(cases_path):
+        case = _normalize_case(raw_case)
         started = time.perf_counter()
-        response = invoke(model=model, prompt=_render_prompt(case), options=dict(DETERMINISTIC_OPTIONS))
+        response = invoke(model=model, prompt=_render_prompt(case["source"]), options=dict(DETERMINISTIC_OPTIONS))
         latency_ms = round((time.perf_counter() - started) * 1000, 3)
         digest = _field(response, "digest")
         if isinstance(digest, str) and digest:
             model_digest = digest
         score = score_case_output(
             _field(response, "response"),
-            evidence_ids=_evidence_ids(case),
-            allow_dosage=bool(case.get("allowDosage", False)),
-            critical_rules=case.get("criticalRules", ()),
+            evidence_ids=case["evidenceIds"],
+            allow_dosage=case["allowDosage"],
+            critical_rules=case["criticalRules"],
         )
         case_results.append(
             {
-                "caseId": str(case["caseId"]),
+                "caseId": case["caseId"],
                 "schemaValid": score.schema_valid,
                 "hardFailures": list(score.hard_failures),
                 "latencyMs": latency_ms,
@@ -62,25 +63,48 @@ def _load_cases(path: Path) -> list[dict[str, Any]]:
     for line in path.read_text(encoding="utf-8").splitlines():
         if line.strip():
             parsed = json.loads(line)
-            if not isinstance(parsed, dict) or not parsed.get("caseId"):
-                raise ValueError("Each qualification case must contain caseId")
+            if not isinstance(parsed, dict):
+                raise ValueError("Each qualification case must be a JSON object")
             rows.append(parsed)
     return rows
+
+
+def _normalize_case(case: Mapping[str, Any]) -> dict[str, Any]:
+    """Adapt the frozen fixture schema to the runner's minimal scoring inputs."""
+    case_id = case.get("id")
+    expected_safety = case.get("expectedSafety")
+    evidence = case.get("evidence")
+    if not isinstance(case_id, str) or not case_id.strip():
+        raise ValueError("Qualification case id is required")
+    if not isinstance(expected_safety, Mapping) or not isinstance(expected_safety.get("allowDosage"), bool):
+        raise ValueError("Qualification case expectedSafety.allowDosage must be a boolean")
+    if not isinstance(evidence, list):
+        raise ValueError("Qualification case evidence must be a list")
+    evidence_ids = {
+        item["evidenceId"]
+        for item in evidence
+        if isinstance(item, Mapping) and isinstance(item.get("evidenceId"), str) and item["evidenceId"].strip()
+    }
+    if len(evidence_ids) != len(evidence):
+        raise ValueError("Qualification case evidence entries require evidenceId")
+    critical_rules = expected_safety.get("criticalRules")
+    if critical_rules is None:
+        critical_rules = ()
+    elif not isinstance(critical_rules, list):
+        raise ValueError("Qualification case expectedSafety.criticalRules must be a list when present")
+    return {
+        "source": dict(case),
+        "caseId": case_id,
+        "evidenceIds": evidence_ids,
+        "allowDosage": expected_safety["allowDosage"],
+        "criticalRules": tuple(critical_rules),
+    }
 
 
 def _render_prompt(case: Mapping[str, Any]) -> str:
     system = (SERVICE_ROOT / "prompts" / "cds_system_v1.txt").read_text(encoding="utf-8").strip()
     template = (SERVICE_ROOT / "prompts" / "cds_user_template_v1.txt").read_text(encoding="utf-8")
     return f"{system}\n\n" + template.format(case_json=json.dumps(case, ensure_ascii=False, separators=(",", ":")))
-
-
-def _evidence_ids(case: Mapping[str, Any]) -> set[str]:
-    evidence = case.get("evidence", ())
-    return {
-        str(item.get("evidenceId"))
-        for item in evidence
-        if isinstance(item, Mapping) and isinstance(item.get("evidenceId"), str)
-    }
 
 
 def _ollama_call(*, model: str, prompt: str, options: Mapping[str, Any]) -> Mapping[str, Any]:
