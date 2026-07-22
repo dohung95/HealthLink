@@ -10,10 +10,13 @@ from models.rag_schemas import GuidelineChunk
 
 
 class QdrantGuidelineStore:
-    def __init__(self, base_url: str, collection: str, api_key: str = ""):
+    def __init__(self, base_url: str, collection: str, api_key: str = "", batch_size: int = 100):
+        if batch_size < 1:
+            raise ValueError("batch_size must be positive")
         self.base_url = base_url.rstrip("/")
         self.collection = collection
         self.api_key = api_key
+        self.batch_size = batch_size
 
     def upsert(self, chunks: list[GuidelineChunk], vectors: list[list[float]]) -> None:
         if len(chunks) != len(vectors):
@@ -24,8 +27,12 @@ class QdrantGuidelineStore:
         if vector_dimension < 1 or any(len(vector) != vector_dimension for vector in vectors):
             raise ValueError("guideline vectors must have one non-zero dimension")
         self.ensure_collection(vector_dimension)
-        points = [{"id": chunk.chunk_id, "vector": vector, "payload": self._payload(chunk)} for chunk, vector in zip(chunks, vectors)]
-        self._request("PUT", f"/collections/{self.collection}/points?wait=true", {"points": points})
+        for start in range(0, len(chunks), self.batch_size):
+            points = [
+                {"id": chunk.chunk_id, "vector": vector, "payload": self._payload(chunk)}
+                for chunk, vector in zip(chunks[start : start + self.batch_size], vectors[start : start + self.batch_size])
+            ]
+            self._request("PUT", f"/collections/{self.collection}/points?wait=true", {"points": points})
 
     def ensure_collection(self, vector_dimension: int) -> None:
         try:

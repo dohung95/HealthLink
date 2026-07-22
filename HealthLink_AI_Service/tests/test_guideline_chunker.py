@@ -145,6 +145,29 @@ def test_qdrant_request_uses_configured_api_key_without_putting_it_in_payload(mo
     assert request_headers["Api-key"] == "local-test-key"
 
 
+def test_qdrant_upsert_sends_large_guideline_in_bounded_batches_after_one_collection_check(monkeypatch):
+    document = GuidelineParser().parse(approved_manifest())
+    first = GuidelineChunker().chunk(document)[0]
+    chunks = [first.model_copy(update={"chunk_id": f"chunk-{index}"}) for index in range(3)]
+    store = QdrantGuidelineStore("http://127.0.0.1:6333", "student-demo", batch_size=2)
+    calls = []
+
+    def record_request(method, path, body=None):
+        calls.append((method, path, body))
+        if method == "GET":
+            return {"result": {"config": {"params": {"vectors": {"size": 384}}}}}
+        return {"result": {"status": "ok"}}
+
+    monkeypatch.setattr(store, "_request", record_request)
+
+    store.upsert(chunks, [[0.0] * 384 for _ in chunks])
+
+    point_puts = [call for call in calls if call[1].endswith("/points?wait=true")]
+    assert [len(call[2]["points"]) for call in point_puts] == [2, 1]
+    assert [point["id"] for call in point_puts for point in call[2]["points"]] == ["chunk-0", "chunk-1", "chunk-2"]
+    assert [call[0:2] for call in calls].count(("GET", "/collections/student-demo")) == 1
+
+
 def test_load_manifest_converts_only_approved_student_demo_resource_manifest(tmp_path):
     source_pdf = tmp_path / "source-pdf" / "guide.pdf"
     source_pdf.parent.mkdir()
