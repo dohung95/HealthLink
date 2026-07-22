@@ -52,3 +52,24 @@ class GuidelineChunk(BaseModel):
     checksum: str = Field(pattern=r"^[0-9a-f]{64}$")
     license_class: str = Field(alias="licenseClass")
     corpus_version: str = Field(alias="corpusVersion")
+
+
+class RagRetrieveRequest(BaseModel):
+    """De-identified retrieval terms only; this contract intentionally has no patient fields."""
+
+    model_config = ConfigDict(populate_by_name=True, extra="forbid")
+
+    query: str = Field(min_length=1, max_length=512)
+    specialty: str | None = Field(default=None, max_length=80)
+    language: str | None = Field(default=None, max_length=16)
+    issuer: str | None = Field(default=None, max_length=160)
+    effective_date_on_or_before: date | None = Field(default=None, alias="effectiveDateOnOrBefore")
+    top_k: int = Field(default=5, alias="topK", ge=1, le=10)
+    corpus_version: str = Field(default="student-demo-2026.1", alias="corpusVersion", min_length=1, max_length=100)
+
+
+class RagRetrieveResponse(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
+    insufficient_evidence: bool = Field(alias="insufficientEvidence")
+    chunks: list[GuidelineChunk]

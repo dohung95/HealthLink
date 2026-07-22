@@ -26,6 +26,7 @@ from models.schemas import (
     ReviewModerationRequest, ReviewModerationResult
 )
 from models.lab_ocr_schemas import LabOcrRequest, LabOcrResponse
+from models.rag_schemas import RagRetrieveRequest, RagRetrieveResponse
 
 # Lazy imports for services
 nudenet_detector = None
@@ -214,6 +215,39 @@ async def extract_lab_report_ocr(
         raise HTTPException(status_code=422, detail={"code": "LAB_OCR_REQUEST_REJECTED"}) from exc
     except Exception as exc:
         raise HTTPException(status_code=502, detail={"code": "LAB_OCR_WORKER_FAILED"}) from exc
+
+    response.headers["X-Correlation-ID"] = request_correlation_id
+    return result
+
+
+@app.post("/internal/v1/rag/retrieve", response_model=RagRetrieveResponse, response_model_by_alias=True)
+async def retrieve_guidelines(
+    request: RagRetrieveRequest,
+    response: Response,
+    request_correlation_id: str = Depends(correlation_id),
+    _: None = Depends(require_worker_key),
+):
+    """Retrieve approved citations from local Qdrant; accepts no patient or prompt payload."""
+    from services.rag_retrieval_service import GuidelineRetrievalService
+
+    try:
+        service = GuidelineRetrievalService(
+            Config.QDRANT_URL, "student-demo-guidelines", api_key=Config.QDRANT_API_KEY,
+        )
+        result = await run_in_threadpool(
+            service.retrieve,
+            query=request.query,
+            top_k=request.top_k,
+            corpus_version=request.corpus_version,
+            specialty=request.specialty,
+            language=request.language,
+            issuer=request.issuer,
+            effective_date_on_or_before=request.effective_date_on_or_before,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail={"code": "RAG_RETRIEVAL_REQUEST_REJECTED"}) from exc
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail={"code": "RAG_RETRIEVAL_FAILED"}) from exc
 
     response.headers["X-Correlation-ID"] = request_correlation_id
     return result
