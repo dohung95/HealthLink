@@ -1,0 +1,16 @@
+[
+  {
+    "caseId": "synthetic-glucose",
+    "query": "fasting glucose",
+    "language": "en",
+    "documentId": "glucose-guide",
+    "version": "2026.1",
+    "checksum": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "corpusVersion": "student-demo-2026.1"
+  },
+  {
+    "caseId": "synthetic-no-answer",
+    "query": "unrelated synthetic question",
+    "language": "en"
+  }
+]
