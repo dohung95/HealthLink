@@ -18,6 +18,7 @@ import DoctorChangePasswordModal from '@components/doctor/DoctorChangePasswordMo
 import DoctorProfilePage from '@pages/doctor/DoctorProfilePage';
 import DoctorMiniChat from '@components/DoctorMiniChat';
 import { createPortal } from 'react-dom';
+import { shouldOpenAppointmentDetail } from './appointmentDetailAccess';
 
 export function DoctorAppointmentDetailRoute() {
   const { appointmentId } = useParams();
@@ -35,21 +36,12 @@ export function DoctorAppointmentDetailRoute() {
         setLoading(true);
         const detail = await appointmentService.getAppointmentDetail(appointmentId);
         const normalized = normalizeAppointmentDetail(detail, appointmentId);
-        
-        const isCompletedStatus = (status) =>
-          String(status || '').toLowerCase().replace(/[\s_-]/g, '') === 'completed';
-        if (isCompletedStatus(normalized.status)) {
-          const normalizedId = normalized.appointmentID || normalized.appointmentId || appointmentId;
-          navigate('/doctor/appointments/history', {
-            replace: true,
-            state: { selectedAppointmentId: normalizedId },
-          });
-          return;
-        }
-        
+        const canOpenDetail = shouldOpenAppointmentDetail(normalized);
         const patientId = normalized.patient?.patientID || normalized.patientId;
-        const patientData = patientId ? await doctorService.getPatientById(patientId) : null;
-        if (mounted) {
+        const patientData = canOpenDetail && patientId
+          ? await doctorService.getPatientById(patientId)
+          : null;
+        if (mounted && canOpenDetail) {
           setAppointment(normalized);
           setPatient(patientData);
         }
