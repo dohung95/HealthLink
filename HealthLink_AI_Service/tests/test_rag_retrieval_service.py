@@ -15,6 +15,15 @@ class SyntheticEmbedding:
         return [0.0] * 384
 
 
+def retrieval_payload(*, chunk_id: str, document_id: str, title: str, section_path: str, page: int) -> dict:
+    return {
+        "chunkId": chunk_id, "documentId": document_id, "title": title,
+        "issuer": "HealthLink Student Demo", "version": "2026.1", "effectiveDate": "2026-01-01",
+        "sectionPath": section_path, "page": page, "text": "Doctor review only.",
+        "checksum": "c" * 64, "licenseClass": "STUDENT_DEMO_ONLY", "corpusVersion": "student-demo-2026.1",
+    }
+
+
 def test_retrieval_returns_insufficient_evidence_when_no_hit_meets_threshold():
     service = GuidelineRetrievalService(
         "http://qdrant.test",
@@ -56,7 +65,7 @@ def test_retrieval_returns_only_contract_citations_from_active_corpus():
 
     assert result.insufficient_evidence is False
     assert result.chunks[0].chunk_id == "chunk-1"
-    assert result.chunks[0].score == 0.91
+    assert result.chunks[0].score == 1.0
     assert result.chunks[0].checksum == checksum
 
 
@@ -99,6 +108,56 @@ def test_retrieval_uses_qdrant_query_field_for_the_embedding_vector():
 
     assert captured["query"] == [0.0] * 384
     assert "vector" not in captured
+
+
+def test_retrieval_rescues_low_vector_score_when_query_has_meaningful_exact_title_overlap():
+    service = GuidelineRetrievalService(
+        "http://qdrant.test", "student-demo-guidelines", embedding=SyntheticEmbedding(),
+        search=lambda _body: {"result": [{"score": 0.5524, "payload": retrieval_payload(
+            chunk_id="cvd-1", document_id="who-hearts-cvd-management-2018",
+            title="Cardiovascular disease management in primary health care", section_path="Management", page=4,
+        )}]},
+    )
+
+    result = service.retrieve(query="cardiovascular disease management")
+
+    assert result.insufficient_evidence is False
+    assert result.chunks[0].score >= 0.75
+
+
+def test_retrieval_rejects_generic_high_vector_score_without_meaningful_title_overlap():
+    service = GuidelineRetrievalService(
+        "http://qdrant.test", "student-demo-guidelines", embedding=SyntheticEmbedding(),
+        search=lambda _body: {"result": [{"score": 0.99, "payload": retrieval_payload(
+            chunk_id="cvd-1", document_id="who-hearts-cvd-management-2018",
+            title="Cardiovascular disease management in primary health care", section_path="Management", page=4,
+        )}]},
+    )
+
+    result = service.retrieve(query="holiday weather forecast")
+
+    assert result.insufficient_evidence is True
+    assert result.chunks == []
+
+
+def test_retrieval_collapses_duplicate_document_section_and_page_to_highest_combined_score():
+    service = GuidelineRetrievalService(
+        "http://qdrant.test", "student-demo-guidelines", embedding=SyntheticEmbedding(),
+        search=lambda _body: {"result": [
+            {"score": 0.76, "payload": retrieval_payload(
+                chunk_id="cvd-low", document_id="who-hearts-cvd-management-2018",
+                title="Cardiovascular disease management", section_path="Management", page=4,
+            )},
+            {"score": 0.82, "payload": retrieval_payload(
+                chunk_id="cvd-high", document_id="who-hearts-cvd-management-2018",
+                title="Cardiovascular disease management", section_path="Management", page=4,
+            )},
+        ]},
+    )
+
+    result = service.retrieve(query="cardiovascular disease management")
+
+    assert [chunk.chunk_id for chunk in result.chunks] == ["cvd-high"]
 
 
 def test_retrieval_fails_closed_when_requested_language_is_not_in_chunk_contract():

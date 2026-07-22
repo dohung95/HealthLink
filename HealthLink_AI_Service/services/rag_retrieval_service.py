@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 from collections.abc import Callable
 from datetime import date
 from urllib.request import Request, urlopen
@@ -13,6 +14,9 @@ from services.embedding_service import LocalEmbeddingService
 
 class GuidelineRetrievalService:
     """Query Qdrant without logging or persisting query text."""
+
+    _COMMON_TITLE_TERMS = frozenset({"the", "and", "for", "with", "from", "into", "that", "this", "guideline"})
+    _TITLE_ALIASES = {"ckd": frozenset({"chronic", "kidney", "disease"})}
 
     def __init__(self, base_url: str, collection: str, *, api_key: str = "",
                  minimum_score: float = 0.75, embedding: LocalEmbeddingService | None = None,
@@ -49,18 +53,36 @@ class GuidelineRetrievalService:
         }
         result = self._search(payload).get("result", [])
         results = result.get("points", []) if isinstance(result, dict) else result
-        chunks: list[GuidelineChunk] = []
+        query_terms = self._meaningful_terms(query)
+        best_by_source: dict[tuple[str, str, int], tuple[float, GuidelineChunk]] = {}
         for item in results:
             score = float(item.get("score", 0.0))
-            if score < self.minimum_score:
+            payload = item.get("payload", {})
+            overlap = query_terms.intersection(self._meaningful_terms(str(payload.get("title", ""))))
+            if not overlap:
                 continue
-            chunk = GuidelineChunk.model_validate(item.get("payload", {})).model_copy(update={"score": score})
+            combined_score = min(1.0, score + min(0.25, 0.1 * len(overlap)))
+            if score < self.minimum_score and combined_score < self.minimum_score:
+                continue
+            chunk = GuidelineChunk.model_validate(payload).model_copy(update={"score": combined_score})
             if effective_date_on_or_before and chunk.effective_date > effective_date_on_or_before:
                 continue
-            chunks.append(chunk)
-            if len(chunks) == top_k:
-                break
+            source = (chunk.document_id, chunk.section_path, chunk.page)
+            existing = best_by_source.get(source)
+            if existing is None or (chunk.score, score) > (existing[1].score, existing[0]):
+                best_by_source[source] = (score, chunk)
+        chunks = sorted((candidate[1] for candidate in best_by_source.values()),
+                        key=lambda chunk: (-chunk.score, chunk.chunk_id))[:top_k]
         return RagRetrieveResponse(insufficientEvidence=not chunks, chunks=chunks)
+
+    @classmethod
+    def _meaningful_terms(cls, value: str) -> frozenset[str]:
+        terms = {term for term in re.findall(r"[a-z0-9]+", value.lower())
+                 if len(term) >= 3 and term not in cls._COMMON_TITLE_TERMS}
+        for alias, expansion in cls._TITLE_ALIASES.items():
+            if alias in terms:
+                terms.update(expansion)
+        return frozenset(terms)
 
     def _embedding(self) -> LocalEmbeddingService:
         if self.embedding is None:
