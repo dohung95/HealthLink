@@ -31,6 +31,7 @@ class ClinicalContextServiceTest {
     @Test
     void previewUsesOnlyAppointmentVitalsAndMarksUnknownProfileDataAsUnknown() {
         Appointment appointment = appointment(7);
+        appointment.setSymptoms("synthetic patient-reported dizziness");
         Patient patient = appointment.getPatient();
         patient.setAllergies("   ");
         patient.setGender(null);
@@ -46,6 +47,8 @@ class ClinicalContextServiceTest {
 
         assertThat(preview.fields().get("allergies").value()).isNull();
         assertThat(preview.fields().get("allergies").verificationState()).isEqualTo("UNKNOWN");
+        assertThat(preview.fields().get("patientReportedSymptoms").value()).isEqualTo("synthetic patient-reported dizziness");
+        assertThat(preview.fields().get("patientReportedSymptoms").sourceType()).isEqualTo("APPOINTMENT");
         assertThat(preview.fields().get("heartRate").value()).isNull();
         assertThat(preview.blockers()).extracting(blocker -> blocker.code()).containsExactlyInAnyOrder(
                 "MISSING_SYMPTOMS", "MISSING_APPOINTMENT_VITALS", "MISSING_AGE", "MISSING_SEX", "NO_VERIFIED_LABS");
@@ -96,10 +99,12 @@ class ClinicalContextServiceTest {
 
         var stored = org.mockito.ArgumentCaptor.forClass(com.HealthLink.entity.ai.ClinicalContextSnapshot.class);
         verify(snapshots).save(stored.capture());
+        assertThat(stored.getValue().getLabReports()).extracting(LabReport::getReportId).containsExactly(reportId);
         String originalCanonicalJson = stored.getValue().getCanonicalJson();
         patient.setAllergies("later changed synthetic allergy");
         assertThat(originalCanonicalJson).contains("synthetic allergy A").doesNotContain("later changed synthetic allergy");
         assertThat(response.requiredFieldStatus()).containsEntry("verifiedLabs", true).containsEntry("appointmentVitals", true);
+        assertThat(response.createdAt().toString()).endsWith("Z");
     }
 
     private static ClinicalContextService service(AppointmentRepository appointments, VitalSignRepository vitals, LabReportRepository reports) {

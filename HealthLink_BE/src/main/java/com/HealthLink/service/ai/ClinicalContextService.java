@@ -24,6 +24,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.time.LocalDate;
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.Period;
 import java.util.*;
@@ -88,7 +89,8 @@ public class ClinicalContextService {
         long actualVersion = context == null ? 0L : context.getRowVersion();
         if (actualVersion != request.expectedContextVersion()) throw new StaleClinicalContextVersionException();
         ClinicalContextPreviewResponse preview = preview(appointment, context);
-        List<UUID> verifiedIds = verifiedReports(appointmentId).stream().map(LabReport::getReportId).toList();
+        List<LabReport> verifiedReports = verifiedReports(appointmentId);
+        List<UUID> verifiedIds = verifiedReports.stream().map(LabReport::getReportId).toList();
         List<UUID> suppliedIds = request.verifiedLabReportIds() == null ? List.of() : request.verifiedLabReportIds();
         if (new LinkedHashSet<>(suppliedIds).size() != suppliedIds.size() || !new LinkedHashSet<>(verifiedIds).containsAll(suppliedIds)
                 || suppliedIds.isEmpty()) {
@@ -98,10 +100,11 @@ public class ClinicalContextService {
 
         String canonicalJson = canonicalJson(preview, suppliedIds);
         String sha256 = sha256(canonicalJson);
-        LocalDateTime createdAt = LocalDateTime.now();
+        Instant createdAt = Instant.now();
         ClinicalContextSnapshot snapshot = ClinicalContextSnapshot.builder().snapshotId(UUID.randomUUID()).appointment(appointment)
                 .contextVersion(actualVersion).canonicalJson(canonicalJson).sha256(sha256).createdByDoctor(appointment.getDoctor())
-                .createdAt(createdAt).build();
+                .createdAt(createdAt).labReports(verifiedReports.stream()
+                        .filter(report -> suppliedIds.contains(report.getReportId())).toList()).build();
         snapshots.save(snapshot);
         Map<String, Boolean> required = requiredFieldStatus(preview);
         Map<String, Object> provenance = new TreeMap<>();
@@ -114,6 +117,7 @@ public class ClinicalContextService {
         VitalSign vital = vitals.findTopByAppointment_AppointmentIdOrderByMeasuredAtDesc(appointment.getAppointmentId()).orElse(null);
         Map<String, ClinicalContextFieldResponse> fields = new LinkedHashMap<>();
         fields.put("symptoms", fromContext(context == null ? null : context.getDoctorSymptoms(), context, "DOCTOR_INPUT"));
+        fields.put("patientReportedSymptoms", appointmentValue(appointment.getSymptoms(), appointment));
         fields.put("workingDiagnosis", fromContext(context == null ? null : context.getWorkingDiagnosis(), context, "DOCTOR_INPUT"));
         fields.put("ageYears", age(patient, appointment));
         fields.put("sex", profile(patient == null ? null : patient.getGender(), patient, "sex"));

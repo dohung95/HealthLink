@@ -4,7 +4,8 @@ import com.HealthLink.entity.Appointment;
 import com.HealthLink.entity.Doctor;
 import jakarta.persistence.*;
 import lombok.*;
-import java.time.LocalDateTime;
+import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 
 @Entity
@@ -37,5 +38,12 @@ public class ClinicalContextSnapshot {
     private Doctor createdByDoctor;
 
     @Column(name = "CreatedAt", nullable = false, updatable = false)
-    private LocalDateTime createdAt;
+    private Instant createdAt;
+
+    @ManyToMany(fetch = FetchType.LAZY)
+    @JoinTable(name = "SnapshotLabReports",
+            joinColumns = @JoinColumn(name = "SnapshotID"),
+            inverseJoinColumns = @JoinColumn(name = "ReportID"))
+    @ToString.Exclude
+    private List<LabReport> labReports;
 }

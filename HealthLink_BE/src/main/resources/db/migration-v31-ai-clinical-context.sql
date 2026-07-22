@@ -36,4 +36,17 @@ BEGIN
         ON dbo.ClinicalContextSnapshots (AppointmentID, CreatedAt DESC);
 END;
 
+IF OBJECT_ID('dbo.SnapshotLabReports', 'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.SnapshotLabReports (
+        SnapshotID UNIQUEIDENTIFIER NOT NULL,
+        ReportID UNIQUEIDENTIFIER NOT NULL,
+        CONSTRAINT PK_SnapshotLabReports PRIMARY KEY (SnapshotID, ReportID),
+        CONSTRAINT FK_SnapshotLabReports_Snapshot FOREIGN KEY (SnapshotID)
+            REFERENCES dbo.ClinicalContextSnapshots(SnapshotID),
+        CONSTRAINT FK_SnapshotLabReports_Report FOREIGN KEY (ReportID)
+            REFERENCES dbo.LabReports(ReportID)
+    );
+END;
+
 COMMIT TRANSACTION;
