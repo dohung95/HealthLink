@@ -21,6 +21,8 @@ class EvaluationCase:
     expected_version: str | None = None
     expected_checksum: str | None = None
     expected_corpus_version: str | None = None
+    expected_section_path: str | None = None
+    expected_page: int | None = None
 
     @property
     def expects_no_answer(self) -> bool:
@@ -96,6 +98,7 @@ def load_student_demo_cases(path: Path | None = None) -> list[EvaluationCase]:
             case_id=row["caseId"], query=row["query"], language=row.get("language"),
             expected_document_id=row.get("documentId"), expected_version=row.get("version"),
             expected_checksum=row.get("checksum"), expected_corpus_version=row.get("corpusVersion"),
+            expected_section_path=row.get("sectionPath"), expected_page=row.get("page"),
         )
         for row in rows
     ]
@@ -119,8 +122,14 @@ def _citation_failures(chunk: Any, case: EvaluationCase) -> list[str]:
         ("version", case.expected_version, ("version",)),
         ("checksum", case.expected_checksum, ("checksum",)),
         ("corpus version", case.expected_corpus_version, ("corpus_version", "corpusVersion")),
+        ("section path", case.expected_section_path, ("section_path", "sectionPath")),
+        ("page", case.expected_page, ("page",)),
     )
-    return [f"citation {label} mismatch" for label, value, names in expected if _field(chunk, *names) != value]
+    return [
+        f"citation {label} mismatch"
+        for label, value, names in expected
+        if value is not None and _field(chunk, *names) != value
+    ]
 
 
 def _field(value: Any, *names: str) -> Any:
