@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "1",
+  "ruleSetVersion": "student-demo-v1",
+  "effectiveDate": "2026-07-22",
+  "intendedUse": "STUDENT_DEMO_ONLY",
+  "sources": [
+    {
+      "documentId": "who-hearts-d-type-2-diabetes-2020",
+      "version": "2020",
+      "section": "page 13"
+    }
+  ],
+  "rules": [
+    {
+      "code": "DEMO_GLUCOSE_REVIEW_126",
+      "loincCode": "2345-7",
+      "unitUcum": "mg/dL",
+      "comparator": "AT_LEAST",
+      "threshold": "126",
+      "requiredSafetyContext": ["fastingStatus", "ageYears", "pregnancyStatus"],
+      "sourceDocumentId": "who-hearts-d-type-2-diabetes-2020",
+      "sourceVersion": "2020",
+      "sourceSection": "page 13"
+    }
+  ]
+}

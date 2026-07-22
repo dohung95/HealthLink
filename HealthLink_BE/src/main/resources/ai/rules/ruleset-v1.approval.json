@@ -1,0 +1,14 @@
+{
+  "schemaVersion": "1",
+  "ruleSetVersion": "student-demo-v1",
+  "effectiveDate": "2026-07-22",
+  "reviewerName": "Hiệp",
+  "reviewerRole": "DEMO_REVIEWER",
+  "approvalDate": "2026-07-22",
+  "status": "APPROVED_STUDENT_DEMO",
+  "intendedUse": "STUDENT_DEMO_ONLY",
+  "rulesetSha256": "99d76b8abc06127cb1e697c31be4dad639f2fa055c51aa9cb5af981861cfeeb5",
+  "sourceDocumentId": "who-hearts-d-type-2-diabetes-2020",
+  "sourceVersion": "2020",
+  "sourceSection": "page 13"
+}
