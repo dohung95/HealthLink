@@ -28,4 +28,7 @@ export default defineConfig({
     define: {
         global: 'window',
     },
+    test: {
+        environment: 'jsdom',
+    },
 });

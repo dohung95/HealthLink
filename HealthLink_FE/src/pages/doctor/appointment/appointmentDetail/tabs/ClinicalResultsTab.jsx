@@ -1,9 +1,11 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'react-toastify';
 import { doctorClinicalResultApi } from '@api/doctorClinicalResultApi';
 import ClinicalResultCategorySection from './clinical-results/ClinicalResultCategorySection';
 import ClinicalResultDetailPanel from './clinical-results/ClinicalResultDetailPanel';
 import ClinicalResultModal from './clinical-results/ClinicalResultModal';
+import LabReportVerificationPanel from './clinical-results/LabReportVerificationPanel';
+import { aiLabReportApi } from '@api/aiLabReportApi';
 
 const CATEGORY_ORDER = [
   'Blood Test',
@@ -55,6 +57,16 @@ export default function ClinicalResultsTab({ appointmentId, canManageClinicalRes
   const [error, setError] = useState(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedResult, setSelectedResult] = useState(null);
+  const [labReports, setLabReports] = useState([]);
+  const [selectedLabReport, setSelectedLabReport] = useState(null);
+  const [uploadingLab, setUploadingLab] = useState(false);
+  const labInputRef = useRef(null);
+
+  const loadLabReports = useCallback(async () => {
+    if (!appointmentId) return;
+    try { setLabReports(await aiLabReportApi.list(appointmentId)); }
+    catch { /* T05 is additive: existing clinical results remain usable if AI report list is unavailable. */ }
+  }, [appointmentId]);
 
   const loadResults = useCallback(async () => {
     if (!appointmentId) return;
@@ -74,7 +86,23 @@ export default function ClinicalResultsTab({ appointmentId, canManageClinicalRes
 
   useEffect(() => {
     loadResults();
-  }, [loadResults]);
+    loadLabReports();
+  }, [loadResults, loadLabReports]);
+
+  const handleLabUpload = useCallback(async (event) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file) return;
+    if (!file.type.startsWith('image/') && file.type !== 'application/pdf') { toast.error('Upload a laboratory image or PDF.'); return; }
+    setUploadingLab(true);
+    try {
+      const created = await aiLabReportApi.upload(appointmentId, file);
+      await loadLabReports();
+      setSelectedLabReport(created);
+      toast.success('Laboratory report uploaded. OCR results remain unverified until reviewed.');
+    } catch (error) { toast.error(error.response?.data?.message || 'Unable to upload laboratory report.'); }
+    finally { setUploadingLab(false); }
+  }, [appointmentId, loadLabReports]);
 
   const handleSelectCard = useCallback((result) => {
     setSelectedResult(result);
@@ -165,10 +193,18 @@ export default function ClinicalResultsTab({ appointmentId, canManageClinicalRes
             Add a lab report, imaging result, or follow-up test result for this appointment.
           </p>
           {canManageClinicalResults && !isCancelledAppointment && (
-            <button type="button" className="cr-btn-primary" onClick={handleNew}>
-              <i className="bi bi-plus-lg"></i> Add result
-            </button>
+            <div className="d-flex flex-wrap justify-content-center gap-2">
+              <input ref={labInputRef} type="file" accept="image/*,.pdf" className="d-none" onChange={handleLabUpload} />
+              <button type="button" className="btn btn-outline-primary" disabled={uploadingLab} onClick={() => labInputRef.current?.click()}>
+                <i className="bi bi-file-earmark-arrow-up"></i> {uploadingLab ? 'Uploading…' : 'Upload lab report'}
+              </button>
+              <button type="button" className="cr-btn-primary" onClick={handleNew}>
+                <i className="bi bi-plus-lg"></i> Add result
+              </button>
+            </div>
           )}
+          {labReports.length > 0 && <div className="mt-3"><div className="small fw-semibold text-muted mb-1">AI laboratory reports</div><div className="d-flex flex-wrap justify-content-center gap-2">{labReports.map((report) => <button type="button" key={report.reportId} className={`btn btn-sm ${selectedLabReport?.reportId === report.reportId ? 'btn-primary' : 'btn-outline-secondary'}`} onClick={() => setSelectedLabReport(report)}>{report.originalFileName || 'Laboratory report'} · {report.status}</button>)}</div></div>}
+          {selectedLabReport?.reportId && <LabReportVerificationPanel reportId={selectedLabReport.reportId} canManage={canManageClinicalResults && !isCancelledAppointment} onVerified={loadLabReports} />}
         </div>
 
         {modalOpen && (
@@ -192,11 +228,20 @@ export default function ClinicalResultsTab({ appointmentId, canManageClinicalRes
         <div className="cr-toolbar">
           <strong>Results ({results.length})</strong>
           {canManageClinicalResults && !isCancelledAppointment && (
-            <button type="button" className="cr-btn-primary cr-btn-primary--sm" onClick={handleNew}>
-              <i className="bi bi-plus-lg"></i> Add result
-            </button>
+            <div className="d-flex gap-2">
+              <input ref={labInputRef} type="file" accept="image/*,.pdf" className="d-none" onChange={handleLabUpload} />
+              <button type="button" className="btn btn-outline-primary btn-sm" disabled={uploadingLab} onClick={() => labInputRef.current?.click()}>
+                <i className="bi bi-file-earmark-arrow-up"></i> {uploadingLab ? 'Uploading…' : 'Upload lab report'}
+              </button>
+              <button type="button" className="cr-btn-primary cr-btn-primary--sm" onClick={handleNew}>
+                <i className="bi bi-plus-lg"></i> Add result
+              </button>
+            </div>
           )}
         </div>
+
+        {labReports.length > 0 && <div className="mb-3"><div className="small fw-semibold text-muted mb-1">AI laboratory reports</div><div className="d-flex flex-wrap gap-2">{labReports.map((report) => <button type="button" key={report.reportId} className={`btn btn-sm ${selectedLabReport?.reportId === report.reportId ? 'btn-primary' : 'btn-outline-secondary'}`} onClick={() => setSelectedLabReport(report)}>{report.originalFileName || 'Laboratory report'} · {report.status}</button>)}</div></div>}
+        {selectedLabReport?.reportId && <LabReportVerificationPanel reportId={selectedLabReport.reportId} canManage={canManageClinicalResults && !isCancelledAppointment} onVerified={loadLabReports} />}
 
         {groups.map((g) => (
           <ClinicalResultCategorySection

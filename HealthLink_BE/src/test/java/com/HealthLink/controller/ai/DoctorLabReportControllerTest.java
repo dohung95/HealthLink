@@ -1,7 +1,9 @@
 package com.HealthLink.controller.ai;
 
 import com.HealthLink.dto.ai.CreateLabReportResponse;
+import com.HealthLink.dto.ai.LabReportVerificationResponse;
 import com.HealthLink.service.ai.LabReportService;
+import com.HealthLink.service.ai.LabReportVerificationService;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
 import org.springframework.mock.web.MockMultipartFile;
@@ -14,6 +16,21 @@ import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 class DoctorLabReportControllerTest {
+    @Test
+    void returnsVerificationPayloadFromAssignedDoctorService() {
+        LabReportService reports = mock(LabReportService.class);
+        LabReportVerificationService verification = mock(LabReportVerificationService.class);
+        UUID reportId = UUID.randomUUID();
+        LabReportVerificationResponse expected = new LabReportVerificationResponse(reportId, 7, "NEEDS_VERIFICATION", 2,
+                "/api/doctor/lab-reports/" + reportId + "/file", java.util.List.of(), java.util.List.of());
+        when(verification.verification(reportId)).thenReturn(expected);
+
+        var response = new DoctorLabReportController(reports, verification).verification(reportId);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(response.getBody()).isEqualTo(expected);
+    }
+
     @Test
     void acceptsUploadAsynchronouslyAndForwardsIdempotencyKey() {
         LabReportService service = mock(LabReportService.class);
