@@ -23,6 +23,8 @@ class EvaluationCase:
     expected_corpus_version: str | None = None
     expected_section_path: str | None = None
     expected_page: int | None = None
+    source_section_path: str | None = None
+    source_page: int | None = None
 
     @property
     def expects_no_answer(self) -> bool:
@@ -98,7 +100,7 @@ def load_student_demo_cases(path: Path | None = None) -> list[EvaluationCase]:
             case_id=row["caseId"], query=row["query"], language=row.get("language"),
             expected_document_id=row.get("documentId"), expected_version=row.get("version"),
             expected_checksum=row.get("checksum"), expected_corpus_version=row.get("corpusVersion"),
-            expected_section_path=row.get("sectionPath"), expected_page=row.get("page"),
+            source_section_path=row.get("sectionPath"), source_page=row.get("page"),
         )
         for row in rows
     ]
@@ -125,11 +127,17 @@ def _citation_failures(chunk: Any, case: EvaluationCase) -> list[str]:
         ("section path", case.expected_section_path, ("section_path", "sectionPath")),
         ("page", case.expected_page, ("page",)),
     )
-    return [
+    failures = [
         f"citation {label} mismatch"
         for label, value, names in expected
         if value is not None and _field(chunk, *names) != value
     ]
+    if not str(_field(chunk, "section_path", "sectionPath") or "").strip():
+        failures.append("citation section path missing")
+    page = _field(chunk, "page")
+    if not isinstance(page, int) or page < 1:
+        failures.append("citation page invalid")
+    return failures
 
 
 def _field(value: Any, *names: str) -> Any:

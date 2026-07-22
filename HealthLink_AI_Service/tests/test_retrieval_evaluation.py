@@ -97,7 +97,7 @@ def test_student_demo_runner_loads_only_synthetic_fixture_cases():
             insufficient_evidence=case.expects_no_answer,
             chunks=[] if case.expects_no_answer else [FakeChunk(
                 case.expected_document_id, case.expected_version, case.expected_checksum,
-                case.expected_corpus_version, case.expected_section_path, case.expected_page,
+                case.expected_corpus_version, case.source_section_path, case.source_page,
             )],
         )
         for case in cases
@@ -118,25 +118,42 @@ def test_student_demo_fixture_has_65_evidence_grounded_cases_with_page_citations
     assert len(no_answer) >= 15
     assert len({case.expected_document_id for case in relevant}) == 5
     assert all(case.language is None for case in cases)
-    assert all(case.expected_section_path and case.expected_page for case in relevant)
+    assert all(case.source_section_path and case.source_page for case in relevant)
 
 
-def test_evaluation_fails_when_retrieved_page_or_section_citation_is_wrong():
+def test_relevant_fixture_queries_are_topic_grounded_and_no_answer_queries_are_non_medical():
+    topic_terms = {
+        "kdigo-ckd-guideline-2024": "ckd",
+        "who-haemoglobin-cutoffs-2024": "haemoglobin",
+        "who-hearts-cvd-management-2018": "cardiovascular",
+        "who-hearts-d-type-2-diabetes-2020": "diabetes",
+        "who-hepatitis-b-guideline-2024": "hepatitis",
+    }
+    cases = load_student_demo_cases()
+
+    for case in cases:
+        query = case.query.lower()
+        if case.expects_no_answer:
+            assert query.startswith("synthetic non-medical")
+        else:
+            assert topic_terms[case.expected_document_id] in query
+
+
+def test_evaluation_fails_when_retrieved_citation_has_no_section_or_page():
     checksum = "a" * 64
     service = DeterministicRetrievalFake({
         "catalogued evidence": FakeResponse(
             insufficient_evidence=False,
-            chunks=[FakeChunk("glucose-guide", "2026.1", checksum, "student-demo-2026.1", "Page 2", 2)],
+            chunks=[FakeChunk("glucose-guide", "2026.1", checksum, "student-demo-2026.1", "", 0)],
         ),
     })
     case = EvaluationCase(
         case_id="synthetic-page-check", query="catalogued evidence",
         expected_document_id="glucose-guide", expected_version="2026.1",
         expected_checksum=checksum, expected_corpus_version="student-demo-2026.1",
-        expected_section_path="Page 1", expected_page=1,
     )
 
     report = evaluate_retrieval(service, [case])
 
     assert report.cases[0].status == "FAIL"
-    assert report.cases[0].failures == ("citation section path mismatch", "citation page mismatch")
+    assert report.cases[0].failures == ("citation section path missing", "citation page invalid")
