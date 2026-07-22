@@ -16,7 +16,10 @@ class Config:
     AI_SERVICE_KEY = os.getenv("AI_SERVICE_KEY", "")
     MINIO_ENDPOINT = os.getenv("MINIO_ENDPOINT", "http://127.0.0.1:9000")
     QDRANT_URL = os.getenv("QDRANT_URL", "http://127.0.0.1:6333")
+    QDRANT_API_KEY = os.getenv("QDRANT_API_KEY", "")
     DEPENDENCY_HEALTH_TIMEOUT = float(os.getenv("AI_DEPENDENCY_HEALTH_TIMEOUT_SECONDS", "2"))
+    EMBEDDING_MODEL = os.getenv("HL_EMBEDDING_MODEL", "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2")
+    EMBEDDING_CACHE_DIR = os.getenv("HL_EMBEDDING_CACHE_DIR")
 
     # OCR — Vietnamese + English (both Latin-based, compatible in EasyOCR)
     OCR_LANGUAGES = ["vi", "en"]

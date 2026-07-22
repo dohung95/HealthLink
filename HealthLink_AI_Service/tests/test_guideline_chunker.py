@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import hashlib
+import json
 from pathlib import Path
+from urllib.error import HTTPError
 from uuid import UUID
 
 import pytest
@@ -11,6 +13,7 @@ from services.embedding_service import LocalEmbeddingService
 from services.guideline_chunker import GuidelineChunker
 from services.guideline_parser import GuidelineParser
 from services.qdrant_guideline_store import QdrantGuidelineStore
+from scripts.ingest_guidelines import load_manifest
 
 
 FIXTURE = Path(__file__).parent / "fixtures" / "guidelines" / "synthetic-guideline.md"
@@ -63,11 +66,13 @@ def test_parser_rejects_manifest_without_approval():
         GuidelineParser().parse(manifest)
 
 
-def test_local_embedding_is_deterministic_and_normalized():
+def test_local_embedding_uses_pinned_multilingual_model_and_normalizes_vectors():
     embedding = LocalEmbeddingService()
 
     vector = embedding.embed("verified fasting glucose")
 
+    assert embedding.model_name == "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
+    assert embedding.dimension == 384
     assert vector == embedding.embed("verified fasting glucose")
     assert len(vector) == embedding.dimension
     assert sum(value * value for value in vector) == pytest.approx(1.0)
@@ -82,3 +87,85 @@ def test_qdrant_payload_contains_only_guideline_contract_fields():
     assert payload["chunkId"] == chunk.chunk_id
     assert "patientId" not in payload
     assert "appointmentId" not in payload
+    assert json.loads(json.dumps(payload))["effectiveDate"] == "2026-01-01"
+
+
+def test_qdrant_creates_cosine_collection_with_embedding_dimension_before_upsert(monkeypatch):
+    document = GuidelineParser().parse(approved_manifest())
+    chunk = GuidelineChunker().chunk(document)[0]
+    store = QdrantGuidelineStore("http://127.0.0.1:6333", "student-demo")
+    calls = []
+
+    def record_request(method, path, body=None):
+        calls.append((method, path, body))
+        if method == "GET":
+            raise HTTPError("http://127.0.0.1:6333/collections/student-demo", 404, "missing", {}, None)
+        return {"result": {"status": "ok"}}
+
+    monkeypatch.setattr(store, "_request", record_request)
+
+    store.upsert([chunk], [[0.0] * 384])
+
+    assert calls[0] == (
+        "GET",
+        "/collections/student-demo",
+        None,
+    )
+    assert calls[1] == (
+        "PUT",
+        "/collections/student-demo",
+        {"vectors": {"size": 384, "distance": "Cosine"}},
+    )
+    assert calls[2][0:2] == ("PUT", "/collections/student-demo/points?wait=true")
+
+
+def test_qdrant_request_uses_configured_api_key_without_putting_it_in_payload(monkeypatch):
+    request_headers = {}
+
+    class FakeResponse:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc_value, traceback):
+            return False
+
+        def read(self):
+            return b"{}"
+
+    def capture(request, timeout):
+        request_headers.update(dict(request.header_items()))
+        return FakeResponse()
+
+    monkeypatch.setattr("services.qdrant_guideline_store.urlopen", capture)
+
+    QdrantGuidelineStore("http://127.0.0.1:6333", "student-demo", api_key="local-test-key")._request(
+        "GET", "/collections/student-demo"
+    )
+
+    assert request_headers["Api-key"] == "local-test-key"
+
+
+def test_load_manifest_converts_only_approved_student_demo_resource_manifest(tmp_path):
+    source_pdf = tmp_path / "source-pdf" / "guide.pdf"
+    source_pdf.parent.mkdir()
+    source_pdf.write_bytes(b"synthetic guideline")
+    resource_manifest = tmp_path / "manifests" / "guide.manifest.json"
+    resource_manifest.parent.mkdir()
+    resource_manifest.write_text(json.dumps({
+        "documentId": "synthetic-guide",
+        "title": "Synthetic guidance",
+        "issuer": "HealthLink Student Demo",
+        "publishedDate": "2026-01-01",
+        "version": "2026.1",
+        "license": "STUDENT_DEMO_ONLY",
+        "status": "APPROVED_STUDENT_DEMO",
+        "pdfFile": "source-pdf/guide.pdf",
+        "sha256": hashlib.sha256(source_pdf.read_bytes()).hexdigest(),
+    }), encoding="utf-8")
+
+    manifest = load_manifest(resource_manifest)
+
+    assert manifest.approval_status == "APPROVED"
+    assert manifest.effective_date.isoformat() == "2026-01-01"
+    assert manifest.source_path == str(source_pdf)
+    assert manifest.corpus_version == "student-demo-2026.1"
