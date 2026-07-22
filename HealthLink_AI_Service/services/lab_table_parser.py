@@ -7,8 +7,31 @@ from collections.abc import Iterable
 LOW_CONFIDENCE = 0.80
 _NUMERIC = re.compile(r"^(?P<comparator><=|>=|<|>|=)?\s*(?P<number>[+-]?\d+(?:\.\d+)?)$")
 _RANGE = re.compile(r"^\s*([+-]?\d+(?:\.\d+)?)\s*[-–]\s*([+-]?\d+(?:\.\d+)?)\s*$")
-_UNIT = re.compile(r"^[A-Za-zµμ%][A-Za-z0-9µμ%/^*.-]*$")
 _HEADER_TERMS = {"test", "result", "unit", "reference", "range", "xet nghiem", "ket qua", "don vi", "tham chieu"}
+_RECOGNIZED_UNITS = {
+    "%",
+    "cells/ul",
+    "fl",
+    "g/dl",
+    "g/l",
+    "iu/l",
+    "k/ul",
+    "meq/l",
+    "mg/dl",
+    "mg/l",
+    "miu/ml",
+    "mmol/l",
+    "ng/dl",
+    "ng/ml",
+    "pg",
+    "pg/ml",
+    "u/l",
+    "umol/l",
+    "10*9/l",
+    "10*12/l",
+    "10^9/l",
+    "10^12/l",
+}
 
 
 def _box(raw_box: object) -> tuple[int, int, int, int]:
@@ -94,21 +117,31 @@ def _is_column_header(tokens: list[dict]) -> bool:
     )
 
 
+def _is_recognized_unit(value: str) -> bool:
+    """Check raw OCR text against the review-time unit allowlist without changing it."""
+    normalized = value.strip().lower().replace("μ", "u").replace("µ", "u")
+    return normalized in _RECOGNIZED_UNITS
+
+
 def parse_lab_detections(
     detections: Iterable[tuple[object, str, float]], *, page_number: int, page_width: int, page_height: int
 ) -> tuple[list[dict], list[dict]]:
     """Convert OCR tokens to review-only candidates without correcting source text."""
     observations: list[dict] = []
     warnings: list[dict] = []
+    saw_table_header = False
     for tokens in _rows(detections):
         tokens.sort(key=lambda token: token["box"][0])
         if len(tokens) < 2:
             continue
         if _is_column_header(tokens):
+            saw_table_header = True
             continue
         test_name = tokens[0]["text"]
         value_text = tokens[1]["text"]
         numeric_value, comparator, ambiguous = _number(value_text)
+        if not saw_table_header and numeric_value is None and not ambiguous:
+            continue
         unit_raw = tokens[2]["text"] if len(tokens) >= 3 else None
         reference_text = tokens[3]["text"] if len(tokens) >= 4 else None
         reference_low, reference_high = _range(reference_text)
@@ -116,7 +149,7 @@ def parse_lab_detections(
         confidence = round(sum(token["confidence"] for token in tokens) / len(tokens), 3)
         if ambiguous:
             warnings.append({"code": "AMBIGUOUS_DECIMAL", "rowOrder": row_order})
-        if unit_raw and not _UNIT.match(unit_raw):
+        if unit_raw and not _is_recognized_unit(unit_raw):
             warnings.append({"code": "UNIT_NOT_RECOGNIZED", "rowOrder": row_order})
         if confidence < LOW_CONFIDENCE:
             warnings.append({"code": "LOW_CONFIDENCE", "rowOrder": row_order})
