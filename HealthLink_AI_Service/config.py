@@ -17,6 +17,7 @@ class Config:
     MINIO_ENDPOINT = os.getenv("MINIO_ENDPOINT", "http://127.0.0.1:9000")
     QDRANT_URL = os.getenv("QDRANT_URL", "http://127.0.0.1:6333")
     QDRANT_API_KEY = os.getenv("QDRANT_API_KEY", "")
+    GUIDELINE_COLLECTION = os.getenv("HL_GUIDELINE_COLLECTION", "healthlink-guidelines-student-demo-v2026-1")
     DEPENDENCY_HEALTH_TIMEOUT = float(os.getenv("AI_DEPENDENCY_HEALTH_TIMEOUT_SECONDS", "2"))
     EMBEDDING_MODEL = os.getenv("HL_EMBEDDING_MODEL", "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2")
     EMBEDDING_CACHE_DIR = os.getenv("HL_EMBEDDING_CACHE_DIR")

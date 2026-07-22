@@ -47,7 +47,8 @@ class GuidelineRetrievalService:
             "with_payload": True,
             "filter": {"must": must},
         }
-        results = self._search(payload).get("result", [])
+        result = self._search(payload).get("result", [])
+        results = result.get("points", []) if isinstance(result, dict) else result
         chunks: list[GuidelineChunk] = []
         for item in results:
             score = float(item.get("score", 0.0))

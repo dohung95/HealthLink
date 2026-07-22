@@ -232,7 +232,7 @@ async def retrieve_guidelines(
 
     try:
         service = GuidelineRetrievalService(
-            Config.QDRANT_URL, "student-demo-guidelines", api_key=Config.QDRANT_API_KEY,
+            Config.QDRANT_URL, Config.GUIDELINE_COLLECTION, api_key=Config.QDRANT_API_KEY,
         )
         result = await run_in_threadpool(
             service.retrieve,
