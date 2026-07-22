@@ -22,31 +22,59 @@ DETERMINISTIC_OPTIONS = {"temperature": 0, "seed": 20260722, "num_ctx": 4096, "n
 ModelCall = Callable[..., Mapping[str, Any]]
 
 
-def run_qualification(*, model: str, cases_path: Path, call_model: ModelCall | None = None) -> dict[str, Any]:
+def run_qualification(
+    *,
+    model: str,
+    cases_path: Path,
+    call_model: ModelCall | None = None,
+    repeats: int = 3,
+    warmup: bool = True,
+) -> dict[str, Any]:
     """Run cases one at a time and return a deliberately redacted result."""
+    if repeats < 3:
+        raise ValueError("Qualification requires at least three measured repetitions")
     invoke = call_model or _ollama_call
     case_results: list[dict[str, Any]] = []
     model_digest: str | None = None
     for raw_case in _load_cases(cases_path):
         case = _normalize_case(raw_case)
-        started = time.perf_counter()
-        response = invoke(model=model, prompt=_render_prompt(case["source"]), options=dict(DETERMINISTIC_OPTIONS))
-        latency_ms = round((time.perf_counter() - started) * 1000, 3)
-        digest = _field(response, "digest")
-        if isinstance(digest, str) and digest:
-            model_digest = digest
-        score = score_case_output(
-            _field(response, "response"),
-            evidence_ids=case["evidenceIds"],
-            allow_dosage=case["allowDosage"],
-            critical_rules=case["criticalRules"],
-        )
-        case_results.append(
-            {
-                "caseId": case["caseId"],
+        prompt = _render_prompt(case["source"])
+        if warmup:
+            invoke(model=model, prompt=prompt, options=dict(DETERMINISTIC_OPTIONS))
+        repetitions: list[dict[str, Any]] = []
+        for _ in range(repeats):
+            started = time.perf_counter()
+            response = invoke(model=model, prompt=prompt, options=dict(DETERMINISTIC_OPTIONS))
+            latency_ms = round((time.perf_counter() - started) * 1000, 3)
+            digest = _field(response, "digest")
+            if isinstance(digest, str) and digest:
+                model_digest = digest
+            score = score_case_output(
+                _field(response, "response"),
+                evidence_ids=case["evidenceIds"],
+                allow_dosage=case["allowDosage"],
+                critical_rules=case["criticalRules"],
+            )
+            repetitions.append({
                 "schemaValid": score.schema_valid,
                 "hardFailures": list(score.hard_failures),
                 "latencyMs": latency_ms,
+            })
+        hard_failures = list(dict.fromkeys(
+            failure for repetition in repetitions for failure in repetition["hardFailures"]
+        ))
+        latencies = [repetition["latencyMs"] for repetition in repetitions]
+        fingerprints = {(item["schemaValid"], tuple(item["hardFailures"])) for item in repetitions}
+        case_results.append(
+            {
+                "caseId": case["caseId"],
+                "warmupCompleted": warmup,
+                "schemaValid": all(item["schemaValid"] for item in repetitions),
+                "hardFailures": hard_failures,
+                "latencyMs": round(sum(latencies) / len(latencies), 3),
+                "latenciesMs": latencies,
+                "repetitions": repetitions,
+                "stable": len(fingerprints) == 1,
             }
         )
     return {
@@ -56,6 +84,12 @@ def run_qualification(*, model: str, cases_path: Path, call_model: ModelCall | N
         "generationOptions": dict(DETERMINISTIC_OPTIONS),
         "cases": case_results,
     }
+
+
+def write_qualification_result(result: Mapping[str, Any], output_path: Path) -> None:
+    """Persist only the already-redacted qualification result supplied by the runner."""
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    output_path.write_text(json.dumps(result, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
 
 
 def _load_cases(path: Path) -> list[dict[str, Any]]:
@@ -127,8 +161,13 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Run one local CDS model qualification sequentially.")
     parser.add_argument("--model", required=True)
     parser.add_argument("--cases", required=True, type=Path)
+    parser.add_argument("--repeats", type=int, default=3)
+    parser.add_argument("--output", type=Path)
     args = parser.parse_args()
-    print(json.dumps(run_qualification(model=args.model, cases_path=args.cases), separators=(",", ":")))
+    result = run_qualification(model=args.model, cases_path=args.cases, repeats=args.repeats)
+    if args.output:
+        write_qualification_result(result, args.output)
+    print(json.dumps(result, separators=(",", ":")))
     return 0
 
 
