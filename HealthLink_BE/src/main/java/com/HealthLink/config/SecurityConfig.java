@@ -87,6 +87,8 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.GET, "/api/doctor/reviews/public/**").permitAll()
                 // Public: tạo kết nối websocket với backend
                 .requestMatchers("/ws/**").permitAll()
+                // Private local ingestion worker authenticates with its own header guard.
+                .requestMatchers(HttpMethod.POST, "/api/internal/ai/guideline-chunks").permitAll()
                 // Tất cả còn lại yêu cầu xác thực
                 .anyRequest().authenticated())
                 // Dùng DaoAuthenticationProvider vừa tạo

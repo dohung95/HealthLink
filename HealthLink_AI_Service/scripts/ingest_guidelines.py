@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 from pathlib import Path
 
@@ -17,6 +18,7 @@ from services.embedding_service import LocalEmbeddingService
 from services.guideline_chunker import GuidelineChunker
 from services.guideline_parser import GuidelineParser
 from services.qdrant_guideline_store import QdrantGuidelineStore
+from services.guideline_registry_client import GuidelineRegistryClient
 
 
 def load_manifest(manifest_path: Path) -> GuidelineManifest:
@@ -47,7 +49,16 @@ def ingest(manifest_path: Path, qdrant_url: str, collection: str) -> list[str]:
     QdrantGuidelineStore(qdrant_url, collection, Config.QDRANT_API_KEY).upsert(
         chunks, [embeddings.embed(chunk.text) for chunk in chunks]
     )
+    register_audit_if_configured(chunks)
     return [chunk.chunk_id for chunk in chunks]
+
+
+def register_audit_if_configured(chunks) -> None:
+    backend_base_url = os.getenv("HL_BACKEND_BASE_URL", "").strip()
+    if not backend_base_url:
+        print("WARNING: guideline chunk audit registration skipped; HL_BACKEND_BASE_URL is not configured (local-only mode).")
+        return
+    GuidelineRegistryClient(backend_base_url, os.getenv("AI_SERVICE_KEY", "")).register(chunks)
 
 
 if __name__ == "__main__":
