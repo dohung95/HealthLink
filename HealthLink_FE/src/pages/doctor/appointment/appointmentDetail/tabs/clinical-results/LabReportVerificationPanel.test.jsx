@@ -4,7 +4,7 @@ import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import LabReportVerificationPanel from './LabReportVerificationPanel';
 import { aiLabReportApi } from '@api/aiLabReportApi';
 
-vi.mock('pdfjs-dist', () => ({ getDocument: vi.fn(() => ({ promise: Promise.resolve({ getPage: vi.fn(() => Promise.resolve({ getViewport: () => ({ width: 1, height: 1 }), render: () => ({ promise: Promise.resolve() }) })) }) })) }));
+vi.mock('pdfjs-dist', () => ({ GlobalWorkerOptions: {}, getDocument: vi.fn(() => ({ promise: Promise.resolve({ getPage: vi.fn(() => Promise.resolve({ getViewport: () => ({ width: 1, height: 1 }), render: () => ({ promise: Promise.resolve() }) })) }) })) }));
 
 vi.mock('@api/aiLabReportApi', () => ({
   aiLabReportApi: {
@@ -22,6 +22,11 @@ vi.mock('@api/aiLabReportApi', () => ({
 describe('LabReportVerificationPanel', () => {
   beforeAll(() => { URL.createObjectURL = vi.fn(() => 'blob:synthetic'); URL.revokeObjectURL = vi.fn(); HTMLCanvasElement.prototype.getContext = vi.fn(() => ({})); });
   afterEach(() => { cleanup(); vi.clearAllMocks(); });
+
+  it('configures the bundled PDF worker before rendering a protected PDF source', async () => {
+    const pdfjsLib = await import('pdfjs-dist');
+    expect(pdfjsLib.GlobalWorkerOptions.workerSrc).toContain('pdf.worker.min.mjs');
+  });
 
   it('keeps final verification disabled while an active observation is undecided', async () => {
     render(<LabReportVerificationPanel reportId="report-1" canManage />);
