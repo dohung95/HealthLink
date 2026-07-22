@@ -9,6 +9,17 @@ function hasRequiredFields(row) {
   return Boolean(row.testNameRaw?.trim() && row.valueText?.trim());
 }
 
+function toObservationUpdate(row, expectedVersion, decision) {
+  const numericValue = /^[-+]?\d+(?:[.,]\d+)?$/.test(row.valueText?.trim() || '') ? Number(row.valueText.trim().replace(',', '.')) : null;
+  return {
+    expectedVersion, decision, testNameRaw: row.testNameRaw, valueText: row.valueText, numericValue,
+    comparator: row.comparator ?? null, unitRaw: row.unitRaw ?? null, unitUcum: row.unitUcum ?? null,
+    referenceLow: row.referenceLow ?? null, referenceHigh: row.referenceHigh ?? null,
+    referenceText: row.referenceText ?? null, abnormalFlag: row.abnormalFlag ?? null,
+    testNameNormalized: row.testNameNormalized ?? null, loincCode: row.loincCode ?? null,
+  };
+}
+
 function SourceViewer({ reportId, selected, onStateChange }) {
   const [url, setUrl] = useState(null);
   const [type, setType] = useState('');
@@ -49,7 +60,7 @@ export default function LabReportVerificationPanel({ reportId, canManage, onVeri
   const updateDraft = (id, patch) => setDraft((rows) => rows.map((row) => row.observationId === id ? { ...row, ...patch } : row));
   const saveRow = async (row, decision) => {
     setBusy(true); setConflict(false);
-    try { const numericValue = /^[-+]?\d+(?:[.,]\d+)?$/.test(row.valueText?.trim() || '') ? Number(row.valueText.trim().replace(',', '.')) : null; const next = await aiLabReportApi.updateObservation(reportId, row.observationId, { expectedVersion: data.version, decision, ...row, numericValue }); await load(); toast.success('Row saved. It is not final until the report is confirmed.'); return next; }
+    try { const next = await aiLabReportApi.updateObservation(reportId, row.observationId, toObservationUpdate(row, data.version, decision)); await load(); toast.success('Row saved. It is not final until the report is confirmed.'); return next; }
     catch (error) { if (error.response?.status === 409) { setLocalDraft(draft); const latest = await aiLabReportApi.getVerification(reportId); setData(latest); setConflict(true); toast.error('Another change was saved. Compare the server report with your preserved local draft.'); } else toast.error('Unable to save this row.'); }
     finally { setBusy(false); }
   };

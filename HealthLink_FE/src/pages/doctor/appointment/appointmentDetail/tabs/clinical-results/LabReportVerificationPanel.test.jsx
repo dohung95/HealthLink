@@ -76,6 +76,17 @@ describe('LabReportVerificationPanel', () => {
     await waitFor(() => expect(aiLabReportApi.updateObservation).toHaveBeenCalledWith('report-1', 1, expect.objectContaining({ numericValue: 127 })));
   });
 
+  it('sends only the observation update contract when saving a reviewed row', async () => {
+    aiLabReportApi.updateObservation.mockResolvedValueOnce({});
+    render(<LabReportVerificationPanel reportId="report-1" canManage />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Verify', exact: true }));
+    await waitFor(() => expect(aiLabReportApi.updateObservation).toHaveBeenCalledWith('report-1', 1, {
+      expectedVersion: 3, decision: 'VERIFIED', testNameRaw: 'Glucose', valueText: '126', numericValue: 126,
+      comparator: null, unitRaw: 'mg/dL', unitUcum: null, referenceLow: null, referenceHigh: null,
+      referenceText: null, abnormalFlag: null, testNameNormalized: null, loincCode: null,
+    }));
+  });
+
   it('blocks confirmation and exposes recovery when protected source preview fails', async () => {
     aiLabReportApi.getVerification.mockResolvedValueOnce({
       reportId: 'report-1', status: 'NEEDS_VERIFICATION', version: 3, warnings: [],
