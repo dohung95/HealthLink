@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 
@@ -10,6 +11,8 @@ from models.rag_schemas import GuidelineChunk
 
 
 class QdrantGuidelineStore:
+    _COLLECTION_NAME = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$")
+
     def __init__(self, base_url: str, collection: str, api_key: str = "", batch_size: int = 100):
         if batch_size < 1:
             raise ValueError("batch_size must be positive")
@@ -47,6 +50,69 @@ class QdrantGuidelineStore:
         configured_dimension = existing["result"]["config"]["params"]["vectors"]["size"]
         if configured_dimension != vector_dimension:
             raise ValueError("Qdrant collection vector dimension does not match embedding model")
+
+    def staging_collection_name(self, corpus_version: str) -> str:
+        """Return the explicit, non-active collection used for a corpus build."""
+        if not self._COLLECTION_NAME.fullmatch(corpus_version):
+            raise ValueError("corpus version cannot be used in a Qdrant collection name")
+        return f"{self.collection}__staging__{corpus_version}"
+
+    def stage(self, chunks: list[GuidelineChunk], vectors: list[list[float]], corpus_version: str) -> str:
+        """Write a versioned corpus without changing the active retrieval target."""
+        staging_collection = self.staging_collection_name(corpus_version)
+        self._require_absent_collection(staging_collection)
+        staged_store = QdrantGuidelineStore(
+            self.base_url, staging_collection, self.api_key, batch_size=self.batch_size
+        )
+        staged_store.upsert(chunks, vectors)
+        staged_store._validate_collection(staging_collection, len(vectors[0]) if vectors else 1)
+        return staging_collection
+
+    def _require_absent_collection(self, collection: str) -> None:
+        try:
+            self._request("GET", f"/collections/{collection}")
+        except HTTPError as error:
+            if error.code == 404:
+                return
+            raise
+        raise ValueError("staging collection already exists; corpus versions are immutable")
+
+    def promote(self, staging_collection: str, active_alias: str, *, expected_vector_dimension: int) -> None:
+        """Atomically point an active alias to a validated staged corpus."""
+        self._validate_staging(staging_collection, expected_vector_dimension)
+        self._switch_alias(staging_collection, active_alias)
+
+    def rollback(self, previous_collection: str, active_alias: str, *, expected_vector_dimension: int) -> None:
+        """Atomically restore an already validated corpus through the active alias."""
+        self._validate_collection(previous_collection, expected_vector_dimension)
+        self._switch_alias(previous_collection, active_alias)
+
+    def _validate_staging(self, staging_collection: str, expected_vector_dimension: int) -> None:
+        expected_prefix = f"{self.collection}__staging__"
+        if not staging_collection.startswith(expected_prefix):
+            raise ValueError("staging collection does not belong to this active collection")
+        self._validate_collection(staging_collection, expected_vector_dimension)
+
+    def _validate_collection(self, collection: str, expected_vector_dimension: int) -> None:
+        if expected_vector_dimension < 1:
+            raise ValueError("expected vector dimension must be positive")
+        existing = self._request("GET", f"/collections/{collection}")
+        configured_dimension = existing["result"]["config"]["params"]["vectors"]["size"]
+        if configured_dimension != expected_vector_dimension:
+            raise ValueError("Qdrant collection vector dimension does not match embedding model")
+        if existing["result"].get("points_count", 0) < 1:
+            raise ValueError("Qdrant collection has no staged guideline points")
+
+    def _switch_alias(self, collection: str, alias: str) -> None:
+        if not self._COLLECTION_NAME.fullmatch(alias):
+            raise ValueError("active alias is not a safe Qdrant alias name")
+        # Qdrant applies this action list atomically; failures leave the old alias intact.
+        self._request("POST", "/collections/aliases?wait=true", {
+            "actions": [
+                {"delete_alias": {"alias_name": alias}},
+                {"create_alias": {"collection_name": collection, "alias_name": alias}},
+            ],
+        })
 
     @staticmethod
     def _payload(chunk: GuidelineChunk) -> dict:
