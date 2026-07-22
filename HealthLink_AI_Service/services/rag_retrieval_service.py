@@ -42,7 +42,7 @@ class GuidelineRetrievalService:
         if issuer:
             must.append({"key": "issuer", "match": {"value": issuer}})
         payload = {
-            "vector": vector,
+            "query": vector,
             "limit": top_k * 3,
             "with_payload": True,
             "filter": {"must": must},

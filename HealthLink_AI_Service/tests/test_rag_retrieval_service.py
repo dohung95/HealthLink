@@ -84,6 +84,23 @@ def test_retrieval_reads_qdrant_points_envelope():
     assert [chunk.chunk_id for chunk in result.chunks] == ["chunk-2"]
 
 
+def test_retrieval_uses_qdrant_query_field_for_the_embedding_vector():
+    captured = {}
+
+    def capture_search(body):
+        captured.update(body)
+        return {"result": []}
+
+    service = GuidelineRetrievalService(
+        "http://qdrant.test", "student-demo-guidelines", embedding=SyntheticEmbedding(), search=capture_search,
+    )
+
+    service.retrieve(query="type 2 diabetes")
+
+    assert captured["query"] == [0.0] * 384
+    assert "vector" not in captured
+
+
 def test_retrieval_fails_closed_when_requested_language_is_not_in_chunk_contract():
     service = GuidelineRetrievalService(
         "http://qdrant.test", "student-demo-guidelines", embedding=SyntheticEmbedding(),
