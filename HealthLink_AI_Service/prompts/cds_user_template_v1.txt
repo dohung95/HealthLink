@@ -1,0 +1,3 @@
+Synthetic qualification case: {case_json}
+
+Return only the exact CDS JSON object required by the system instruction.

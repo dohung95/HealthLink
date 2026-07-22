@@ -1,0 +1,112 @@
+"""Sequential, local-only runner for CDS model qualification."""
+
+from __future__ import annotations
+
+import argparse
+import json
+import sys
+import time
+from pathlib import Path
+from typing import Any, Callable, Mapping
+
+SERVICE_ROOT = Path(__file__).resolve().parents[1]
+if str(SERVICE_ROOT) not in sys.path:
+    sys.path.insert(0, str(SERVICE_ROOT))
+
+from evaluation.score_model_qualification import score_case_output
+from models.cds_schemas import CdsSuggestion
+
+PROMPT_VERSION = "cds-prompt-v1"
+SCHEMA_VERSION = "cds-schema-v1"
+DETERMINISTIC_OPTIONS = {"temperature": 0, "seed": 20260722, "num_ctx": 4096, "num_predict": 1024}
+ModelCall = Callable[..., Mapping[str, Any]]
+
+
+def run_qualification(*, model: str, cases_path: Path, call_model: ModelCall | None = None) -> dict[str, Any]:
+    """Run cases one at a time and return a deliberately redacted result."""
+    invoke = call_model or _ollama_call
+    case_results: list[dict[str, Any]] = []
+    model_digest: str | None = None
+    for case in _load_cases(cases_path):
+        started = time.perf_counter()
+        response = invoke(model=model, prompt=_render_prompt(case), options=dict(DETERMINISTIC_OPTIONS))
+        latency_ms = round((time.perf_counter() - started) * 1000, 3)
+        digest = _field(response, "digest")
+        if isinstance(digest, str) and digest:
+            model_digest = digest
+        score = score_case_output(
+            _field(response, "response"),
+            evidence_ids=_evidence_ids(case),
+            allow_dosage=bool(case.get("allowDosage", False)),
+            critical_rules=case.get("criticalRules", ()),
+        )
+        case_results.append(
+            {
+                "caseId": str(case["caseId"]),
+                "schemaValid": score.schema_valid,
+                "hardFailures": list(score.hard_failures),
+                "latencyMs": latency_ms,
+            }
+        )
+    return {
+        "model": {"tag": model, "digest": model_digest},
+        "promptVersion": PROMPT_VERSION,
+        "schemaVersion": SCHEMA_VERSION,
+        "generationOptions": dict(DETERMINISTIC_OPTIONS),
+        "cases": case_results,
+    }
+
+
+def _load_cases(path: Path) -> list[dict[str, Any]]:
+    rows = []
+    for line in path.read_text(encoding="utf-8").splitlines():
+        if line.strip():
+            parsed = json.loads(line)
+            if not isinstance(parsed, dict) or not parsed.get("caseId"):
+                raise ValueError("Each qualification case must contain caseId")
+            rows.append(parsed)
+    return rows
+
+
+def _render_prompt(case: Mapping[str, Any]) -> str:
+    system = (SERVICE_ROOT / "prompts" / "cds_system_v1.txt").read_text(encoding="utf-8").strip()
+    template = (SERVICE_ROOT / "prompts" / "cds_user_template_v1.txt").read_text(encoding="utf-8")
+    return f"{system}\n\n" + template.format(case_json=json.dumps(case, ensure_ascii=False, separators=(",", ":")))
+
+
+def _evidence_ids(case: Mapping[str, Any]) -> set[str]:
+    evidence = case.get("evidence", ())
+    return {
+        str(item.get("evidenceId"))
+        for item in evidence
+        if isinstance(item, Mapping) and isinstance(item.get("evidenceId"), str)
+    }
+
+
+def _ollama_call(*, model: str, prompt: str, options: Mapping[str, Any]) -> Mapping[str, Any]:
+    import ollama
+
+    response = ollama.Client().generate(
+        model=model,
+        prompt=prompt,
+        format=CdsSuggestion.model_json_schema(by_alias=True),
+        options=dict(options),
+    )
+    return response.model_dump() if hasattr(response, "model_dump") else dict(response)
+
+
+def _field(value: Mapping[str, Any], name: str) -> Any:
+    return value.get(name)
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description="Run one local CDS model qualification sequentially.")
+    parser.add_argument("--model", required=True)
+    parser.add_argument("--cases", required=True, type=Path)
+    args = parser.parse_args()
+    print(json.dumps(run_qualification(model=args.model, cases_path=args.cases), separators=(",", ":")))
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
