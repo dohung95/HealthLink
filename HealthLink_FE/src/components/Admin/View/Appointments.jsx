@@ -1248,7 +1248,7 @@ export default function Appointments() {
                           {availableDoctors.map(doc => {
                             const isSameSpecialty = doc.specialty?.toLowerCase() === selectedAppointment?.department?.toLowerCase();
                             return (
-                              <option key={doc.doctorID} value={doc.doctorID}>
+                              <option key={doc.doctorId} value={doc.doctorId}>
                                 {doc.fullName} - {doc.specialty} {isSameSpecialty ? '★' : ''}
                               </option>
                             );

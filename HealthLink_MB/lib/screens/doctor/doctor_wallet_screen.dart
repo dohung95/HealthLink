@@ -9,7 +9,7 @@ import '../../services/doctor/doctor_wallet_service.dart';
 import '../../services/partner/partner_security_service.dart';
 import '../../config/doctor_theme.dart';
 import '../../widgets/doctor/doctor_widgets.dart';
-import '../../widgets/partner/partner_pin_wizard.dart';
+import '../../widgets/doctor/doctor_pin_wizard.dart';
 import 'doctor_withdraw_sheet.dart';
 
 class DoctorWalletScreen extends StatefulWidget {
@@ -79,16 +79,13 @@ class _DoctorWalletScreenState extends State<DoctorWalletScreen> with SingleTick
   void _openPinWizard() {
     final token = context.read<AuthProvider>().accessToken;
     if (token == null) return;
-    showDialog(
-      context: context,
-      builder: (_) => PartnerPinWizard(
-        service: _securityService,
-        token: token,
-        onSuccess: () {
-          showDoctorNotice(context, _pinConfigured ? 'Withdrawal PIN updated.' : 'Withdrawal PIN configured.');
-          _loadPinStatus();
-        },
-      ),
+    showDoctorPinWizard(
+      context,
+      token: token,
+      onSuccess: () {
+        showDoctorNotice(context, _pinConfigured ? 'Withdrawal PIN updated.' : 'Withdrawal PIN configured.');
+        _loadPinStatus();
+      },
     );
   }
 
