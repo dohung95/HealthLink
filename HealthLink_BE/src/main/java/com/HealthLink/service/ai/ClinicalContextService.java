@@ -74,6 +74,8 @@ public class ClinicalContextService {
         if (context == null) context = EncounterClinicalContext.builder().appointment(appointment).build();
         context.setDoctorSymptoms(request.symptoms().trim());
         context.setWorkingDiagnosis(trim(request.workingDiagnosis()));
+        context.setFastingStatus(safetyStatus(request.fastingStatus(), "CONFIRMED", "UNKNOWN"));
+        context.setPregnancyStatus(safetyStatus(request.pregnancyStatus(), "NOT_PREGNANT", "PREGNANT", "UNKNOWN"));
         context.setUpdatedAt(LocalDateTime.now());
         contexts.saveAndFlush(context);
         return preview(appointment, context);
@@ -130,7 +132,8 @@ public class ClinicalContextService {
         fields.put("weightKg", profile(patient == null ? null : patient.getWeightKg(), patient, "weightKg"));
         fields.put("bmi", bmi(patient));
         fields.put("bloodType", profile(patient == null ? null : patient.getBloodType(), patient, "bloodType"));
-        fields.put("pregnancyStatus", unknown());
+        fields.put("fastingStatus", fromContext(context == null ? null : context.getFastingStatus(), context, "DOCTOR_INPUT"));
+        fields.put("pregnancyStatus", fromContext(context == null ? null : context.getPregnancyStatus(), context, "DOCTOR_INPUT"));
         fields.put("renalHepaticContext", unknown());
         fields.put("heartRate", vitalValue(vital == null ? null : vital.getHeartRate(), vital));
         fields.put("systolicBloodPressure", vitalValue(vital == null ? null : vital.getBloodPressureSystolic(), vital));
@@ -186,6 +189,10 @@ public class ClinicalContextService {
     private static boolean present(Object value) { return value != null && (!(value instanceof String text) || !text.isBlank()); }
     private static boolean blank(String value) { return value == null || value.isBlank(); }
     private static String trim(String value) { return blank(value) ? null : value.trim(); }
+    private static String safetyStatus(String value, String... allowed) {
+        String normalized = blank(value) ? "UNKNOWN" : value.trim().toUpperCase(Locale.ROOT);
+        return Arrays.asList(allowed).contains(normalized) ? normalized : "UNKNOWN";
+    }
     private Map<String, Boolean> requiredFieldStatus(ClinicalContextPreviewResponse preview) {
         Map<String, Boolean> required = new LinkedHashMap<>();
         required.put("symptoms", preview.fields().get("symptoms").value() != null);

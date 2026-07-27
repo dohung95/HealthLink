@@ -5,6 +5,7 @@ Run: python main.py
 
 import os
 import sys
+import logging
 from urllib.error import URLError
 from urllib.request import urlopen
 from contextlib import asynccontextmanager
@@ -14,6 +15,9 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent))
 
 from fastapi import Depends, FastAPI, File, Form, HTTPException, Response, UploadFile
+from fastapi.exceptions import RequestValidationError
+from fastapi.exception_handlers import request_validation_exception_handler
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.concurrency import run_in_threadpool
 
@@ -27,10 +31,12 @@ from models.schemas import (
 )
 from models.lab_ocr_schemas import LabOcrRequest, LabOcrResponse
 from models.rag_schemas import RagRetrieveRequest, RagRetrieveResponse
+from models.cds_schemas import CdsGenerateRequest, CdsSuggestion
 
 # Lazy imports for services
 nudenet_detector = None
 ollama_client = None
+logger = logging.getLogger(__name__)
 
 
 def init_easyocr():
@@ -123,6 +129,16 @@ app.add_middleware(
 )
 
 
+@app.exception_handler(RequestValidationError)
+async def cds_request_validation_error(request, exc):
+    """Expose only a stable CDS validation code and log field paths, never rejected values."""
+    if request.url.path == "/internal/v1/cds/generate":
+        fields = [".".join(str(part) for part in error.get("loc", ())) for error in exc.errors()]
+        logger.warning("CDS request rejected at fields=%s", fields)
+        return JSONResponse(status_code=422, content={"detail": {"code": "CDS_REQUEST_REJECTED"}})
+    return await request_validation_exception_handler(request, exc)
+
+
 # ============================================================================
 # ENDPOINTS
 # ============================================================================
@@ -156,6 +172,11 @@ async def health_check():
         "modelAvailable": model_available,
         "model": Config.OLLAMA_MODEL,
         "error": ollama_error,
+    }
+    dependencies["cds"] = {
+        "provider": "LOCAL_OLLAMA",
+        "model": Config.CDS_LOCAL_MODEL,
+        "qualifiedDigest": Config.CDS_LOCAL_MODEL_DIGEST,
     }
 
     return {
@@ -248,6 +269,30 @@ async def retrieve_guidelines(
         raise HTTPException(status_code=422, detail={"code": "RAG_RETRIEVAL_REQUEST_REJECTED"}) from exc
     except Exception as exc:
         raise HTTPException(status_code=502, detail={"code": "RAG_RETRIEVAL_FAILED"}) from exc
+
+    response.headers["X-Correlation-ID"] = request_correlation_id
+    return result
+
+
+@app.post("/internal/v1/cds/generate", response_model=CdsSuggestion, response_model_by_alias=True)
+async def generate_cds_suggestion(
+    request: CdsGenerateRequest,
+    response: Response,
+    request_correlation_id: str = Depends(correlation_id),
+    _: None = Depends(require_worker_key),
+):
+    """Generate one local, evidence-grounded suggestion for doctor approval."""
+    from services.cds_generation_service import CdsGenerationError, CdsGenerationService
+
+    try:
+        result = await run_in_threadpool(CdsGenerationService().generate, request)
+    except CdsGenerationError as exc:
+        status_code = 503 if str(exc) in {
+            "LOCAL_MODEL_UNAVAILABLE",
+            "FALLBACK_DISABLED",
+            "FALLBACK_PRIVACY_BLOCKED",
+        } else 422
+        raise HTTPException(status_code=status_code, detail={"code": str(exc)}) from exc
 
     response.headers["X-Correlation-ID"] = request_correlation_id
     return result

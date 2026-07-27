@@ -11,6 +11,14 @@ class Config:
     OLLAMA_NUM_PREDICT = int(os.getenv("OLLAMA_NUM_PREDICT", "768"))
     OLLAMA_TIMEOUT = int(os.getenv("OLLAMA_TIMEOUT_SECONDS", "45"))
 
+    # CDS generation is deliberately pinned and is never selectable by a
+    # request or environment variable. Qualification is required before use.
+    CDS_LOCAL_MODEL = "qwen3:4b-instruct-2507-q4_K_M"
+    CDS_LOCAL_MODEL_DIGEST = "0edcdef34593eac1aa2be9c7d06c432dcf81945adca5eca2f27662c18f168ba0"
+    CDS_PROMPT_VERSION = "cds-prompt-v1"
+    CDS_SCHEMA_VERSION = "cds-schema-v1"
+    OPENROUTER_FALLBACK_ENABLED = False
+
     # Private AI worker endpoints. This is intentionally supplied only by the
     # ignored local environment, never by a request body or source file.
     AI_SERVICE_KEY = os.getenv("AI_SERVICE_KEY", "")

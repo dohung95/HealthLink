@@ -30,6 +30,12 @@ public class EncounterClinicalContext {
     @Column(name = "WorkingDiagnosis", length = 2000)
     private String workingDiagnosis;
 
+    @Column(name = "FastingStatus", length = 32)
+    private String fastingStatus;
+
+    @Column(name = "PregnancyStatus", length = 32)
+    private String pregnancyStatus;
+
     @Column(name = "CreatedAt", nullable = false, updatable = false)
     @Builder.Default
     private LocalDateTime createdAt = LocalDateTime.now();
