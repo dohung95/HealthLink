@@ -96,6 +96,12 @@ public class GlobalExceptionHandler {
         return buildResponse(HttpStatus.CONFLICT, ex.getMessage());
     }
 
+    @ExceptionHandler({CdsDecisionConflictException.class, StaleCdsDecisionVersionException.class})
+    public ResponseEntity<Map<String, Object>> handleCdsDecisionConflict(RuntimeException ex) {
+        log.warn("CDS decision conflict: {}", ex.getMessage());
+        return buildResponse(HttpStatus.CONFLICT, ex.getMessage());
+    }
+
     // -------------------------------------------------------------------------
     // 401 – Token không hợp lệ hoặc đã hết hạn
     // -------------------------------------------------------------------------

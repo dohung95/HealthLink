@@ -7,6 +7,7 @@ import ClinicalResultModal from './clinical-results/ClinicalResultModal';
 import LabReportVerificationPanel from './clinical-results/LabReportVerificationPanel';
 import { aiLabReportApi } from '@api/aiLabReportApi';
 import ClinicalContextPanel from '@components/doctor/clinical/ClinicalContextPanel';
+import CdsSuggestionReviewPanel from '@components/doctor/clinical/CdsSuggestionReviewPanel';
 
 const CATEGORY_ORDER = [
   'Blood Test',
@@ -194,6 +195,11 @@ export default function ClinicalResultsTab({ appointmentId, canManageClinicalRes
             Add a lab report, imaging result, or follow-up test result for this appointment.
           </p>
           <ClinicalContextPanel appointmentId={appointmentId} canManage={canManageClinicalResults && !isCancelledAppointment} />
+          <CdsSuggestionReviewPanel
+            appointmentId={appointmentId}
+            canManage={canManageClinicalResults && !isCancelledAppointment}
+            onApplied={loadResults}
+          />
           {canManageClinicalResults && !isCancelledAppointment && (
             <div className="d-flex flex-wrap justify-content-center gap-2">
               <input ref={labInputRef} type="file" accept="image/*,.pdf" className="d-none" onChange={handleLabUpload} />
@@ -243,6 +249,11 @@ export default function ClinicalResultsTab({ appointmentId, canManageClinicalRes
         </div>
 
         <ClinicalContextPanel appointmentId={appointmentId} canManage={canManageClinicalResults && !isCancelledAppointment} />
+        <CdsSuggestionReviewPanel
+          appointmentId={appointmentId}
+          canManage={canManageClinicalResults && !isCancelledAppointment}
+          onApplied={loadResults}
+        />
         {labReports.length > 0 && <div className="mb-3"><div className="small fw-semibold text-muted mb-1">AI laboratory reports</div><div className="d-flex flex-wrap gap-2">{labReports.map((report) => <button type="button" key={report.reportId} className={`btn btn-sm ${selectedLabReport?.reportId === report.reportId ? 'btn-primary' : 'btn-outline-secondary'}`} onClick={() => setSelectedLabReport(report)}>{report.originalFileName || 'Laboratory report'} · {report.status}</button>)}</div></div>}
         {selectedLabReport?.reportId && <LabReportVerificationPanel reportId={selectedLabReport.reportId} canManage={canManageClinicalResults && !isCancelledAppointment} onVerified={loadLabReports} />}
 
