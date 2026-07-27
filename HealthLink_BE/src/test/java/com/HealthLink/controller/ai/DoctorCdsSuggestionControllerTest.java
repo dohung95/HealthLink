@@ -2,12 +2,14 @@ package com.HealthLink.controller.ai;
 
 import com.HealthLink.dto.ai.CdsSuggestionDetailResponse;
 import com.HealthLink.dto.ai.CdsDecisionResponse;
+import com.HealthLink.config.AiCdsFeatureProperties;
 import com.HealthLink.exception.GlobalExceptionHandler;
 import com.HealthLink.exception.StaleCdsDecisionVersionException;
 import com.HealthLink.service.ai.CdsApplyService;
 import com.HealthLink.service.ai.CdsDecisionService;
 import com.HealthLink.service.ai.CdsOrchestrationService;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
@@ -19,13 +21,36 @@ import java.util.UUID;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 class DoctorCdsSuggestionControllerTest {
+    @Test
+    void marksTheRuntimeConstructorForSpringInjection() {
+        long autowiredConstructors = java.util.Arrays.stream(DoctorCdsSuggestionController.class.getConstructors())
+                .filter(constructor -> constructor.isAnnotationPresent(Autowired.class))
+                .count();
+
+        assertThat(autowiredConstructors).isEqualTo(1L);
+    }
+
+    @Test
+    void rejectsCdsRoutesWhenTheKillSwitchIsDisabled() throws Exception {
+        CdsOrchestrationService service = mock(CdsOrchestrationService.class);
+        AiCdsFeatureProperties features = new AiCdsFeatureProperties();
+        MockMvc mvc = MockMvcBuilders.standaloneSetup(new DoctorCdsSuggestionController(
+                service, mock(CdsDecisionService.class), mock(CdsApplyService.class), features)).build();
+
+        mvc.perform(get("/api/doctor/appointments/7/cds-suggestions"))
+                .andExpect(status().isServiceUnavailable());
+        verifyNoInteractions(service);
+    }
+
     @Test
     void exposesAppointmentCollectionAndCanonicalDetailRoutes() throws Exception {
         UUID runId = UUID.randomUUID();

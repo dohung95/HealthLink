@@ -7,7 +7,9 @@
     "dev": "vite",
     "build": "vite build",
     "lint": "eslint .",
-    "test": "vitest run",
+    "test": "npm run test:unit",
+    "test:node": "node scripts/run-node-tests.mjs",
+    "test:unit": "npm run test:node && vitest run",
     "preview": "vite preview"
   },
   "dependencies": {
