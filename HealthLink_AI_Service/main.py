@@ -5,27 +5,38 @@ Run: python main.py
 
 import os
 import sys
+import logging
+from urllib.error import URLError
+from urllib.request import urlopen
 from contextlib import asynccontextmanager
 from pathlib import Path
 
 # Add current directory to path
 sys.path.insert(0, str(Path(__file__).parent))
 
-from fastapi import FastAPI, UploadFile, File, Form, HTTPException
+from fastapi import Depends, FastAPI, File, Form, HTTPException, Response, UploadFile
+from fastapi.exceptions import RequestValidationError
+from fastapi.exception_handlers import request_validation_exception_handler
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.concurrency import run_in_threadpool
 
 from config import Config
+from services.internal_auth import correlation_id, require_worker_key
 from models.schemas import (
     ModerationResult, OCRResult, CVParseResult,
     DocumentVerifyResult, ProfileVerifyResult, DocumentScreeningResult,
     HomeVisitScanResult, HealthCheckResponse,
     ReviewModerationRequest, ReviewModerationResult
 )
+from models.lab_ocr_schemas import LabOcrRequest, LabOcrResponse
+from models.rag_schemas import RagRetrieveRequest, RagRetrieveResponse
+from models.cds_schemas import CdsGenerateRequest, CdsSuggestion
 
 # Lazy imports for services
 nudenet_detector = None
 ollama_client = None
+logger = logging.getLogger(__name__)
 
 
 def init_easyocr():
@@ -118,6 +129,16 @@ app.add_middleware(
 )
 
 
+@app.exception_handler(RequestValidationError)
+async def cds_request_validation_error(request, exc):
+    """Expose only a stable CDS validation code and log field paths, never rejected values."""
+    if request.url.path == "/internal/v1/cds/generate":
+        fields = [".".join(str(part) for part in error.get("loc", ())) for error in exc.errors()]
+        logger.warning("CDS request rejected at fields=%s", fields)
+        return JSONResponse(status_code=422, content={"detail": {"code": "CDS_REQUEST_REJECTED"}})
+    return await request_validation_exception_handler(request, exc)
+
+
 # ============================================================================
 # ENDPOINTS
 # ============================================================================
@@ -152,6 +173,11 @@ async def health_check():
         "model": Config.OLLAMA_MODEL,
         "error": ollama_error,
     }
+    dependencies["cds"] = {
+        "provider": "LOCAL_OLLAMA",
+        "model": Config.CDS_LOCAL_MODEL,
+        "qualifiedDigest": Config.CDS_LOCAL_MODEL_DIGEST,
+    }
 
     return {
         "status": "healthy",
@@ -159,6 +185,117 @@ async def health_check():
         "version": "1.0.0",
         "dependencies": dependencies,
     }
+
+
+def _http_dependency_available(base_url: str, path: str) -> bool:
+    """Return dependency reachability without authenticating or exposing configuration."""
+    try:
+        with urlopen(
+            f"{base_url.rstrip('/')}{path}",
+            timeout=Config.DEPENDENCY_HEALTH_TIMEOUT,
+        ) as response:
+            return 200 <= response.status < 300
+    except (OSError, URLError):
+        return False
+
+
+@app.get("/internal/health/dependencies")
+async def internal_dependency_health(
+    response: Response,
+    correlation_id: str = Depends(correlation_id),
+    _: None = Depends(require_worker_key),
+):
+    """Authenticated dependency health for the Spring job worker integration."""
+    from services.ollama_service import check_ollama_connection
+
+    ollama_connected, _, _ = check_ollama_connection()
+    response.headers["X-Correlation-ID"] = correlation_id
+    return {
+        "dependencies": {
+            "ollama": ollama_connected,
+            "minio": _http_dependency_available(Config.MINIO_ENDPOINT, "/minio/health/live"),
+            "qdrant": _http_dependency_available(Config.QDRANT_URL, "/healthz"),
+        }
+    }
+
+
+@app.post("/internal/v1/ocr/lab-reports", response_model=LabOcrResponse, response_model_by_alias=True)
+async def extract_lab_report_ocr(
+    request: LabOcrRequest,
+    response: Response,
+    request_correlation_id: str = Depends(correlation_id),
+    _: None = Depends(require_worker_key),
+):
+    """Run deterministic, review-only OCR for a short-lived private object grant."""
+    from services.lab_ocr_pipeline import process_lab_report
+
+    try:
+        result = await run_in_threadpool(process_lab_report, request)
+    except ValueError as exc:
+        # Do not expose object grants, document bytes, or OCR text in failures.
+        raise HTTPException(status_code=422, detail={"code": "LAB_OCR_REQUEST_REJECTED"}) from exc
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail={"code": "LAB_OCR_WORKER_FAILED"}) from exc
+
+    response.headers["X-Correlation-ID"] = request_correlation_id
+    return result
+
+
+@app.post("/internal/v1/rag/retrieve", response_model=RagRetrieveResponse, response_model_by_alias=True)
+async def retrieve_guidelines(
+    request: RagRetrieveRequest,
+    response: Response,
+    request_correlation_id: str = Depends(correlation_id),
+    _: None = Depends(require_worker_key),
+):
+    """Retrieve approved citations from local Qdrant; accepts no patient or prompt payload."""
+    from services.rag_retrieval_service import GuidelineRetrievalService
+
+    try:
+        service = GuidelineRetrievalService(
+            Config.QDRANT_URL, Config.GUIDELINE_COLLECTION, api_key=Config.QDRANT_API_KEY,
+        )
+        result = await run_in_threadpool(
+            service.retrieve,
+            query=request.query,
+            top_k=request.top_k,
+            corpus_version=request.corpus_version,
+            specialty=request.specialty,
+            language=request.language,
+            issuer=request.issuer,
+            effective_date_on_or_before=request.effective_date_on_or_before,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail={"code": "RAG_RETRIEVAL_REQUEST_REJECTED"}) from exc
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail={"code": "RAG_RETRIEVAL_FAILED"}) from exc
+
+    response.headers["X-Correlation-ID"] = request_correlation_id
+    return result
+
+
+@app.post("/internal/v1/cds/generate", response_model=CdsSuggestion, response_model_by_alias=True)
+async def generate_cds_suggestion(
+    request: CdsGenerateRequest,
+    response: Response,
+    request_correlation_id: str = Depends(correlation_id),
+    _: None = Depends(require_worker_key),
+):
+    """Generate one local, evidence-grounded suggestion for doctor approval."""
+    from services.cds_generation_service import CdsGenerationError, CdsGenerationService
+
+    try:
+        result = await run_in_threadpool(CdsGenerationService().generate, request)
+    except CdsGenerationError as exc:
+        status_code = 503 if str(exc) in {
+            "LOCAL_MODEL_UNAVAILABLE",
+            "FALLBACK_DISABLED",
+            "FALLBACK_PRIVACY_BLOCKED",
+        } else 422
+        raise HTTPException(status_code=status_code, detail={"code": str(exc)}) from exc
+
+    response.headers["X-Correlation-ID"] = request_correlation_id
+    return result
 
 
 @app.post("/moderate-image", response_model=ModerationResult)

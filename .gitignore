@@ -219,3 +219,7 @@ node_modules/
 HealthLink_MB/nul
 .superpowers/sdd/task-2-report.md
 .worktrees/
+HealthLink_AI_Service/evaluation/results/
+output
+bun.lock
+.playwright-cli

@@ -28,4 +28,12 @@ export default defineConfig({
     define: {
         global: 'window',
     },
+    test: {
+        environment: 'jsdom',
+        exclude: [
+            '**/node_modules/**',
+            '**/*.test.js',
+            '**/*.test.mjs',
+        ],
+    },
 });

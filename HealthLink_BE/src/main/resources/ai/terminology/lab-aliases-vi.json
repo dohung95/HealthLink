@@ -1,0 +1,12 @@
+{
+  "aliases": [
+    { "alias": "glucose", "normalizedName": "Glucose", "loincCode": "2345-7" },
+    { "alias": "glucose máu", "normalizedName": "Glucose", "loincCode": "2345-7" },
+    { "alias": "đường huyết", "normalizedName": "Glucose", "loincCode": "2345-7" },
+    { "alias": "creatinine", "normalizedName": "Creatinine", "loincCode": "2160-0" },
+    { "alias": "wbc", "normalizedName": "WBC", "loincCode": "6690-2" },
+    { "alias": "haemoglobin", "normalizedName": "Hemoglobin", "loincCode": "718-7" },
+    { "alias": "hemoglobin", "normalizedName": "Hemoglobin", "loincCode": "718-7" },
+    { "alias": "potassium", "normalizedName": "Potassium", "loincCode": "2823-3" }
+  ]
+}

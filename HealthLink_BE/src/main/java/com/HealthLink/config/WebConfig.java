@@ -13,7 +13,7 @@ public class WebConfig implements WebMvcConfigurer {
     @Override
     public void addCorsMappings(CorsRegistry registry) {
         registry.addMapping("/api/**")
-            .allowedOrigins("http://localhost:63527")
+            .allowedOrigins("http://localhost:63527", "http://localhost:63528")
             .allowedMethods("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS")
             .allowedHeaders("*")
             .allowCredentials(true)
@@ -21,7 +21,7 @@ public class WebConfig implements WebMvcConfigurer {
 
         // Cho phép Frontend truy cập ảnh upload
         registry.addMapping("/uploads/**")
-            .allowedOrigins("http://localhost:63527")
+            .allowedOrigins("http://localhost:63527", "http://localhost:63528")
             .allowedMethods("GET")
             .allowedHeaders("*")
             .maxAge(3600);

@@ -5,6 +5,7 @@ export const DOCTOR_WORKSPACE_TABS = [
   { id: 'history', label: 'Medical History', icon: 'bi-clock-history' },
   { id: 'shared', label: 'Shared Records', icon: 'bi-folder2-open' },
   { id: 'clinical-results', label: 'Clinical Results', icon: 'bi-clipboard2-pulse' },
+  { id: 'ai-cds', label: 'AI CDS', icon: 'bi-activity' },
   { id: 'prescription', label: 'Prescription', icon: 'bi-capsule-pill' },
   { id: 'followup', label: 'Follow-up', icon: 'bi-calendar-check' },
 ];

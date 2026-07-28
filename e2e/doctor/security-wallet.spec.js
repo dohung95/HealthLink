@@ -19,7 +19,7 @@ test('doctor uses the shared three-step withdrawal PIN wizard from Profile', asy
   await page.route('**/api/payment/partner/security/pin/request-otp', (route) => jsonRoute(route, { message: 'OTP sent' }));
   await page.route('**/api/payment/partner/security/pin/verify-otp', (route) => route.fulfill({ status: 204 }));
 
-  await page.goto('/doctor/profile');
+  await page.goto('/doctor/profile', { waitUntil: 'domcontentloaded' });
   await page.getByRole('button', { name: 'Create PIN' }).click();
   await expect(page.getByText('Step 1/3')).toBeVisible();
   await page.getByLabel('OTP code').fill('123456');

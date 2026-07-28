@@ -17,6 +17,27 @@ class OCRResult(BaseModel):
     language: str = "en"
 
 
+class ClinicalResultRow(BaseModel):
+    testName: str
+    value: str
+    unit: str = ""
+    referenceRange: str = ""
+    flag: str = "UNKNOWN"
+
+
+class ClinicalResultParseResult(BaseModel):
+    success: bool
+    category: str = "Unknown"
+    tests: List[ClinicalResultRow] = []
+    patientMatched: Optional[bool] = None
+    abnormalSummary: Optional[str] = None
+    doctorAssessmentDraft: Optional[str] = None
+    patientSummaryDraft: Optional[str] = None
+    confidence: float = 0.0
+    warnings: List[str] = []
+    error: Optional[str] = None
+
+
 class CVParseResult(BaseModel):
     success: bool
     data: Dict[str, Any] = {}

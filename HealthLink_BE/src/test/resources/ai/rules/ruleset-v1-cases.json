@@ -1,0 +1,10 @@
+{
+  "fixtureType": "student-demo-clinical-rule-cases",
+  "rulesetVersion": "student-demo-v1",
+  "cases": [
+    "verified-curated-glucose-with-complete-safety-context",
+    "missing-safety-context-blocks-numeric-rule",
+    "normalization-review-blocks-numeric-rule",
+    "deterministic-one-hundred-replays"
+  ]
+}

@@ -73,6 +73,11 @@ Render Mermaid files with: GitHub Markdown, VS Code extension (Mermaid Preview),
 
 ## Local Setup
 
+### AI Clinical Decision Support
+
+Xem [AI CDS Team Setup Guide](AI_CDS_TEAM_SETUP.md) de cai dat day du Docker,
+Ollama, Python AI service, migration, guideline RAG va smoke test tren may moi.
+
 ### Backend
 - Java 21, SQL Server local (instance `localhost:1433`, database `Project04`)
 ```bash
