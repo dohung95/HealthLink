@@ -27,15 +27,20 @@ Các service local:
 | Thành phần | Địa chỉ | Cách chạy |
 |---|---|---|
 | Frontend React/Vite | `http://localhost:63527` | Local process |
-| Spring Boot backend | `http://127.0.0.1:8096` | Local process |
+| Spring Boot backend | `http://localhost:8096` | Local process |
 | Python AI service | `http://127.0.0.1:8097` | Local process |
-| Ollama | `http://127.0.0.1:11434` | Windows service/process |
+| Ollama | `http://localhost:11434` | Windows service/process |
 | MinIO API | `http://127.0.0.1:9000` | Docker Compose |
 | MinIO Console | `http://127.0.0.1:9001` | Docker Compose |
 | Qdrant HTTP | `http://127.0.0.1:6333` | Docker Compose |
 
 > `docker compose up -d` chỉ khởi động MinIO và Qdrant. Backend, frontend,
 > Ollama và AI service vẫn phải được chạy riêng.
+
+Frontend, backend và Ollama dùng hostname `localhost` theo cấu hình chính của
+dự án. Riêng AI service bind trực tiếp vào IPv4 `127.0.0.1`; các port Docker
+cũng chỉ publish trên `127.0.0.1` để không lộ MinIO/Qdrant ra mạng LAN. Không
+đổi các internal endpoint này sang `[::1]`.
 
 ## 2. Tài nguyên phải nhận từ người phụ trách
 
@@ -148,7 +153,7 @@ MINIO_ENDPOINT=http://127.0.0.1:9000
 MINIO_BUCKET_LABS=healthlink-clinical-private
 
 # ---------- AI service ----------
-OLLAMA_HOST=http://127.0.0.1:11434
+OLLAMA_HOST=http://localhost:11434
 OLLAMA_MODEL=qwen3:4b-instruct-2507-q4_K_M
 OLLAMA_TEMPERATURE=0.1
 OLLAMA_NUM_PREDICT=768
@@ -158,7 +163,7 @@ QDRANT_URL=http://127.0.0.1:6333
 HL_GUIDELINE_COLLECTION=healthlink-guidelines-student-demo-v2026-1
 HL_EMBEDDING_MODEL=sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2
 HL_EMBEDDING_CACHE_DIR=replace-with-absolute-embedding-cache-path
-HL_BACKEND_BASE_URL=http://127.0.0.1:8096
+HL_BACKEND_BASE_URL=http://localhost:8096
 
 # ---------- Student-demo safety gates ----------
 AI_CDS_ENABLED=true
@@ -288,7 +293,7 @@ qualification student-demo trước đó loại MedGemma vì fabricated citation
 Kiểm tra Ollama:
 
 ```powershell
-curl.exe -fsS http://127.0.0.1:11434/api/tags
+curl.exe -fsS http://localhost:11434/api/tags
 ```
 
 Nếu Ollama chưa tự chạy, mở Ollama trước khi khởi động AI service.
@@ -379,7 +384,7 @@ Expected:
 - Port `8096` đang lắng nghe:
 
   ```powershell
-  Test-NetConnection 127.0.0.1 -Port 8096
+  Test-NetConnection localhost -Port 8096
   ```
 
   `TcpTestSucceeded` phải là `True`.
@@ -562,7 +567,7 @@ docker compose up -d
 
 ```powershell
 ollama list
-curl.exe -fsS http://127.0.0.1:11434/api/tags
+curl.exe -fsS http://localhost:11434/api/tags
 ```
 
 Đảm bảo Qwen3 đã được pull và Ollama đang chạy.
