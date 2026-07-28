@@ -7,7 +7,7 @@ import '../../services/doctor/doctor_wallet_service.dart';
 import '../../services/partner/partner_security_service.dart';
 import '../../config/doctor_theme.dart';
 import '../../widgets/doctor/doctor_widgets.dart';
-import '../../widgets/partner/partner_pin_wizard.dart';
+import '../../widgets/doctor/doctor_pin_wizard.dart';
 
 class DoctorWithdrawSheet extends StatefulWidget {
   const DoctorWithdrawSheet({super.key, required this.walletService, required this.maxAmount, required this.onSuccess});
@@ -71,16 +71,13 @@ class _DoctorWithdrawSheetState extends State<DoctorWithdrawSheet> {
   void _openPinWizard() {
     final token = context.read<AuthProvider>().accessToken;
     if (token == null) return;
-    showDialog(
-      context: context,
-      builder: (_) => PartnerPinWizard(
-        service: _securityService,
-        token: token,
-        onSuccess: () {
-          showDoctorNotice(context, 'Withdrawal PIN configured.');
-          _loadPinStatus();
-        },
-      ),
+    showDoctorPinWizard(
+      context,
+      token: token,
+      onSuccess: () {
+        showDoctorNotice(context, 'Withdrawal PIN configured.');
+        _loadPinStatus();
+      },
     );
   }
 
