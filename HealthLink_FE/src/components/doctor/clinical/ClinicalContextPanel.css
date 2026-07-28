@@ -90,6 +90,27 @@
   box-shadow: 0 0 0 0.2rem rgb(47 143 104 / 15%);
 }
 
+.clinical-context-editor__safety {
+  display: grid;
+  grid-column: 1 / -1;
+  gap: 1rem;
+  padding: 1rem;
+  border: 1px solid #d9e4df;
+  border-radius: 0.65rem;
+  background: #f7faf8;
+}
+
+.clinical-context-editor__safety .form-select {
+  border-color: #cbd8d2;
+  color: #1f2933;
+  font-size: 0.9375rem;
+}
+
+.clinical-context-editor__safety .form-select:focus {
+  border-color: #2f8f68;
+  box-shadow: 0 0 0 0.2rem rgb(47 143 104 / 15%);
+}
+
 .clinical-context-editor__stale-note,
 .clinical-context-blockers {
   border-left: 3px solid #d59a24;
@@ -248,6 +269,10 @@
 @media (min-width: 900px) {
   .clinical-context-editor,
   .clinical-context-group__fields {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .clinical-context-editor__safety {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }

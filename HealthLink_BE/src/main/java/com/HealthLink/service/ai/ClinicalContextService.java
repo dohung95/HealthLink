@@ -74,8 +74,12 @@ public class ClinicalContextService {
         if (context == null) context = EncounterClinicalContext.builder().appointment(appointment).build();
         context.setDoctorSymptoms(request.symptoms().trim());
         context.setWorkingDiagnosis(trim(request.workingDiagnosis()));
-        context.setFastingStatus(safetyStatus(request.fastingStatus(), "CONFIRMED", "UNKNOWN"));
-        context.setPregnancyStatus(safetyStatus(request.pregnancyStatus(), "NOT_PREGNANT", "PREGNANT", "UNKNOWN"));
+        context.setFastingStatus(updatedSafetyStatus(
+                request.fastingStatus(), context.getFastingStatus(),
+                "CONFIRMED", "NOT_FASTING", "UNKNOWN"));
+        context.setPregnancyStatus(updatedSafetyStatus(
+                request.pregnancyStatus(), context.getPregnancyStatus(),
+                "NOT_PREGNANT", "PREGNANT", "UNKNOWN"));
         context.setUpdatedAt(LocalDateTime.now());
         contexts.saveAndFlush(context);
         return preview(appointment, context);
@@ -208,6 +212,9 @@ public class ClinicalContextService {
     private static String safetyStatus(String value, String... allowed) {
         String normalized = blank(value) ? "UNKNOWN" : value.trim().toUpperCase(Locale.ROOT);
         return Arrays.asList(allowed).contains(normalized) ? normalized : "UNKNOWN";
+    }
+    private static String updatedSafetyStatus(String requested, String current, String... allowed) {
+        return requested == null ? safetyStatus(current, allowed) : safetyStatus(requested, allowed);
     }
     private Map<String, Boolean> requiredFieldStatus(ClinicalContextPreviewResponse preview) {
         Map<String, Boolean> required = new LinkedHashMap<>();

@@ -76,7 +76,8 @@ const readyPreview = (overrides = {}) => ({
     weightKg: field(68),
     bmi: field(24.98, { sourceType: 'DERIVED' }),
     bloodType: field('O+'),
-    pregnancyStatus: field('Not pregnant'),
+    fastingStatus: field('CONFIRMED', { sourceType: 'DOCTOR_INPUT' }),
+    pregnancyStatus: field('NOT_PREGNANT', { sourceType: 'DOCTOR_INPUT' }),
     renalHepaticContext: field('No documented impairment'),
   },
   ...overrides,
@@ -136,6 +137,35 @@ describe('AiCdsTab orchestration', () => {
     });
     expect(aiClinicalContextApi.createSnapshot.mock.invocationCallOrder[0])
       .toBeLessThan(aiCdsApi.createSuggestion.mock.invocationCallOrder[0]);
+  });
+
+  it('requires doctor-confirmed safety context before generation', async () => {
+    const current = readyPreview({
+      fields: {
+        ...readyPreview().fields,
+        fastingStatus: field('UNKNOWN', {
+          sourceType: 'DOCTOR_INPUT',
+          freshness: 'UNKNOWN',
+          verificationState: 'UNKNOWN',
+        }),
+        pregnancyStatus: field('UNKNOWN', {
+          sourceType: 'DOCTOR_INPUT',
+          freshness: 'UNKNOWN',
+          verificationState: 'UNKNOWN',
+        }),
+      },
+    });
+    arrange(current);
+
+    render(<AiCdsTab appointmentId={41} canManage />);
+
+    await screen.findByLabelText(/fasting status/i);
+    const generateButton = await screen.findByRole('button', {
+      name: /confirm context & generate/i,
+    });
+    expect(generateButton).toBeDisabled();
+    expect(screen.getByText(/confirm fasting and pregnancy status before generation/i))
+      .toBeInTheDocument();
   });
 
   it('switches to Step 2 on generation and shows progress', async () => {
@@ -340,6 +370,27 @@ describe('AiCdsTab orchestration', () => {
     await waitFor(() => {
       expect(screen.getByTestId('suggestion-workspace')).toHaveTextContent(/needs_doctor_review/i);
     });
+  });
+
+  it('keeps a terminal create response when an earlier queued event was buffered', async () => {
+    arrange();
+    aiClinicalContextApi.createSnapshot.mockResolvedValue({ snapshotId: 'snapshot-synthetic-1' });
+    let resolveSuggestion;
+    aiCdsApi.createSuggestion.mockImplementation(() => (
+      new Promise((resolve) => { resolveSuggestion = resolve; })
+    ));
+
+    render(<AiCdsTab appointmentId={41} canManage />);
+    await clickGenerate();
+    await waitFor(() => expect(aiCdsApi.createSuggestion).toHaveBeenCalled());
+
+    websocketCallback({ runId: 'expected-run', status: 'QUEUED' });
+    resolveSuggestion({ runId: 'expected-run', status: 'RULES_BLOCKED' });
+
+    await waitFor(() => {
+      expect(screen.getByTestId('suggestion-workspace')).toHaveTextContent(/rules_blocked/i);
+    });
+    expect(screen.getByTestId('suggestion-workspace')).not.toHaveTextContent(/status: queued/i);
   });
 
   it('saves context without generating and warns when an existing suggestion becomes outdated', async () => {

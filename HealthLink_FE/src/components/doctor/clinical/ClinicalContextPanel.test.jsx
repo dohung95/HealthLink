@@ -48,7 +48,8 @@ const preview = (overrides = {}) => ({
     weightKg: field(68),
     bmi: field(24.98, { sourceType: 'DERIVED' }),
     bloodType: field('O+'),
-    pregnancyStatus: field(null, { freshness: 'UNKNOWN', verificationState: 'UNKNOWN' }),
+    fastingStatus: field('CONFIRMED', { sourceType: 'DOCTOR_INPUT' }),
+    pregnancyStatus: field('NOT_PREGNANT', { sourceType: 'DOCTOR_INPUT' }),
     renalHepaticContext: field(null, { freshness: 'UNKNOWN', verificationState: 'UNKNOWN' }),
     heartRate: field(72, { sourceType: 'APPOINTMENT_VITAL' }),
     systolicBloodPressure: field(118, { sourceType: 'APPOINTMENT_VITAL' }),
@@ -187,9 +188,57 @@ it('keeps a known value visible even when freshness is UNKNOWN', async () => {
     await waitFor(() => expect(aiClinicalContextApi.update).toHaveBeenCalledWith(1, {
       symptoms: 'Synthetic fatigue for three days',
       workingDiagnosis: null,
+      fastingStatus: 'CONFIRMED',
+      pregnancyStatus: 'NOT_PREGNANT',
       expectedContextVersion: 7,
     }));
     expect(await screen.findByText(/context version 8/i)).toBeInTheDocument();
+  });
+
+  it('lets the doctor correct safety context before regenerating', async () => {
+    const current = preview({
+      fields: {
+        ...preview().fields,
+        symptoms: field('Stomach ache', { sourceType: 'DOCTOR_INPUT' }),
+        fastingStatus: field('UNKNOWN', {
+          sourceType: 'DOCTOR_INPUT',
+          freshness: 'UNKNOWN',
+          verificationState: 'UNKNOWN',
+        }),
+        pregnancyStatus: field('UNKNOWN', {
+          sourceType: 'DOCTOR_INPUT',
+          freshness: 'UNKNOWN',
+          verificationState: 'UNKNOWN',
+        }),
+      },
+    });
+    aiClinicalContextApi.get.mockResolvedValue(current);
+    aiClinicalContextApi.update.mockResolvedValue(preview({
+      contextVersion: 8,
+      fields: {
+        ...current.fields,
+        fastingStatus: field('NOT_FASTING', { sourceType: 'DOCTOR_INPUT' }),
+        pregnancyStatus: field('NOT_PREGNANT', { sourceType: 'DOCTOR_INPUT' }),
+      },
+    }));
+
+    render(<ClinicalContextPanel appointmentId={1} canManage />);
+
+    fireEvent.change(await screen.findByLabelText(/fasting status/i), {
+      target: { value: 'NOT_FASTING' },
+    });
+    fireEvent.change(screen.getByLabelText(/pregnancy status/i), {
+      target: { value: 'NOT_PREGNANT' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /save clinical context/i }));
+
+    await waitFor(() => expect(aiClinicalContextApi.update).toHaveBeenCalledWith(1, {
+      symptoms: 'Stomach ache',
+      workingDiagnosis: null,
+      fastingStatus: 'NOT_FASTING',
+      pregnancyStatus: 'NOT_PREGNANT',
+      expectedContextVersion: 7,
+    }));
   });
 
   it('notifies the workspace when a doctor-reviewed context is saved', async () => {
