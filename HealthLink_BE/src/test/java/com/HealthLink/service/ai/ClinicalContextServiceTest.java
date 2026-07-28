@@ -72,6 +72,50 @@ class ClinicalContextServiceTest {
     }
 
     @Test
+    void updatePreservesExistingSafetyContextWhenOptionalFieldsAreOmitted() {
+        Appointment appointment = appointment(7);
+        AppointmentRepository appointments = mock(AppointmentRepository.class);
+        EncounterClinicalContextRepository contexts = mock(EncounterClinicalContextRepository.class);
+        var context = com.HealthLink.entity.ai.EncounterClinicalContext.builder()
+                .appointment(appointment)
+                .rowVersion(3)
+                .doctorSymptoms("headache")
+                .fastingStatus("CONFIRMED")
+                .pregnancyStatus("NOT_PREGNANT")
+                .build();
+        when(appointments.findById(7)).thenReturn(Optional.of(appointment));
+        when(contexts.findByAppointment_AppointmentId(7)).thenReturn(Optional.of(context));
+
+        service(appointments, mock(VitalSignRepository.class), mock(LabReportRepository.class), contexts)
+                .update(7, new ClinicalContextUpdateRequest("stomach ache", null, 3L));
+
+        assertThat(context.getDoctorSymptoms()).isEqualTo("stomach ache");
+        assertThat(context.getFastingStatus()).isEqualTo("CONFIRMED");
+        assertThat(context.getPregnancyStatus()).isEqualTo("NOT_PREGNANT");
+    }
+
+    @Test
+    void updateAcceptsDoctorConfirmedNonFastingSafetyContext() {
+        Appointment appointment = appointment(7);
+        AppointmentRepository appointments = mock(AppointmentRepository.class);
+        EncounterClinicalContextRepository contexts = mock(EncounterClinicalContextRepository.class);
+        var context = com.HealthLink.entity.ai.EncounterClinicalContext.builder()
+                .appointment(appointment)
+                .rowVersion(3)
+                .doctorSymptoms("headache")
+                .build();
+        when(appointments.findById(7)).thenReturn(Optional.of(appointment));
+        when(contexts.findByAppointment_AppointmentId(7)).thenReturn(Optional.of(context));
+
+        service(appointments, mock(VitalSignRepository.class), mock(LabReportRepository.class), contexts)
+                .update(7, new ClinicalContextUpdateRequest(
+                        "stomach ache", null, "NOT_FASTING", "NOT_PREGNANT", 3L));
+
+        assertThat(context.getFastingStatus()).isEqualTo("NOT_FASTING");
+        assertThat(context.getPregnancyStatus()).isEqualTo("NOT_PREGNANT");
+    }
+
+    @Test
     void snapshotUsesVerifiedReportsFromItsAppointmentAndKeepsCanonicalDataImmutable() {
         Appointment appointment = appointment(7);
         Patient patient = appointment.getPatient();

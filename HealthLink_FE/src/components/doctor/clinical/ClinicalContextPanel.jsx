@@ -49,7 +49,6 @@ const GROUPS = [
       'weightKg',
       'bmi',
       'bloodType',
-      'pregnancyStatus',
       'renalHepaticContext',
     ],
     targetTab: 'history',
@@ -78,6 +77,7 @@ const LABELS = {
   weightKg: 'Weight',
   bmi: 'BMI',
   bloodType: 'Blood type',
+  fastingStatus: 'Fasting status',
   pregnancyStatus: 'Pregnancy status',
   renalHepaticContext: 'Renal/hepatic context',
 };
@@ -147,6 +147,8 @@ export default function ClinicalContextPanel({
   const [preview, setPreview] = useState(null);
   const [symptoms, setSymptoms] = useState('');
   const [workingDiagnosis, setWorkingDiagnosis] = useState('');
+  const [fastingStatus, setFastingStatus] = useState('UNKNOWN');
+  const [pregnancyStatus, setPregnancyStatus] = useState('UNKNOWN');
   const [loading, setLoading] = useState(Boolean(appointmentId));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
@@ -168,6 +170,8 @@ export default function ClinicalContextPanel({
     setPreview(next);
     setSymptoms(next?.fields?.symptoms?.value || '');
     setWorkingDiagnosis(next?.fields?.workingDiagnosis?.value || '');
+    setFastingStatus(next?.fields?.fastingStatus?.value || 'UNKNOWN');
+    setPregnancyStatus(next?.fields?.pregnancyStatus?.value || 'UNKNOWN');
     onPreviewChange?.(next);
   }, [onPreviewChange]);
 
@@ -211,6 +215,8 @@ export default function ClinicalContextPanel({
     setPreview(null);
     setSymptoms('');
     setWorkingDiagnosis('');
+    setFastingStatus('UNKNOWN');
+    setPregnancyStatus('UNKNOWN');
     setError(null);
     setSaveMessage(null);
     setSaving(false);
@@ -223,7 +229,12 @@ export default function ClinicalContextPanel({
 
   const originalSymptoms = preview?.fields?.symptoms?.value || '';
   const originalDiagnosis = preview?.fields?.workingDiagnosis?.value || '';
-  const isDirty = symptoms !== originalSymptoms || workingDiagnosis !== originalDiagnosis;
+  const originalFastingStatus = preview?.fields?.fastingStatus?.value || 'UNKNOWN';
+  const originalPregnancyStatus = preview?.fields?.pregnancyStatus?.value || 'UNKNOWN';
+  const isDirty = symptoms !== originalSymptoms
+    || workingDiagnosis !== originalDiagnosis
+    || fastingStatus !== originalFastingStatus
+    || pregnancyStatus !== originalPregnancyStatus;
   const canSave = canManage
     && isDirty
     && symptoms.trim().length > 0
@@ -239,6 +250,9 @@ export default function ClinicalContextPanel({
     ).length,
     [preview],
   );
+  const safetyContextReady = ['CONFIRMED', 'NOT_FASTING'].includes(fastingStatus)
+    && ['PREGNANT', 'NOT_PREGNANT'].includes(pregnancyStatus);
+  const contextReady = Boolean(preview?.ready && safetyContextReady);
 
   const save = async (event) => {
     event.preventDefault();
@@ -253,6 +267,8 @@ export default function ClinicalContextPanel({
       const next = await aiClinicalContextApi.update(requestAppointmentId, {
         symptoms: symptoms.trim(),
         workingDiagnosis: workingDiagnosis.trim() || null,
+        fastingStatus,
+        pregnancyStatus,
         expectedContextVersion: preview.contextVersion,
       });
       if (appointmentRef.current !== requestAppointmentId
@@ -318,9 +334,9 @@ export default function ClinicalContextPanel({
           </p>
         </div>
         <span className={`clinical-context-panel__readiness ${
-          preview?.ready ? 'clinical-context-panel__readiness--ready' : ''
+          contextReady ? 'clinical-context-panel__readiness--ready' : ''
         }`}>
-          {preview?.ready ? 'Ready' : 'Needs review'}
+          {contextReady ? 'Ready' : 'Needs review'}
         </span>
       </header>
 
@@ -366,6 +382,52 @@ export default function ClinicalContextPanel({
             onChange={(event) => setWorkingDiagnosis(event.target.value)}
           />
           <div className="form-text">Optional. This remains a doctor-authored working diagnosis.</div>
+        </div>
+
+        <div className="clinical-context-editor__safety" aria-label="Clinical safety context">
+          <div className="clinical-context-editor__field">
+            <label
+              className="form-label fw-semibold"
+              htmlFor={`clinical-context-fasting-${appointmentId}`}
+            >
+              Fasting status
+            </label>
+            <select
+              id={`clinical-context-fasting-${appointmentId}`}
+              aria-label="Fasting status"
+              className="form-select"
+              value={fastingStatus}
+              disabled={!canManage || saving}
+              onChange={(event) => setFastingStatus(event.target.value)}
+            >
+              <option value="UNKNOWN">Not confirmed</option>
+              <option value="CONFIRMED">Confirmed fasting</option>
+              <option value="NOT_FASTING">Not fasting</option>
+            </select>
+            <div className="form-text">Required when interpreting fasting-sensitive laboratory rules.</div>
+          </div>
+
+          <div className="clinical-context-editor__field">
+            <label
+              className="form-label fw-semibold"
+              htmlFor={`clinical-context-pregnancy-${appointmentId}`}
+            >
+              Pregnancy status
+            </label>
+            <select
+              id={`clinical-context-pregnancy-${appointmentId}`}
+              aria-label="Pregnancy status"
+              className="form-select"
+              value={pregnancyStatus}
+              disabled={!canManage || saving}
+              onChange={(event) => setPregnancyStatus(event.target.value)}
+            >
+              <option value="UNKNOWN">Not confirmed</option>
+              <option value="NOT_PREGNANT">Not pregnant</option>
+              <option value="PREGNANT">Pregnant</option>
+            </select>
+            <div className="form-text">Doctor-confirmed safety context used by deterministic rules.</div>
+          </div>
         </div>
 
         {hasExistingSuggestion && isDirty ? (

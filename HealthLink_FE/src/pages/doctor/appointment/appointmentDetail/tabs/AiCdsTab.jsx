@@ -28,9 +28,24 @@ const TERMINAL_STATUSES = new Set([
   'SUPERSEDED',
 ]);
 
+function reconcileCreatedRunStatus(createdRun, bufferedEvent) {
+  const createdStatus = createdRun?.status || null;
+  const bufferedStatus = bufferedEvent?.status || null;
+  if (TERMINAL_STATUSES.has(createdStatus)) return createdStatus;
+  if (TERMINAL_STATUSES.has(bufferedStatus)) return bufferedStatus;
+  return bufferedStatus || createdStatus || 'NEEDS_DOCTOR_REVIEW';
+}
+
 function labReportIds(preview) {
   const value = preview?.fields?.verifiedLabReportIds?.value;
   return Array.isArray(value) ? value.filter(Boolean) : [];
+}
+
+function safetyContextReady(preview) {
+  const fastingStatus = String(preview?.fields?.fastingStatus?.value || '').toUpperCase();
+  const pregnancyStatus = String(preview?.fields?.pregnancyStatus?.value || '').toUpperCase();
+  return ['CONFIRMED', 'NOT_FASTING'].includes(fastingStatus)
+    && ['PREGNANT', 'NOT_PREGNANT'].includes(pregnancyStatus);
 }
 
 function requestErrorMessage(error) {
@@ -194,6 +209,7 @@ export default function AiCdsTab({
   const verifiedLabReportIds = useMemo(() => labReportIds(preview), [preview]);
   const canGenerate = effectiveCanManage
     && Boolean(preview?.ready)
+    && safetyContextReady(preview)
     && Boolean(preview?.contextVersion !== undefined)
     && !isGenerating;
   const suggestionGenerationStatus = useMemo(() => (
@@ -258,16 +274,10 @@ export default function AiCdsTab({
       knownRunIdsRef.current.add(createdRun.runId);
       const bufferedEvent = bufferedRunEventsRef.current.get(createdRun.runId);
       bufferedRunEventsRef.current.clear();
-      if (bufferedEvent) {
-        setGenerationStatus(bufferedEvent.status);
-        if (TERMINAL_STATUSES.has(bufferedEvent.status)) {
-          lastTerminalStatusRef.current.set(createdRun.runId, bufferedEvent.status);
-          setRefreshKey((current) => current + 1);
-          void loadSuggestionSummary();
-        }
-      } else {
-        setGenerationStatus(createdRun.status || 'NEEDS_DOCTOR_REVIEW');
-        lastTerminalStatusRef.current.set(createdRun.runId, createdRun.status || 'NEEDS_DOCTOR_REVIEW');
+      const reconciledStatus = reconcileCreatedRunStatus(createdRun, bufferedEvent);
+      setGenerationStatus(reconciledStatus);
+      if (TERMINAL_STATUSES.has(reconciledStatus)) {
+        lastTerminalStatusRef.current.set(createdRun.runId, reconciledStatus);
         setRefreshKey((current) => current + 1);
         void loadSuggestionSummary();
       }
@@ -460,6 +470,11 @@ export default function AiCdsTab({
               {!preview?.ready ? (
                 <p className="ai-cds-generation__helper">
                   Resolve the readiness checks above before generation.
+                </p>
+              ) : null}
+              {preview?.ready && !safetyContextReady(preview) ? (
+                <p className="ai-cds-generation__helper">
+                  Confirm fasting and pregnancy status before generation.
                 </p>
               ) : null}
               {!effectiveCanManage ? (

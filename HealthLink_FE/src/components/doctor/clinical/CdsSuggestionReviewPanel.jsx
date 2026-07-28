@@ -803,7 +803,7 @@ export default function CdsSuggestionReviewPanel({
           Approved guideline evidence was limited. Review the deterministic findings and citations carefully.
         </div>
       )}
-      {rulesBlocked && (
+      {rulesBlocked && output && (
         <div className="cds-review__notice cds-review__notice--error">
           Clinical rules blocked approval. Resolve the blocking findings and regenerate.
         </div>
@@ -852,6 +852,14 @@ export default function CdsSuggestionReviewPanel({
               />
             ))}
           </div>
+        </div>
+      ) : rulesBlocked ? (
+        <div className="cds-review cds-review--state cds-review--error" role="alert">
+          <strong>Clinical rules stopped this run before model generation.</strong>
+          <p>
+            Return to Clinical context, confirm the fasting and pregnancy safety fields,
+            then regenerate.
+          </p>
         </div>
       ) : (
         <div className="cds-review__notice cds-review__notice--error">

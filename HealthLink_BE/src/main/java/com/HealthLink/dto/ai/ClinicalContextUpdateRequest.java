@@ -12,6 +12,6 @@ public record ClinicalContextUpdateRequest(
         @Size(max = 32) String pregnancyStatus,
         @Min(0) Long expectedContextVersion) {
     public ClinicalContextUpdateRequest(String symptoms, String workingDiagnosis, Long expectedContextVersion) {
-        this(symptoms, workingDiagnosis, "UNKNOWN", "UNKNOWN", expectedContextVersion);
+        this(symptoms, workingDiagnosis, null, null, expectedContextVersion);
     }
 }

@@ -697,9 +697,15 @@ describe('CdsSuggestionReviewPanel', () => {
     warning.unmount();
 
     const blocked = arrange({
-      suggestions: [{ ...latestSuggestion, status: 'RULES_BLOCKED', errorCode: 'RULES_BLOCKED' }],
+      suggestions: [{
+        ...latestSuggestion,
+        status: 'RULES_BLOCKED',
+        errorCode: 'RULES_BLOCKED',
+        validatedOutputJson: null,
+      }],
     });
-    expect(await screen.findByText(/clinical rules blocked approval/i)).toBeInTheDocument();
+    expect(await screen.findByText(/clinical rules stopped this run before model generation/i)).toBeInTheDocument();
+    expect(screen.queryByText(/does not contain a validated suggestion report/i)).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: /approve as is/i })).toBeDisabled();
     blocked.unmount();
 
