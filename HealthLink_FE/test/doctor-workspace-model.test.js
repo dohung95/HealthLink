@@ -17,6 +17,16 @@ test('doctor consultation workspace includes the prescription tab', () => {
   );
 });
 
+test('AI CDS appears immediately after clinical results in the doctor workspace', () => {
+  const clinicalResultsIndex = DOCTOR_WORKSPACE_TABS.findIndex(
+    (tab) => tab.id === 'clinical-results',
+  );
+
+  assert.notEqual(clinicalResultsIndex, -1);
+  assert.equal(DOCTOR_WORKSPACE_TABS[clinicalResultsIndex + 1]?.id, 'ai-cds');
+  assert.equal(DOCTOR_WORKSPACE_TABS[clinicalResultsIndex + 1]?.label, 'AI CDS');
+});
+
 test('server refresh for the same appointment does not overwrite a dirty notes draft', () => {
   const initial = createConsultationNotesState(101, {
     diagnosis: 'Initial diagnosis',

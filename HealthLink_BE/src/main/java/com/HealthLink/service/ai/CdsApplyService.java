@@ -9,6 +9,7 @@ import com.HealthLink.exception.BadRequestException;
 import com.HealthLink.exception.CdsDecisionConflictException;
 import com.HealthLink.exception.ResourceNotFoundException;
 import com.HealthLink.exception.StaleCdsDecisionVersionException;
+import com.HealthLink.exception.StaleClinicalContextVersionException;
 import com.HealthLink.repository.ai.CdsDecisionRepository;
 import com.HealthLink.service.healthrecord.DoctorClinicalResultService;
 import com.HealthLink.utility.DoctorSecurityUtils;
@@ -29,16 +30,19 @@ public class CdsApplyService {
     private final CdsAuditTrailService audit;
     private final CdsApplyFailureRecorder failureRecorder;
     private final ObjectMapper mapper;
+    private final ClinicalContextService clinicalContext;
 
     public CdsApplyService(CdsDecisionRepository decisions, DoctorSecurityUtils security,
                            DoctorClinicalResultService clinicalResults, CdsAuditTrailService audit,
-                           CdsApplyFailureRecorder failureRecorder, ObjectMapper mapper) {
+                           CdsApplyFailureRecorder failureRecorder, ObjectMapper mapper,
+                           ClinicalContextService clinicalContext) {
         this.decisions = decisions;
         this.security = security;
         this.clinicalResults = clinicalResults;
         this.audit = audit;
         this.failureRecorder = failureRecorder;
         this.mapper = mapper.copy().enable(SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS);
+        this.clinicalContext = clinicalContext;
     }
 
     @Transactional
@@ -50,6 +54,10 @@ public class CdsApplyService {
         if ("APPLIED".equals(decision.getApplyStatus())
                 && idempotencyKey.equals(decision.getApplyIdempotencyKey())) {
             return CdsDecisionService.response(decision);
+        }
+        if (!"APPLIED".equals(decision.getApplyStatus())
+                && !clinicalContext.isSnapshotCurrent(decision.getRun().getSnapshot())) {
+            throw new StaleClinicalContextVersionException();
         }
         requireRequest(request);
         if (decision.getVersion() != request.expectedDecisionVersion()) {

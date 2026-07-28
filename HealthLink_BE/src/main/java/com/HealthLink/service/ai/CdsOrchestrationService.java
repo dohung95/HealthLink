@@ -36,6 +36,7 @@ public class CdsOrchestrationService {
     private ClinicalRuleEngine rules;
     private RagWorkerClient rag;
     private AppointmentRepository appointments;
+    private ClinicalContextService clinicalContext;
     private CdsRunStatusPublisher statusPublisher = (doctorUserId, event) -> { };
     private final ObjectMapper mapper = new ObjectMapper();
     public CdsOrchestrationService(ClinicalContextSnapshotRepository snapshots, CdsSuggestionRunRepository runs, DoctorSecurityUtils doctorSecurity,
@@ -49,15 +50,23 @@ public class CdsOrchestrationService {
         this(snapshots, runs, doctorSecurity, worker, deidentification, validator);
         this.statusPublisher = statusPublisher;
     }
+    public CdsOrchestrationService(ClinicalContextSnapshotRepository snapshots, CdsSuggestionRunRepository runs,
+                                   DoctorSecurityUtils doctorSecurity, CdsWorkerClient worker,
+                                   ClinicalDeidentificationService deidentification, CdsSuggestionValidator validator,
+                                   ClinicalContextService clinicalContext) {
+        this(snapshots, runs, doctorSecurity, worker, deidentification, validator);
+        this.clinicalContext = clinicalContext;
+    }
     @Autowired
     public CdsOrchestrationService(ClinicalContextSnapshotRepository snapshots, CdsSuggestionRunRepository runs, DoctorSecurityUtils doctorSecurity,
                                    CdsWorkerClient worker, ClinicalDeidentificationService deidentification, CdsSuggestionValidator validator,
                                    LabObservationRepository observations, LabNormalizationService normalization, ClinicalRuleEngine rules,
                                    RagWorkerClient rag, AppointmentRepository appointments,
-                                   CdsRunStatusPublisher statusPublisher) {
+                                   CdsRunStatusPublisher statusPublisher, ClinicalContextService clinicalContext) {
         this(snapshots, runs, doctorSecurity, worker, deidentification, validator, statusPublisher);
         this.observations = observations; this.normalization = normalization; this.rules = rules; this.rag = rag;
         this.appointments = appointments;
+        this.clinicalContext = clinicalContext;
     }
     @Transactional
     public CdsSuggestionResponse create(Integer appointmentId, CdsSuggestionCreateRequest request) {
@@ -207,7 +216,10 @@ public class CdsOrchestrationService {
         return run;
     }
     private CdsSuggestionDetailResponse detailResponse(CdsSuggestionRun run) {
-        return new CdsSuggestionDetailResponse(run.getRunId(), run.getSnapshot().getSnapshotId(), run.getStatus(), run.getErrorCode(),
+        var snapshot = run.getSnapshot();
+        boolean contextCurrent = clinicalContext != null && clinicalContext.isSnapshotCurrent(snapshot);
+        return new CdsSuggestionDetailResponse(run.getRunId(), snapshot.getSnapshotId(),
+                snapshot.getContextVersion(), contextCurrent, run.getStatus(), run.getErrorCode(),
                 run.getRuleSetVersion(), run.getCorpusVersion(), run.getPromptVersion(), run.getModelName(), run.getModelDigest(),
                 run.getValidatedOutputJson(), run.getCreatedAt());
     }

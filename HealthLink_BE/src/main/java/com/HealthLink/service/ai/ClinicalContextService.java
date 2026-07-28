@@ -114,6 +114,22 @@ public class ClinicalContextService {
         return new ClinicalContextSnapshotResponse(snapshot.getSnapshotId(), sha256, createdAt, required, provenance);
     }
 
+    @Transactional(readOnly = true)
+    public boolean isSnapshotCurrent(ClinicalContextSnapshot snapshot) {
+        if (snapshot == null || snapshot.getAppointment() == null || snapshot.getSha256() == null) {
+            return false;
+        }
+        Appointment appointment = snapshot.getAppointment();
+        Integer appointmentId = appointment.getAppointmentId();
+        EncounterClinicalContext context = contexts.findByAppointment_AppointmentId(appointmentId).orElse(null);
+        ClinicalContextPreviewResponse currentPreview = preview(appointment, context);
+        List<UUID> allVerifiedReportIds = verifiedReports(appointmentId).stream()
+                .map(LabReport::getReportId)
+                .toList();
+        String currentSha256 = sha256(canonicalJson(currentPreview, allVerifiedReportIds));
+        return snapshot.getSha256().equals(currentSha256);
+    }
+
     private ClinicalContextPreviewResponse preview(Appointment appointment, EncounterClinicalContext context) {
         Patient patient = appointment.getPatient();
         VitalSign vital = vitals.findTopByAppointment_AppointmentIdOrderByMeasuredAtDesc(appointment.getAppointmentId()).orElse(null);

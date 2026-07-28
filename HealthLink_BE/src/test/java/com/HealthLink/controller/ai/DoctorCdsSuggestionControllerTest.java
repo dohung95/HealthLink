@@ -58,7 +58,7 @@ class DoctorCdsSuggestionControllerTest {
         CdsDecisionService decisionService = mock(CdsDecisionService.class);
         CdsApplyService applyService = mock(CdsApplyService.class);
         CdsSuggestionDetailResponse detail = new CdsSuggestionDetailResponse(runId, UUID.randomUUID(),
-                "NEEDS_DOCTOR_REVIEW", null, "rules-v1", "corpus-v1", "cds-prompt-v1",
+                2L, true, "NEEDS_DOCTOR_REVIEW", null, "rules-v1", "corpus-v1", "cds-prompt-v1",
                 "qwen-demo", "a".repeat(64), "{}", Instant.now());
         when(service.list(7)).thenReturn(List.of(detail));
         when(service.detail(runId)).thenReturn(detail);

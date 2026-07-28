@@ -9,6 +9,7 @@ import com.HealthLink.exception.BadRequestException;
 import com.HealthLink.exception.CdsDecisionConflictException;
 import com.HealthLink.exception.ResourceNotFoundException;
 import com.HealthLink.exception.StaleCdsDecisionVersionException;
+import com.HealthLink.exception.StaleClinicalContextVersionException;
 import com.HealthLink.repository.ai.CdsDecisionRepository;
 import com.HealthLink.repository.ai.CdsSuggestionRunRepository;
 import com.HealthLink.utility.DoctorSecurityUtils;
@@ -39,21 +40,26 @@ public class CdsDecisionService {
     private final DoctorSecurityUtils security;
     private final CdsAuditTrailService audit;
     private final ObjectMapper mapper;
+    private final ClinicalContextService clinicalContext;
 
     public CdsDecisionService(CdsSuggestionRunRepository runs, CdsDecisionRepository decisions,
                               DoctorSecurityUtils security, CdsAuditTrailService audit,
-                              ObjectMapper mapper) {
+                              ObjectMapper mapper, ClinicalContextService clinicalContext) {
         this.runs = runs;
         this.decisions = decisions;
         this.security = security;
         this.audit = audit;
         this.mapper = mapper.copy().enable(SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS);
+        this.clinicalContext = clinicalContext;
     }
 
     @Transactional
     public CdsDecisionResponse submit(UUID runId, SubmitCdsDecisionRequest request) {
         requireRequest(request);
         CdsSuggestionRun run = authorizedRunForDecision(runId);
+        if (!clinicalContext.isSnapshotCurrent(run.getSnapshot())) {
+            throw new StaleClinicalContextVersionException();
+        }
         if (!"NEEDS_DOCTOR_REVIEW".equals(run.getStatus())) {
             throw new BadRequestException("CDS suggestion is not awaiting Doctor review");
         }

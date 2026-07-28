@@ -106,6 +106,10 @@ class WebSocketService {
     };
   }
 
+  subscribeToCdsRuns(callback) {
+    return this.subscribe('/user/queue/ai-cds', callback);
+  }
+
   dispatchNotificationForTesting(notification) {
     if (!import.meta.env.DEV) return;
     const normalized = normalizeNotification(notification);

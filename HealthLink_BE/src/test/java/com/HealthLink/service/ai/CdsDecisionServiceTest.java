@@ -8,11 +8,13 @@ import com.HealthLink.entity.ai.CdsSuggestionRun;
 import com.HealthLink.entity.ai.ClinicalContextSnapshot;
 import com.HealthLink.exception.BadRequestException;
 import com.HealthLink.exception.CdsDecisionConflictException;
+import com.HealthLink.exception.StaleClinicalContextVersionException;
 import com.HealthLink.repository.ai.CdsDecisionRepository;
 import com.HealthLink.repository.ai.CdsSuggestionRunRepository;
 import com.HealthLink.utility.DoctorSecurityUtils;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.BeforeEach;
 
 import java.time.Instant;
 import java.util.LinkedHashMap;
@@ -29,8 +31,14 @@ class CdsDecisionServiceTest {
     private final CdsDecisionRepository decisions = mock(CdsDecisionRepository.class);
     private final DoctorSecurityUtils security = mock(DoctorSecurityUtils.class);
     private final CdsAuditTrailService audit = mock(CdsAuditTrailService.class);
-    private final CdsDecisionService service =
-            new CdsDecisionService(runs, decisions, security, audit, new ObjectMapper());
+    private final ClinicalContextService contexts = mock(ClinicalContextService.class);
+    private CdsDecisionService service;
+
+    @BeforeEach
+    void setUp() {
+        when(contexts.isSnapshotCurrent(any())).thenReturn(true);
+        service = new CdsDecisionService(runs, decisions, security, audit, new ObjectMapper(), contexts);
+    }
 
     @Test
     void approveAsIsStoresDoctorDecisionWithoutChangingModelOutput() {
@@ -91,6 +99,19 @@ class CdsDecisionServiceTest {
                 new SubmitCdsDecisionRequest("APPROVED_AS_IS", null, null, 2L)));
         assertThrows(com.HealthLink.exception.StaleCdsDecisionVersionException.class, () -> service.submit(run.getRunId(),
                 new SubmitCdsDecisionRequest("APPROVED_AS_IS", null, null, 1L)));
+    }
+
+    @Test
+    void rejectsDecisionWhenItsClinicalContextSnapshotIsNoLongerCurrent() {
+        CdsSuggestionRun run = run();
+        when(runs.findByIdForDecision(run.getRunId())).thenReturn(Optional.of(run));
+        when(contexts.isSnapshotCurrent(run.getSnapshot())).thenReturn(false);
+
+        assertThrows(StaleClinicalContextVersionException.class, () -> service.submit(run.getRunId(),
+                new SubmitCdsDecisionRequest("APPROVED_AS_IS", null, null, 0L)));
+
+        verify(decisions, never()).saveAndFlush(any());
+        verify(audit, never()).append(any(), any(), anyString(), anyMap());
     }
 
     private CdsSuggestionRun run() {

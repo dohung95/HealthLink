@@ -18,6 +18,7 @@ import PrescriptionTab from './tabs/PrescriptionTab';
 import SharedRecordsTab from './tabs/SharedRecordsTab';
 import FollowUpTab from './tabs/FollowUpTab';
 import ClinicalResultsTab from './tabs/ClinicalResultsTab';
+import AiCdsTab from './tabs/AiCdsTab';
 import EmptyState from '@components/doctor/EmptyState';
 import ActionBar from '@components/doctor/ActionBar';
 import CompleteConfirmModal from '@components/doctor/CompleteConfirmModal';
@@ -33,6 +34,17 @@ const DoctorAppointmentDetail = memo(({ appointment, patient, doctorId, activeMi
       void ctx.handleSaveNotes();
     }
     ctx.setActiveTab(nextTab);
+  };
+
+  const handleAiCdsNavigation = (target) => {
+    if (target === 'patient-summary') {
+      document.querySelector('.patient-sidebar')?.scrollIntoView({
+        behavior: 'smooth',
+        block: 'start',
+      });
+      return;
+    }
+    handleTabChange(target);
   };
 
   const getRowTimings = (row) => {
@@ -199,6 +211,15 @@ const DoctorAppointmentDetail = memo(({ appointment, patient, doctorId, activeMi
                       patientId={ctx.patientId}
                       canManageClinicalResults={ctx.canManageClinicalResults}
                       isCancelledAppointment={ctx.isCancelledAppointment}
+                    />
+                  ) : null}
+                  {ctx.activeTab === 'ai-cds' ? (
+                    <AiCdsTab
+                      appointmentId={ctx.currentAppointment?.appointmentId}
+                      patientId={ctx.patientId}
+                      canManage={ctx.canManageClinicalResults}
+                      isCancelledAppointment={ctx.isCancelledAppointment}
+                      onNavigateTab={handleAiCdsNavigation}
                     />
                   ) : null}
 

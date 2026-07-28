@@ -193,6 +193,33 @@ class CdsOrchestrationServiceTest {
     }
 
     @Test
+    void detailIncludesSnapshotVersionAndCurrentCanonicalContextState() {
+        UUID runId = UUID.randomUUID();
+        Appointment appointment = Appointment.builder().appointmentId(7)
+                .doctor(Doctor.builder().doctorId("doctor-demo").build()).build();
+        ClinicalContextSnapshot snapshot = ClinicalContextSnapshot.builder().snapshotId(UUID.randomUUID())
+                .appointment(appointment).contextVersion(4).canonicalJson("{}").sha256("a".repeat(64))
+                .createdByDoctor(appointment.getDoctor()).createdAt(Instant.now()).labReports(List.of()).build();
+        CdsSuggestionRun run = CdsSuggestionRun.builder().runId(runId).snapshot(snapshot)
+                .status("NEEDS_DOCTOR_REVIEW").ruleSetVersion("rules-v1").corpusVersion("corpus-v1")
+                .promptVersion("cds-prompt-v1").modelName("qwen-demo").modelDigest("b".repeat(64))
+                .createdAt(Instant.now()).build();
+        CdsSuggestionRunRepository runs = mock(CdsSuggestionRunRepository.class);
+        ClinicalContextService contexts = mock(ClinicalContextService.class);
+        when(runs.findById(runId)).thenReturn(Optional.of(run));
+        when(contexts.isSnapshotCurrent(snapshot)).thenReturn(false);
+        CdsOrchestrationService service = new CdsOrchestrationService(
+                mock(ClinicalContextSnapshotRepository.class), runs, mock(DoctorSecurityUtils.class),
+                mock(CdsWorkerClient.class), new ClinicalDeidentificationService(),
+                new CdsSuggestionValidator(), contexts);
+
+        var response = service.detail(runId);
+
+        assertThat(response.snapshotContextVersion()).isEqualTo(4L);
+        assertThat(response.contextCurrent()).isFalse();
+    }
+
+    @Test
     void publishesAuditableLifecycleAndSupersedesOlderUnapprovedRun() {
         UUID snapshotId = UUID.randomUUID();
         User doctorUser = User.builder().id("doctor-user-demo").build();

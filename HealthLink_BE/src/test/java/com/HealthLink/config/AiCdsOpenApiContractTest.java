@@ -22,11 +22,19 @@ class AiCdsOpenApiContractTest {
 
     @Test
     void documentsDoctorDecisionApplyAndAuditRoutes() throws Exception {
-        JsonNode paths = objectMapper.readTree(mvc.perform(get("/v3/api-docs"))
-                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString()).path("paths");
+        JsonNode document = objectMapper.readTree(mvc.perform(get("/v3/api-docs"))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
+        JsonNode paths = document.path("paths");
 
         assertThat(paths.at("/~1api~1doctor~1cds-suggestions~1{runId}~1decision/post").isMissingNode()).isFalse();
         assertThat(paths.at("/~1api~1doctor~1cds-suggestions~1{runId}~1apply/post").isMissingNode()).isFalse();
         assertThat(paths.at("/~1api~1doctor~1cds-suggestions~1{runId}~1audit/get").isMissingNode()).isFalse();
+        assertThat(paths.at("/~1api~1doctor~1cds-suggestions~1{runId}~1decision/post/responses/409")
+                .isMissingNode()).isFalse();
+        assertThat(paths.at("/~1api~1doctor~1cds-suggestions~1{runId}~1apply/post/responses/409")
+                .isMissingNode()).isFalse();
+        JsonNode detailSchema = document.at("/components/schemas/CdsSuggestionDetailResponse/properties");
+        assertThat(detailSchema.path("snapshotContextVersion").path("type").asText()).isEqualTo("integer");
+        assertThat(detailSchema.path("contextCurrent").path("type").asText()).isEqualTo("boolean");
     }
 }

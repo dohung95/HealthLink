@@ -6,8 +6,21 @@ function idempotencyKey() {
 }
 
 export const aiCdsApi = {
+  createSuggestion: async (appointmentId, payload) => (
+    await axiosInstance.post(
+      `/api/doctor/appointments/${appointmentId}/cds-suggestions`,
+      payload,
+    )
+  ).data,
+
   listSuggestions: async (appointmentId) => (
     await axiosInstance.get(`/api/doctor/appointments/${appointmentId}/cds-suggestions`)
+  ).data,
+
+  getSuggestion: async (appointmentId, runId) => (
+    await axiosInstance.get(
+      `/api/doctor/appointments/${appointmentId}/cds-suggestions/${runId}`,
+    )
   ).data,
 
   getDecision: async (runId) => {

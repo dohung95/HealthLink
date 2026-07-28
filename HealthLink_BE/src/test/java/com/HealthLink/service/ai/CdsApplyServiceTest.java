@@ -8,11 +8,13 @@ import com.HealthLink.entity.Doctor;
 import com.HealthLink.entity.ai.CdsDecision;
 import com.HealthLink.entity.ai.CdsSuggestionRun;
 import com.HealthLink.entity.ai.ClinicalContextSnapshot;
+import com.HealthLink.exception.StaleClinicalContextVersionException;
 import com.HealthLink.repository.ai.CdsDecisionRepository;
 import com.HealthLink.service.healthrecord.DoctorClinicalResultService;
 import com.HealthLink.utility.DoctorSecurityUtils;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.BeforeEach;
 import org.mockito.ArgumentCaptor;
 
 import java.time.Instant;
@@ -30,8 +32,15 @@ class CdsApplyServiceTest {
     private final DoctorClinicalResultService clinicalResults = mock(DoctorClinicalResultService.class);
     private final CdsAuditTrailService audit = mock(CdsAuditTrailService.class);
     private final CdsApplyFailureRecorder failureRecorder = mock(CdsApplyFailureRecorder.class);
-    private final CdsApplyService service = new CdsApplyService(
-            decisions, security, clinicalResults, audit, failureRecorder, new ObjectMapper());
+    private final ClinicalContextService contexts = mock(ClinicalContextService.class);
+    private CdsApplyService service;
+
+    @BeforeEach
+    void setUp() {
+        when(contexts.isSnapshotCurrent(any())).thenReturn(true);
+        service = new CdsApplyService(
+                decisions, security, clinicalResults, audit, failureRecorder, new ObjectMapper(), contexts);
+    }
 
     @Test
     void explicitApplyCreatesDraftFromSelectedApprovedSectionsAndIsIdempotent() {
@@ -44,6 +53,7 @@ class CdsApplyServiceTest {
         ApplyCdsDecisionRequest request = new ApplyCdsDecisionRequest(
                 List.of("clinicalSummary"), null, true, 0L);
         var first = service.apply(decision.getRun().getRunId(), "apply-key-01", request);
+        when(contexts.isSnapshotCurrent(decision.getRun().getSnapshot())).thenReturn(false);
         var replay = service.apply(decision.getRun().getRunId(), "apply-key-01", request);
 
         assertEquals("APPLIED", first.applyStatus());
@@ -76,6 +86,21 @@ class CdsApplyServiceTest {
         assertNotEquals(response.beforeHash(), response.afterHash());
         verify(clinicalResults).updateResult(eq(17), eq("doctor-01"), any());
         verify(clinicalResults, never()).publishResult(anyInt(), anyString());
+    }
+
+    @Test
+    void rejectsNotAppliedApprovalWhenItsClinicalContextSnapshotIsNoLongerCurrent() {
+        CdsDecision decision = approvedDecision();
+        when(decisions.findByRun_RunId(decision.getRun().getRunId())).thenReturn(Optional.of(decision));
+        when(contexts.isSnapshotCurrent(decision.getRun().getSnapshot())).thenReturn(false);
+
+        assertThrows(StaleClinicalContextVersionException.class, () -> service.apply(
+                decision.getRun().getRunId(), "apply-stale-key",
+                new ApplyCdsDecisionRequest(List.of("clinicalSummary"), null, true, 0L)));
+
+        verify(clinicalResults, never()).createResult(anyInt(), anyString(), any());
+        verify(decisions, never()).saveAndFlush(any());
+        verify(audit, never()).append(any(), any(), anyString(), anyMap());
     }
 
     @Test

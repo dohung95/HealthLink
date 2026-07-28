@@ -107,6 +107,56 @@ class ClinicalContextServiceTest {
         assertThat(response.createdAt().toString()).endsWith("Z");
     }
 
+    @Test
+    void snapshotFreshnessRebuildsEveryCanonicalSourceAndRequiresAllVerifiedReports() {
+        Appointment appointment = appointment(7);
+        Patient patient = appointment.getPatient();
+        patient.setGender("Female");
+        patient.setDateOfBirth(LocalDateTime.of(1990, 1, 1, 0, 0));
+        patient.setAllergies("synthetic allergy A");
+        VitalSign vital = VitalSign.builder().vitalSignId(44).appointment(appointment).patient(patient)
+                .heartRate(72).measuredAt(LocalDateTime.of(2026, 7, 22, 8, 50)).build();
+        LabReport firstReport = LabReport.builder().reportId(UUID.randomUUID()).appointment(appointment)
+                .status(LabReport.VERIFIED).build();
+        LabReport secondReport = LabReport.builder().reportId(UUID.randomUUID()).appointment(appointment)
+                .status(LabReport.VERIFIED).build();
+        var context = com.HealthLink.entity.ai.EncounterClinicalContext.builder()
+                .appointment(appointment).rowVersion(2).doctorSymptoms("synthetic symptoms").build();
+        AppointmentRepository appointments = mock(AppointmentRepository.class);
+        VitalSignRepository vitals = mock(VitalSignRepository.class);
+        LabReportRepository reports = mock(LabReportRepository.class);
+        EncounterClinicalContextRepository contexts = mock(EncounterClinicalContextRepository.class);
+        ClinicalContextSnapshotRepository snapshots = mock(ClinicalContextSnapshotRepository.class);
+        when(appointments.findById(7)).thenReturn(Optional.of(appointment));
+        when(vitals.findTopByAppointment_AppointmentIdOrderByMeasuredAtDesc(7)).thenReturn(Optional.of(vital));
+        when(reports.findByAppointment_AppointmentIdOrderByUploadedAtDesc(7))
+                .thenReturn(List.of(firstReport, secondReport));
+        when(contexts.findByAppointment_AppointmentId(7)).thenReturn(Optional.of(context));
+        ClinicalContextService service = service(appointments, vitals, reports, contexts, snapshots);
+
+        service.snapshot(7, new ClinicalContextSnapshotRequest(
+                List.of(firstReport.getReportId(), secondReport.getReportId()), 2L));
+        var stored = org.mockito.ArgumentCaptor.forClass(com.HealthLink.entity.ai.ClinicalContextSnapshot.class);
+        verify(snapshots).save(stored.capture());
+        var completeSnapshot = stored.getValue();
+
+        assertThat(service.isSnapshotCurrent(completeSnapshot)).isTrue();
+        context.setDoctorSymptoms("changed synthetic symptoms");
+        assertThat(service.isSnapshotCurrent(completeSnapshot)).isFalse();
+        context.setDoctorSymptoms("synthetic symptoms");
+        patient.setAllergies("changed synthetic allergy");
+        assertThat(service.isSnapshotCurrent(completeSnapshot)).isFalse();
+        patient.setAllergies("synthetic allergy A");
+        vital.setHeartRate(88);
+        assertThat(service.isSnapshotCurrent(completeSnapshot)).isFalse();
+        vital.setHeartRate(72);
+
+        service.snapshot(7, new ClinicalContextSnapshotRequest(List.of(firstReport.getReportId()), 2L));
+        verify(snapshots, times(2)).save(stored.capture());
+        var subsetSnapshot = stored.getAllValues().getLast();
+        assertThat(service.isSnapshotCurrent(subsetSnapshot)).isFalse();
+    }
+
     private static ClinicalContextService service(AppointmentRepository appointments, VitalSignRepository vitals, LabReportRepository reports) {
         return service(appointments, vitals, reports, mock(EncounterClinicalContextRepository.class));
     }

@@ -11,6 +11,7 @@ import com.HealthLink.service.ai.CdsApplyService;
 import com.HealthLink.service.ai.CdsDecisionService;
 import com.HealthLink.service.ai.CdsOrchestrationService;
 import com.HealthLink.config.AiCdsFeatureProperties;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -63,6 +64,8 @@ public class DoctorCdsSuggestionController {
     }
 
     @PostMapping("/cds-suggestions/{runId}/decision")
+    @ApiResponse(responseCode = "409",
+            description = "Clinical context changed; reload and regenerate before submitting a decision")
     public ResponseEntity<CdsDecisionResponse> submitDecision(
             @PathVariable UUID runId,
             @RequestBody SubmitCdsDecisionRequest request) {
@@ -78,6 +81,8 @@ public class DoctorCdsSuggestionController {
     }
 
     @PostMapping("/cds-suggestions/{runId}/apply")
+    @ApiResponse(responseCode = "409",
+            description = "Clinical context changed; reload and regenerate before applying this decision")
     public ResponseEntity<CdsDecisionResponse> apply(
             @PathVariable UUID runId,
             @RequestHeader("Idempotency-Key") String idempotencyKey,

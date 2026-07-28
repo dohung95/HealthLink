@@ -7,4 +7,10 @@ export const aiClinicalContextApi = {
   update: async (appointmentId, payload) => (
     await axiosInstance.put(`/api/doctor/appointments/${appointmentId}/clinical-context`, payload)
   ).data,
+  createSnapshot: async (appointmentId, payload) => (
+    await axiosInstance.post(
+      `/api/doctor/appointments/${appointmentId}/clinical-context/snapshots`,
+      payload,
+    )
+  ).data,
 };
